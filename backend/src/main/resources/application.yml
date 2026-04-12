@@ -27,6 +27,8 @@ instagram:
     base-url: https://graph.instagram.com
     app-id: ${INSTAGRAM_APP_ID:your-app-id}
     app-secret: ${INSTAGRAM_APP_SECRET:your-app-secret}
+  oauth:
+    redirect-uri: ${INSTAGRAM_OAUTH_REDIRECT_URI:http://localhost:8080/api/auth/instagram/callback}
   webhook:
     verify-token: ${INSTAGRAM_WEBHOOK_VERIFY_TOKEN:instabot-webhook-verify-token}
 
