@@ -84,8 +84,8 @@ export default function LandingPage() {
       <nav className={`landing-nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="nav-container">
           <a href="/" className="logo" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
-            <div className="logo-icon"><i className="ri-instagram-line" /></div>
-            <span className="logo-text">인스타봇</span>
+            <div className="logo-icon"><i className="ri-send-plane-fill" /></div>
+            <span className="logo-text">센드잇</span>
           </a>
           <ul className="nav-links">
             <li><a href="#features" onClick={(e) => scrollToSection(e, '#features')}>기능</a></li>
@@ -148,7 +148,7 @@ export default function LandingPage() {
                 <div className="phone-screen">
                   <div className="ig-header">
                     <i className="ri-arrow-left-s-line" />
-                    <div className="ig-user"><div className="ig-avatar-small" /><span>인스타봇</span></div>
+                    <div className="ig-user"><div className="ig-avatar-small" /><span>센드잇</span></div>
                     <i className="ri-phone-line" />
                   </div>
                   <div className="ig-chat">
@@ -387,7 +387,7 @@ export default function LandingPage() {
             <div className="footer-brand">
               <a href="/" className="logo" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
                 <div className="logo-icon"><i className="ri-instagram-line"/></div>
-                <span className="logo-text">인스타봇</span>
+                <span className="logo-text">센드잇</span>
               </a>
               <p>인스타그램 마케팅 자동화의 새로운 기준.<br/>한국 사업자를 위한 최고의 DM 자동화 플랫폼</p>
               <div className="footer-social">
@@ -445,7 +445,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="footer-bottom">
-            <p>&copy; 2026 인스타봇. All rights reserved.</p>
+            <p>&copy; 2026 센드잇. All rights reserved.</p>
             <div className="footer-badges">
               <span><i className="ri-shield-check-line"/> SSL 보안</span>
               <span><i className="ri-instagram-line"/> Instagram API 연동</span>

@@ -1,6 +1,6 @@
 spring:
   application:
-    name: instabot-backend
+    name: sendit-backend
 
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
