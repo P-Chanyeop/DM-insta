@@ -27,6 +27,8 @@ instagram:
     base-url: https://graph.instagram.com
     app-id: ${INSTAGRAM_APP_ID:your-app-id}
     app-secret: ${INSTAGRAM_APP_SECRET:your-app-secret}
+  webhook:
+    verify-token: ${INSTAGRAM_WEBHOOK_VERIFY_TOKEN:instabot-webhook-verify-token}
 
 # CORS
 cors:
