@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { api } from '../api/client'
 import { integrationService } from '../api/services'
 
 const TABS = [
@@ -192,10 +193,10 @@ export default function SettingsPage() {
 
   // Account connection state
   const [connectedAccount, setConnectedAccount] = useState({
-    connected: true,
-    username: '@my_brand_kr',
+    connected: false,
+    username: '',
     type: '비즈니스 계정',
-    followers: 52341,
+    followers: 0,
   })
   const [accountRefreshing, setAccountRefreshing] = useState(false)
 
@@ -246,6 +247,41 @@ export default function SettingsPage() {
     })()
     return () => { mounted = false }
   }, [])
+
+  // Instagram 계정 정보 로드 + OAuth 콜백 처리
+  const fetchInstagramAccount = useCallback(async () => {
+    try {
+      const data = await api.get('/instagram/account')
+      if (data && data.connected) {
+        setConnectedAccount({
+          connected: true,
+          username: '@' + (data.username || ''),
+          type: '비즈니스 계정',
+          followers: data.followersCount || 0,
+        })
+      } else {
+        setConnectedAccount(prev => ({ ...prev, connected: false }))
+      }
+    } catch {
+      // silently fail
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchInstagramAccount()
+
+    // OAuth 콜백 리다이렉트 처리
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('instagram_connected') === 'true') {
+      showToast('인스타그램 계정이 연결되었습니다!')
+      fetchInstagramAccount()
+      // URL에서 쿼리 파라미터 제거
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (params.get('error')) {
+      showToast('인스타그램 연결에 실패했습니다: ' + params.get('error'), 'error')
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [fetchInstagramAccount, showToast])
 
   // Persist notifications to localStorage whenever they change
   useEffect(() => {
@@ -382,15 +418,18 @@ export default function SettingsPage() {
     })
   }
 
-  // Instagram OAuth placeholder
-  const handleInstagramConnect = () => {
-    const oauthUrl = 'https://api.instagram.com/oauth/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=YOUR_REDIRECT_URI&scope=user_profile,user_media&response_type=code'
-    // Check for placeholder values
-    if (oauthUrl.includes('YOUR_CLIENT_ID') || oauthUrl.includes('YOUR_REDIRECT_URI')) {
-      showToast('Instagram OAuth가 아직 설정되지 않았습니다. 관리자에게 문의하거나 .env 파일에서 INSTAGRAM_CLIENT_ID와 REDIRECT_URI를 설정해 주세요.', 'warning')
-      return
+  // Instagram OAuth — 백엔드에서 URL을 동적으로 가져옴
+  const handleInstagramConnect = async () => {
+    try {
+      const data = await api.get('/instagram/oauth-url')
+      if (data && data.url) {
+        window.open(data.url, '_blank', 'width=600,height=700')
+      } else {
+        showToast('OAuth URL을 가져올 수 없습니다.', 'error')
+      }
+    } catch (e) {
+      showToast('Instagram 연결 설정이 완료되지 않았습니다. 관리자에게 문의하세요.', 'warning')
     }
-    window.open(oauthUrl, '_blank', 'width=600,height=700')
   }
 
   const handleInstagramDisconnect = () => {
@@ -399,24 +438,29 @@ export default function SettingsPage() {
       message: '인스타그램 계정 연결을 해제하시겠습니까? 모든 DM 자동화가 중단되며, 진행 중인 캠페인이 중지됩니다.',
       confirmLabel: '연결 해제',
       danger: true,
-      onConfirm: () => {
-        setConnectedAccount((prev) => ({ ...prev, connected: false }))
+      onConfirm: async () => {
+        try {
+          await api.post('/instagram/disconnect')
+          setConnectedAccount((prev) => ({ ...prev, connected: false, username: '', followers: 0 }))
+          showToast('인스타그램 연결이 해제되었습니다.')
+        } catch {
+          showToast('연결 해제에 실패했습니다.', 'error')
+        }
         closeConfirm()
-        showToast('인스타그램 연결이 해제되었습니다.')
       },
     })
   }
 
-  const handleInstagramRefresh = () => {
+  const handleInstagramRefresh = async () => {
     setAccountRefreshing(true)
-    setTimeout(() => {
-      setConnectedAccount((prev) => ({
-        ...prev,
-        followers: prev.followers + Math.floor(Math.random() * 50) + 1,
-      }))
-      setAccountRefreshing(false)
+    try {
+      await fetchInstagramAccount()
       showToast('계정 정보가 새로고침되었습니다.')
-    }, 1200)
+    } catch {
+      showToast('새로고침에 실패했습니다.', 'error')
+    } finally {
+      setAccountRefreshing(false)
+    }
   }
 
   // Plan upgrade

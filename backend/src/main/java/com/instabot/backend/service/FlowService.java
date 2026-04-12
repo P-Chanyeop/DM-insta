@@ -3,6 +3,7 @@ package com.instabot.backend.service;
 import com.instabot.backend.dto.FlowDto;
 import com.instabot.backend.entity.Flow;
 import com.instabot.backend.entity.User;
+import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.FlowRepository;
 import com.instabot.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -58,13 +59,13 @@ public class FlowService {
 
     public FlowDto.Response getFlow(Long id) {
         return toResponse(flowRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("플로우를 찾을 수 없습니다.")));
+                .orElseThrow(() -> new ResourceNotFoundException("플로우를 찾을 수 없습니다.")));
     }
 
     @Transactional
     public FlowDto.Response createFlow(Long userId, FlowDto.CreateRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
         Flow flow = Flow.builder()
                 .user(user)
@@ -79,7 +80,7 @@ public class FlowService {
     @Transactional
     public FlowDto.Response updateFlow(Long id, FlowDto.UpdateRequest request) {
         Flow flow = flowRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("플로우를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("플로우를 찾을 수 없습니다."));
 
         if (request.getName() != null) flow.setName(request.getName());
         if (request.getFlowData() != null) flow.setFlowData(request.getFlowData());
@@ -98,7 +99,7 @@ public class FlowService {
     @Transactional
     public FlowDto.Response toggleFlow(Long id) {
         Flow flow = flowRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("플로우를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("플로우를 찾을 수 없습니다."));
         flow.setActive(!flow.isActive());
         return toResponse(flowRepository.save(flow));
     }

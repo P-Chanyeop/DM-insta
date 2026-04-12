@@ -1,26 +1,12 @@
 spring:
   application:
-    name: instabot-backend
+    name: sendit-backend
 
-  datasource:
-    url: jdbc:h2:mem:instabotdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
 
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-    database-platform: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
 
 server:
   port: 8080
@@ -32,8 +18,8 @@ server:
 
 # JWT
 jwt:
-  secret: instabot-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256
-  expiration: 86400000
+  secret: ${JWT_SECRET:instabot-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
+  expiration: ${JWT_EXPIRATION:86400000}
 
 # Instagram API (placeholder)
 instagram:
@@ -41,7 +27,11 @@ instagram:
     base-url: https://graph.instagram.com
     app-id: ${INSTAGRAM_APP_ID:your-app-id}
     app-secret: ${INSTAGRAM_APP_SECRET:your-app-secret}
+  oauth:
+    redirect-uri: ${INSTAGRAM_OAUTH_REDIRECT_URI:http://localhost:8080/api/auth/instagram/callback}
+  webhook:
+    verify-token: ${INSTAGRAM_WEBHOOK_VERIFY_TOKEN:instabot-webhook-verify-token}
 
 # CORS
 cors:
-  allowed-origins: http://localhost:5173,http://localhost:3000
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}

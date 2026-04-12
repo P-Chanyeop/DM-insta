@@ -1,5 +1,6 @@
 package com.instabot.backend.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -7,7 +8,9 @@ public class AutomationDto {
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor
     public static class CreateRequest {
+        @NotBlank(message = "자동화 이름은 필수입니다")
         private String name;
+        @NotBlank(message = "���동화 타���은 필수입니다")
         private String type;
         private String keyword;
         private String matchType;

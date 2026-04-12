@@ -121,8 +121,8 @@ export default function AuthPage() {
       <div className="auth-page">
         <div className="auth-container">
           <Link to="/" className="auth-logo">
-            <div className="logo-icon"><i className="ri-instagram-line" /></div>
-            <span className="logo-text">인스타봇</span>
+            <div className="logo-icon"><i className="ri-send-plane-fill" /></div>
+            <span className="logo-text">센드잇</span>
           </Link>
 
           <div className="auth-card">
@@ -177,7 +177,7 @@ export default function AuthPage() {
           </div>
 
           <div className="auth-footer">
-            <span>&copy; 2026 인스타봇</span>
+            <span>&copy; 2026 센드잇</span>
             <div className="auth-footer-links">
               <button onClick={() => setModalType('terms')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: 'inherit' }}>이용약관</button>
               <button onClick={() => setModalType('privacy')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: 'inherit' }}>개인정보처리방침</button>
@@ -204,8 +204,8 @@ export default function AuthPage() {
     <div className="auth-page">
       <div className="auth-container">
         <Link to="/" className="auth-logo">
-          <div className="logo-icon"><i className="ri-instagram-line" /></div>
-          <span className="logo-text">인스타봇</span>
+          <div className="logo-icon"><i className="ri-send-plane-fill" /></div>
+          <span className="logo-text">센드잇</span>
         </Link>
 
         <div className="auth-card">
@@ -313,7 +313,7 @@ export default function AuthPage() {
         </div>
 
         <div className="auth-footer">
-          <span>&copy; 2026 인스타봇</span>
+          <span>&copy; 2026 센드잇</span>
           <div className="auth-footer-links">
             <button onClick={() => setModalType('terms')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: 'inherit' }}>이용약관</button>
             <button onClick={() => setModalType('privacy')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: 'inherit' }}>개인정보처리방침</button>
@@ -375,7 +375,7 @@ function LegalModal({ type, onClose }) {
           {isTerms ? (
             <>
               <h3>제1조 (목적)</h3>
-              <p>이 약관은 인스타봇(이하 "회사")이 제공하는 인스타그램 DM 자동화 서비스(이하 "서비스")의 이용에 관한 기본적인 사항을 규정함을 목적으로 합니다.</p>
+              <p>이 약관은 센드잇(이하 "회사")이 제공하는 인스타그램 DM 자동화 서비스(이하 "서비스")의 이용에 관한 기본적인 사항을 규정함을 목적으로 합니다.</p>
 
               <h3>제2조 (정의)</h3>
               <p>"서비스"란 회사가 제공하는 인스타그램 DM 자동 발송, 키워드 자동 응답, 플로우 빌더 등 자동화 관련 서비스 일체를 의미합니다.</p>

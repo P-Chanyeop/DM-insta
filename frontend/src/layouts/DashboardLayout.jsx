@@ -204,8 +204,8 @@ export default function DashboardLayout() {
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <a href="/" className="logo">
-            <div className="logo-icon"><i className="ri-instagram-line" /></div>
-            <span className="logo-text">인스타봇</span>
+            <div className="logo-icon"><i className="ri-send-plane-fill" /></div>
+            <span className="logo-text">센드잇</span>
           </a>
           {/* Mobile close button */}
           <button

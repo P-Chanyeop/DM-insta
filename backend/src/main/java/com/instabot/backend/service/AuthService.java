@@ -2,6 +2,7 @@ package com.instabot.backend.service;
 
 import com.instabot.backend.dto.AuthDto;
 import com.instabot.backend.entity.User;
+import com.instabot.backend.exception.DuplicateEmailException;
 import com.instabot.backend.repository.UserRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -29,7 +30,7 @@ public class AuthService {
 
     public AuthDto.AuthResponse signup(AuthDto.SignupRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("이미 등록된 이메일입니다.");
+            throw new DuplicateEmailException("이미 등록된 이메일입니다.");
         }
 
         User user = User.builder()

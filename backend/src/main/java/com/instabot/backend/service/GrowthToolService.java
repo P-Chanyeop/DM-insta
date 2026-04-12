@@ -3,9 +3,11 @@ package com.instabot.backend.service;
 import com.instabot.backend.dto.GrowthToolDto;
 import com.instabot.backend.entity.GrowthTool;
 import com.instabot.backend.entity.User;
+import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.GrowthToolRepository;
 import com.instabot.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,9 @@ public class GrowthToolService {
     private final GrowthToolRepository growthToolRepository;
     private final UserRepository userRepository;
 
+    @Value("${server.port:8080}")
+    private int serverPort;
+
     public List<GrowthToolDto.Response> getTools(Long userId) {
         return growthToolRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(this::toResponse)
@@ -27,7 +32,7 @@ public class GrowthToolService {
     @Transactional
     public GrowthToolDto.Response createTool(Long userId, GrowthToolDto.CreateRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
         GrowthTool tool = GrowthTool.builder()
                 .user(user)
@@ -37,12 +42,31 @@ public class GrowthToolService {
                 .config(request.getConfig())
                 .build();
 
-        return toResponse(growthToolRepository.save(tool));
+        tool = growthToolRepository.save(tool);
+
+        // Ref Link 타입이면 추적 URL 생성
+        if (tool.getType() == GrowthTool.ToolType.REF_LINK || tool.getType() == GrowthTool.ToolType.QR_CODE) {
+            String trackingUrl = "http://localhost:" + serverPort + "/r/" + tool.getId();
+            tool.setConfig(tool.getConfig() != null
+                    ? tool.getConfig() + ",\"trackingUrl\":\"" + trackingUrl + "\""
+                    : "{\"trackingUrl\":\"" + trackingUrl + "\"}");
+            growthToolRepository.save(tool);
+        }
+
+        return toResponse(tool);
     }
 
     @Transactional
     public void deleteTool(Long id) {
         growthToolRepository.deleteById(id);
+    }
+
+    @Transactional
+    public GrowthToolDto.Response toggleTool(Long id) {
+        GrowthTool tool = growthToolRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("성장 도구를 찾을 수 없습니다."));
+        tool.setActive(!tool.isActive());
+        return toResponse(growthToolRepository.save(tool));
     }
 
     private GrowthToolDto.Response toResponse(GrowthTool t) {

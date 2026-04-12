@@ -5,6 +5,7 @@ import com.instabot.backend.dto.BroadcastDto;
 import com.instabot.backend.service.BroadcastService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,7 +23,7 @@ public class BroadcastController {
     }
 
     @PostMapping
-    public ResponseEntity<BroadcastDto.Response> createBroadcast(@RequestBody BroadcastDto.CreateRequest request) {
+    public ResponseEntity<BroadcastDto.Response> createBroadcast(@Valid @RequestBody BroadcastDto.CreateRequest request) {
         return ResponseEntity.ok(broadcastService.createBroadcast(SecurityUtils.currentUserId(), request));
     }
 
