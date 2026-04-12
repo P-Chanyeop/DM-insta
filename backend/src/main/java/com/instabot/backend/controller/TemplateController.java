@@ -1,6 +1,7 @@
 package com.instabot.backend.controller;
 
 import com.instabot.backend.config.SecurityUtils;
+import com.instabot.backend.dto.FlowDto;
 import com.instabot.backend.dto.TemplateDto;
 import com.instabot.backend.service.TemplateService;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +22,12 @@ public class TemplateController {
         return ResponseEntity.ok(templateService.getTemplates(category));
     }
 
+    /**
+     * 템플릿 "사용하기" → flowData를 복사하여 새 Flow 생성 후 반환
+     */
     @PostMapping("/{id}/use")
-    public ResponseEntity<Void> useTemplate(@PathVariable Long id) {
-        templateService.incrementUsage(id);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<FlowDto.Response> useTemplate(@PathVariable Long id) {
+        Long userId = SecurityUtils.currentUserId();
+        return ResponseEntity.ok(templateService.useTemplate(id, userId));
     }
 }
