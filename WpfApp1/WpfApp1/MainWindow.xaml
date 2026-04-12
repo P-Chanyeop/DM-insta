@@ -1,0 +1,232 @@
+﻿<Window x:Class="WpfApp1.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WpfApp1"
+        mc:Ignorable="d"
+        Background="#EBEDF2"
+        Title="MainWindow" Height="600" Width="800">
+
+
+    <!--제목 및 옵션 패널 -->
+    <StackPanel>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 제목란 그리드 -->
+                    <Grid Grid.Row="0" Grid.Column="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="제목" Margin="30, 15, 0, 0" FontSize="15" FontWeight="DemiBold" Grid.Row="0" Grid.Column="0"></TextBlock>
+                        <TextBox Name="TITLE_INPUT" Width="400" Height="20" Margin="20,16,0,-1" Grid.Row="0" Grid.Column="1"></TextBox>
+                    </Grid>
+
+                    <Grid Grid.Row="1" Grid.Column="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 설정란 그리드 -->
+                        <TextBlock Text="설정" Margin="30, 17, 0, 0" FontSize="15" FontWeight="DemiBold" Grid.Row="0" Grid.Column="0"></TextBlock>
+                        <Button Name="ADD_IMAGE_BUTTON" Foreground="Black" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="#EBEDF2" BorderBrush="#2D3239" Width="100" Height="22" Grid.Row="0" Grid.Column="1" Margin="20,16,0,-1">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="1"
+                                CornerRadius="8">
+                                                    <!-- 여기서 CornerRadius 설정 -->
+                                                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" 
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="사진" VerticalAlignment="Center" Margin="5,0,5,0"/>
+                                <!-- 텍스트 -->
+                                <Image Source="Assets/upload2.png" Width="15" Height="15" VerticalAlignment="Center"/>
+                                <!-- 이미지 -->
+                            </StackPanel>
+                        </Button>
+                        <CheckBox Content="안전결제" FontWeight="DemiBold" FontSize="15" Grid.Column="2" Margin="15,18,0,0" HorizontalAlignment="Left" VerticalContentAlignment="Center" VerticalAlignment="Top" Checked="CheckBox_Checked">
+                            <CheckBox.Template>
+                                <ControlTemplate TargetType="CheckBox">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="20" Height="20" 
+                                               
+                        BorderBrush="Gray" 
+                        Background="{TemplateBinding Background}" 
+                        CornerRadius="5"/>
+                                        <TextBlock Text="{TemplateBinding Content}" 
+                           FontWeight="DemiBold" 
+                           FontSize="15" 
+                           VerticalAlignment="Center" 
+                           Margin="7,0,0,0"/>
+                                    </StackPanel>
+                                </ControlTemplate>
+                            </CheckBox.Template>
+                        </CheckBox>
+                    </Grid>
+
+                    <!-- 메모 및 대표사진 그리드 -->
+                    <StackPanel Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" HorizontalAlignment="Left">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Text="메모" Margin="20, 15, 0, 0" FontSize="15" FontWeight="DemiBold" Grid.Row="0" Grid.Column="0"></TextBlock>
+                            <TextBox Name="MEMO_INPUT" Width="220" Height="20" Margin="20,15,0,0" Grid.Row="0" Grid.Column="1"></TextBox>
+                        </Grid>
+
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Text="대표사진" Margin="20,17,0,-2" FontSize="15" FontWeight="DemiBold" Grid.Row="0" Grid.Column="0"></TextBlock>
+                            <Button Content="등록하기" Width="120" HorizontalContentAlignment="Center" Background="#424853" Foreground="White" Margin="20,14,0,-4" Grid.Column="1" >
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="1"
+                                CornerRadius="8">
+                                                        <!-- 여기서 CornerRadius 설정 -->
+                                                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" 
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <Button Content="보기" HorizontalContentAlignment="Center" Width="50" Background="#424853" Foreground="White" Margin="20,14,0,-4" Grid.Column="2">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="1"
+                                CornerRadius="8">
+                                                        <!-- 여기서 CornerRadius 설정 -->
+                                                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" 
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Grid>
+
+        <Separator Margin="0, 10, 0, 0"></Separator>
+
+        <!-- 텍스트 서식 설정 -->
+        <!--툴바 패널 -->
+        <StackPanel Orientation="Horizontal" Margin="10, 10, 0, 0">
+            <!-- ComboBox for Font Selection -->
+            <ComboBox Name="FontSelect"
+                        ItemsSource="{Binding Fonts}"
+			            SelectedItem="{Binding SelectedFont, Mode=TwoWay}"
+                        FontSize="10"
+			            Width="90" Height="20" 
+			            SelectionChanged="ComboBox_SelectionChanged"
+			            HorizontalAlignment="Left">
+            </ComboBox>
+
+            <!-- Size 옵션 -->
+            <!-- ComboBox for font size selection -->
+            <ComboBox Name="FontSizeSelect" ItemsSource="{Binding FontSizes}" 
+                      SelectedItem="{Binding SelectedFontSize}"
+                      Width="52" Height="20"
+                      SelectionChanged="ComboBox_SelectionChanged2"
+                      Margin="5, 0, 0, 0"/>
+            <WrapPanel Width="125" Margin="5,0,0,0">
+                <Button Name="Bold_TEXT_Button" Width="25">
+                    <Image Source="./Assets/image.ico" Width="15" Height="15"></Image>
+                </Button>
+                <Button Width="25" Name="UNDERLINE_TEXT_BUTTON">
+                    <Image Source="./Assets/image.ico" Width="25" Height="15"></Image>
+                </Button>
+                <Button Width="25" Name="ITALIC_TEXT_BUTTON">
+                    <Image Source="./Assets/image.ico" Width="25" Height="15"></Image>
+                </Button>
+                <Button Width="25" Name="STRIKETHROUGH_TEXT_BUTTON">
+                    <Image Source="./Assets/image.ico" Width="25" Height="15"></Image>
+                </Button>
+                <Button Width="25" Name="TEXT_COLOR_PICK_BUTTON">
+                    <Image Source="./Assets/image.ico" Width="25" Height="15"></Image>
+                </Button>
+            </WrapPanel>
+
+            <WrapPanel Width="75" Margin="5,0,0,0">
+                <Button Width="25" Name="LEFT_ALIGN_TEXT_BUTTON">
+                    <Image Source="./Assets/image.ico" Width="15" Height="15"></Image>
+                </Button>
+                <Button Width="25" Name="CENTER_ALIGN_TEXT_BUTTON">
+                    <Image Source="./Assets/image.ico" Width="25" Height="15"></Image>
+                </Button>
+                <Button Width="25" Name="RIGHT_ALIGN_TEXT_BUTTON">
+                    <Image Source="./Assets/image.ico" Width="25" Height="15"></Image>
+                </Button>
+            </WrapPanel>
+        </StackPanel>
+        <WebBrowser x:Name="webBrowser" Height="318" Margin="0, 10, 0, 0"/>
+    </StackPanel>
+</Window>

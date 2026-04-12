@@ -1,0 +1,19 @@
+{
+  "ID": "123",
+  "PW": "132",
+  "ExtractKeywords": [
+    "asdasdsa"
+  ],
+  "ExceptKeywords": [
+    "xzczczxc"
+  ],
+  "SelectedSortOption": "최신순",
+  "SelectedDateOption": "1주",
+  "StartDate": "2024-08-24",
+  "EndDate": "2024-08-31",
+  "StartPage": "121",
+  "EndPage": "5323",
+  "SelectedSaveOption": "수동 저장",
+  "SelectedTimerOption": "1시간",
+  "TargetURL": "asdasdasdaszdasd"
+}

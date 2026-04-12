@@ -1,0 +1,17 @@
+﻿################################################################################
+# 이 .gitignore 파일은 Microsoft(R) Visual Studio에서 자동으로 만들어졌습니다.
+################################################################################
+
+/Telegram_/.vs/Telegram_/FileContentIndex/00fdcccb-6b92-46e2-9005-6cda09daaebf.vsidx
+/Telegram_/.vs/Telegram_/FileContentIndex/be48a4a6-b539-4df9-90c7-19dcb1aa3b51.vsidx
+/Telegram_/.vs/Telegram_/FileContentIndex/e2c3e71c-0ae9-46c1-8afd-3fa65b5308ef.vsidx
+/NaverWriting/.vs/NaverWriting/FileContentIndex/b4db672a-1b19-41a7-8b00-c95a99160200.vsidx
+*.vsidx
+NaverWriting/NaverWriting/bin/Release/net8.0/win-x86/app.publish/Application Files/NaverWriting_1_0_0_13/NaverWriting.exe.deploy
+AvaloniaApplication1/AvaloniaApplication1/bin/Release/net8.0/win-x86/app.publish/Application Files/AvaloniaApplication1_1_0_0_23/AvaloniaApplication1.exe.deploy
+
+# Backend build artifacts
+backend/build/
+backend/.gradle/
+frontend/node_modules/
+

@@ -1,0 +1,83 @@
+import { api, setToken, setStoredUser } from './client'
+
+export const authService = {
+  async signup({ email, password, name }) {
+    const res = await api.post('/auth/signup', { email, password, name })
+    setToken(res.token)
+    setStoredUser({ email: res.email, name: res.name, plan: res.plan })
+    return res
+  },
+
+  async login({ email, password }) {
+    const res = await api.post('/auth/login', { email, password })
+    setToken(res.token)
+    setStoredUser({ email: res.email, name: res.name, plan: res.plan })
+    return res
+  },
+
+  logout() {
+    setToken(null)
+    setStoredUser(null)
+  },
+}
+
+export const flowService = {
+  list: () => api.get('/flows'),
+  get: (id) => api.get(`/flows/${id}`),
+  create: (data) => api.post('/flows', data),
+  update: (id, data) => api.put(`/flows/${id}`, data),
+  toggle: (id) => api.patch(`/flows/${id}/toggle`),
+  delete: (id) => api.delete(`/flows/${id}`),
+}
+
+export const automationService = {
+  list: (type) => api.get(`/automations${type ? `?type=${type}` : ''}`),
+  create: (data) => api.post('/automations', data),
+  toggle: (id) => api.patch(`/automations/${id}/toggle`),
+  delete: (id) => api.delete(`/automations/${id}`),
+}
+
+export const contactService = {
+  list: (page = 0, size = 20) => api.get(`/contacts?page=${page}&size=${size}`),
+  get: (id) => api.get(`/contacts/${id}`),
+  update: (id, data) => api.patch(`/contacts/${id}`, data),
+}
+
+export const broadcastService = {
+  list: () => api.get('/broadcasts'),
+  create: (data) => api.post('/broadcasts', data),
+  cancel: (id) => api.patch(`/broadcasts/${id}/cancel`),
+}
+
+export const dashboardService = {
+  get: () => api.get('/dashboard'),
+}
+
+export const sequenceService = {
+  list: () => api.get('/sequences'),
+  create: (data) => api.post('/sequences', data),
+  toggle: (id) => api.patch(`/sequences/${id}/toggle`),
+  delete: (id) => api.delete(`/sequences/${id}`),
+}
+
+export const templateService = {
+  list: (category) => api.get(`/templates${category ? `?category=${category}` : ''}`),
+  use: (id) => api.post(`/templates/${id}/use`),
+}
+
+export const growthToolService = {
+  list: () => api.get('/growth-tools'),
+  create: (data) => api.post('/growth-tools', data),
+  delete: (id) => api.delete(`/growth-tools/${id}`),
+}
+
+export const integrationService = {
+  list: () => api.get('/integrations'),
+  create: (data) => api.post('/integrations', data),
+  toggle: (id) => api.patch(`/integrations/${id}/toggle`),
+  delete: (id) => api.delete(`/integrations/${id}`),
+}
+
+export const analyticsService = {
+  get: (period) => api.get(`/dashboard${period ? `?period=${period}` : ''}`),
+}

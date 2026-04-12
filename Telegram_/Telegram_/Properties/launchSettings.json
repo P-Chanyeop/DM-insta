@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Telegram_": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

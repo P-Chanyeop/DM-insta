@@ -1,0 +1,8 @@
+C:\GITHUB\Programs\AvaloniaApplication1\AvaloniaApplication1\bin\Release\net8.0\win-x86\app.publish\AvaloniaApplication1.pdb
+C:\GITHUB\Programs\AvaloniaApplication1\AvaloniaApplication1\bin\Release\net8.0\win-x86\app.publish\selenium-manager\linux\selenium-manager
+C:\GITHUB\Programs\AvaloniaApplication1\AvaloniaApplication1\bin\Release\net8.0\win-x86\app.publish\selenium-manager\macos\selenium-manager
+C:\GITHUB\Programs\AvaloniaApplication1\AvaloniaApplication1\bin\Release\net8.0\win-x86\app.publish\selenium-manager\windows\selenium-manager.exe
+C:\GITHUB\Programs\AvaloniaApplication1\AvaloniaApplication1\bin\Release\net8.0\win-x86\app.publish\av_libglesv2.dll
+C:\GITHUB\Programs\AvaloniaApplication1\AvaloniaApplication1\bin\Release\net8.0\win-x86\app.publish\libHarfBuzzSharp.dll
+C:\GITHUB\Programs\AvaloniaApplication1\AvaloniaApplication1\bin\Release\net8.0\win-x86\app.publish\libSkiaSharp.dll
+C:\GITHUB\Programs\AvaloniaApplication1\AvaloniaApplication1\bin\Release\net8.0\win-x86\app.publish\AvaloniaApplication1.exe

@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
+    <Import Project="$(NuGetPackageRoot)microsoft.winforms.designer.sdk\1.6.0\build\netcoreapp3.1\Microsoft.WinForms.Designer.SDK.targets" Condition="Exists('$(NuGetPackageRoot)microsoft.winforms.designer.sdk\1.6.0\build\netcoreapp3.1\Microsoft.WinForms.Designer.SDK.targets')" />
+    <Import Project="$(NuGetPackageRoot)syncfusion.pdftoimageconverter.wpf\27.1.56\build\net8.0-windows7.0\Syncfusion.PdfToImageConverter.WPF.targets" Condition="Exists('$(NuGetPackageRoot)syncfusion.pdftoimageconverter.wpf\27.1.56\build\net8.0-windows7.0\Syncfusion.PdfToImageConverter.WPF.targets')" />
+  </ImportGroup>
+</Project>

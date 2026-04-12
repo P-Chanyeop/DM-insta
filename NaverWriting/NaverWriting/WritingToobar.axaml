@@ -1,0 +1,236 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="905"
+        x:Class="NaverWriting.WritingToobar"
+		xmlns:views="clr-namespace:WebViewSample.Views"
+		xmlns:local="clr-namespace:NaverWriting"
+		Background="#EBEDF2"
+		x:CompileBindings="False"
+		Width="800" Height="905"
+		WindowStartupLocation="CenterScreen"
+        Title="Softcat    게시글 작성">
+	
+	<!--제목 및 옵션 패널 -->
+	<StackPanel>
+		<Grid>
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto"/>
+			</Grid.RowDefinitions>
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="Auto"/>
+				<ColumnDefinition Width="Auto"/>
+			</Grid.ColumnDefinitions>
+
+			<StackPanel Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left">
+				<Grid>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="Auto"/>
+					</Grid.RowDefinitions>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="Auto"/>
+						<ColumnDefinition Width="Auto"/>
+					</Grid.ColumnDefinitions>
+
+					<!-- 제목란 그리드 -->
+					<Grid Grid.Row="0" Grid.Column="0">
+						<Grid.RowDefinitions>
+							<RowDefinition Height="Auto"/>
+						</Grid.RowDefinitions>
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="Auto"/>
+							<ColumnDefinition Width="Auto"/>
+						</Grid.ColumnDefinitions>
+						
+						<TextBlock Text="제목" Margin="30, 15, 0, 0" FontSize="15" FontWeight="550" Grid.Row="0" Grid.Column="0"></TextBlock>
+						<TextBox Name="TITLE_INPUT" Width="400" Height="15" Margin="20, 10, 0, 0" CornerRadius="8" Grid.Row="0" Grid.Column="1"></TextBox>
+					</Grid>
+					
+					<Grid Grid.Row="1" Grid.Column="0">
+						<Grid.RowDefinitions>
+							<RowDefinition Height="Auto"/>
+						</Grid.RowDefinitions>
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="Auto"/>
+							<ColumnDefinition Width="Auto"/>
+							<ColumnDefinition Width="Auto"/>
+							<ColumnDefinition Width="Auto"/>
+						</Grid.ColumnDefinitions>
+
+						<!-- 설정란 그리드 -->
+						<TextBlock Text="설정" Margin="30, 17, 0, 0" FontSize="15" FontWeight="550" Grid.Row="0" Grid.Column="0"></TextBlock>
+						<Button Name="ADD_IMAGE_BUTTON" Foreground="Black" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Background="#EBEDF2" BorderBrush="#2D3239" CornerRadius="12" Width="100" Height="25" Grid.Row="0" Grid.Column="1" Margin="20, 12, 0, 0" Click="UploadPicture">
+							<StackPanel Orientation="Horizontal">
+								<TextBlock Text="사진" VerticalAlignment="Center" Margin="5,0,5,0"/>
+								<!-- 텍스트 -->
+								<Image Source="Assets/upload2.png" Width="20" Height="20" VerticalAlignment="Center"/>
+								<!-- 이미지 -->
+							</StackPanel>
+						</Button>
+						<ComboBox AutoScrollToSelectedItem="True"
+								  Name="ARTICLE_TYPE_SELECT"
+								  PlaceholderForeground="Black"
+								  PlaceholderText="- 게시글 타입 선택 -"
+								  Width="175"
+								  Height="15"
+								  Margin="15, 10, 0, 0"
+								  Grid.Row="1"
+								  Grid.Column="3"
+								  CornerRadius="8"
+								  SelectionChanged="">
+							<ComboBoxItem Content="- 게시글 타입 선택 -" />
+							<ComboBoxItem Content="일반" />
+							<ComboBoxItem Content="상품" />
+						</ComboBox>
+					</Grid>
+
+					<!-- 메모 및 대표사진 그리드 -->
+					<StackPanel Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" HorizontalAlignment="Left">
+						<Grid>
+							<Grid.RowDefinitions>
+								<RowDefinition Height="Auto"/>
+							</Grid.RowDefinitions>
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="Auto"/>
+								<ColumnDefinition Width="Auto"/>
+							</Grid.ColumnDefinitions>
+
+							<TextBlock Text="메모" Margin="20, 15, 0, 0" FontSize="15" FontWeight="550" Grid.Row="0" Grid.Column="0"></TextBlock>
+							<TextBox Name="MEMO_INPUT" Width="220" Height="15" Margin="20, 10, 0, 0" CornerRadius="8" Grid.Row="0" Grid.Column="1"></TextBox>
+						</Grid>
+
+						<Grid>
+							<Grid.RowDefinitions>
+								<RowDefinition Height="Auto"/>
+							</Grid.RowDefinitions>
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="Auto"/>
+								<ColumnDefinition Width="Auto"/>
+								<ColumnDefinition Width="Auto"/>
+							</Grid.ColumnDefinitions>
+
+							<TextBlock Text="대표사진" Margin="20, 15, 0, 0" FontSize="15" FontWeight="550" Grid.Row="0" Grid.Column="0"></TextBlock>
+							<Button Name="UPLOADT_REP_PIC_BUTTON" Width="120" Height="30"
+							Background="#424853" Foreground="White" Margin="20, 10, 0, 0"
+							HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+							Grid.Row="0" Grid.Column="1"
+							Click="UploadPicture">
+								<StackPanel Orientation="Horizontal">
+									<!-- 체크 이미지는 기본적으로 숨겨둡니다 -->
+									<Image Name="CheckImage" Source="/Assets/image.ico" Width="16" Height="16" IsVisible="False" Margin="0,0,5,0" />
+									<TextBlock Name="ButtonText" Text="등록하기" VerticalAlignment="Center" Foreground="White"/>
+								</StackPanel>
+							</Button>
+							<Button Content="보기" HorizontalContentAlignment="Center" Width="50" Background="#424853" Foreground="White" Margin="20, 10, 0, 0" Grid.Row="1" Grid.Column="2" Click="PreviewImageButton_Click"></Button>
+						</Grid>
+					</StackPanel>
+				</Grid>
+			</StackPanel>
+		</Grid>
+
+		<Separator Margin="0, 10, 0, 0"></Separator>
+
+		<!--툴바 패널 -->
+		<!--<StackPanel Orientation="Horizontal" Margin="10, 10, 0, 0">
+			<ComboBox ItemsSource="{Binding Fonts}"
+					  SelectedItem="{Binding SelectedFont}"
+					  Width="90" Height="10" 
+					  CornerRadius="4"
+					  SelectionChanged=""
+					  HorizontalAlignment="Left"/>
+
+			<ComboBox ItemsSource="{Binding FontSizes}"
+					  SelectedItem="{Binding SelectedFontSize}"
+					  Width="70"
+					  HorizontalAlignment="Center" 
+					  CornerRadius="4"
+					  Margin="5, 0, 0, 0">
+			</ComboBox>
+			<Button Margin="5, 0, 0, 0">
+				<Image Source="/Assets/image.ico"
+					   Width="20"
+					   Height="20"
+					   />
+			</Button>
+			<Button Margin="1, 0, 0, 0">
+				<Image Source="/Assets/image.ico"
+					   Width="20"
+					   Height="20"
+					   />
+			</Button>
+			<Button Margin="1, 0, 0, 0">
+				<Image Source="/Assets/image.ico"
+					   Width="20"
+					   Height="20"
+					   />
+			</Button>
+			<Button Margin="1, 0, 0, 0">
+				<Image Source="/Assets/image.ico"
+					   Width="20"
+					   Height="20"
+					   />
+			</Button>
+			<Button Margin="1, 0, 0, 0">
+				<Image Source="/Assets/image.ico"
+					   Width="20"
+					   Height="20"
+					   />
+			</Button>
+		</StackPanel>
+		<Separator Margin="0, 10, 0, 0"></Separator>-->
+		
+		<!-- 에디터 패널 -->
+		<StackPanel Height="550">
+			<!--<TextBox Name="TEXT_EDITOR" Width="740" Height="300" Margin="5, 10, 5, 0" TextWrapping="Wrap" AcceptsReturn="True" AcceptsTab="True" FontFamily="{Binding SelectFontFamily}" FontSize="{Binding SelectedFontSize}"></TextBox>-->
+			<!-- AvaloniaEdit 텍스트 박스 -->
+			<!--<ae:TextEditor Name="textEditor" ShowLineNumbers="True" Width="740" Height="300" Margin="5, 10, 5, 0" FontFamily="{Binding SelectedFont}" FontSize="{Binding SelectedFontSize}"/>-->
+			<!-- WebView 추가 -->
+			<!--<TextBox Name="TEXT_EDITOR" Width="740" Height="300" Margin="5, 10, 5, 0" TextWrapping="Wrap" AcceptsReturn="True" AcceptsTab="True" FontFamily="{Binding SelectFontFamily}" FontSize="{Binding SelectedFontSize}"></TextBox>-->
+			<views:MainView x:Name="PART_WEBVIEW" />
+			<!--<TextBox Name="TEXT_EDITOR" Width="740" Height="540" Margin="5, 10, 5, 0" TextWrapping="Wrap" AcceptsReturn="True" AcceptsTab="True" FontFamily="{Binding SelectFontFamily}" FontSize="{Binding SelectedFontSize}"></TextBox>-->
+		</StackPanel>
+		<Separator Margin="0, 10, 0, 0"></Separator>
+
+		<!-- 옵션 설정 -->
+		<StackPanel Orientation="Horizontal">
+			<TextBlock Text="태그" Margin="30, 15, 0, 0" FontSize="15" FontWeight="550"></TextBlock>
+			<TextBox Name="TAG_INPUT" Width="400" Height="15" Margin="20, 10, 0, 0" CornerRadius="8" Watermark="태그는 쉼표로 구분하며, 10개까지 입력가능합니다." ></TextBox>
+
+			<TextBlock Text="금액" Margin="30, 15, 0, 0" FontSize="15" FontWeight="550"></TextBlock>
+			<TextBox Name="PRICE_INPUT" Width="210" Height="15" Margin="20, 10, 0, 0" CornerRadius="8" Watermark="금액 입력(원)" ></TextBox>
+		</StackPanel>
+		<StackPanel Orientation="Horizontal">
+			<TextBlock Text="공개설정" Margin="30, 15, 0, 0" FontSize="15" FontWeight="550"></TextBlock>
+			<RadioButton Name="PUBLIC_RADIO" Content="전체공개" Margin="20, 10, 0, 0" IsChecked="true"></RadioButton>
+			<RadioButton Name="PRIVATE_RADIO" Content="멤버공개" Margin="20, 10, 0, 0"></RadioButton>
+		</StackPanel>
+		<StackPanel Orientation="Horizontal">
+			<TextBlock Text="검색설정" Margin="30, 15, 0, 0" FontSize="15" FontWeight="550"></TextBlock>
+			<CheckBox Name="SEARCH_CHECKBOX" Content="검색되는 것을 허용" Margin="20, 10, 0, 0" IsChecked="true"></CheckBox>
+		</StackPanel>
+		<StackPanel Orientation="Horizontal">
+			<TextBlock Text="판매자 이름" Margin="30, 15, 0, 0" FontSize="15" FontWeight="550"></TextBlock>
+			<TextBox Name="SELLER_NAME_INPUT" Width="130" Height="15" Margin="20, 10, 0, 0" CornerRadius="8" Watermark="판매자 이름 입력" ></TextBox>
+			<TextBlock Text="전화번호" Margin="30, 15, 0, 0" FontSize="15" FontWeight="550"></TextBlock>
+			<TextBox Name="SELLER_PHONENUMBER_INPUT" Width="150" Height="15" Margin="20, 10, 0, 0" CornerRadius="8" Watermark="010-0000-0000" ></TextBox>
+			<TextBlock Text="이메일" Margin="30, 15, 0, 0" FontSize="15" FontWeight="550"></TextBlock>
+			<TextBox Name="SELLER_EMAIL_INPUT" Width="150" Height="15" Margin="20, 10, 0, 0" CornerRadius="8" Watermark="example@naver.com" ></TextBox>
+		</StackPanel>
+		<StackPanel Orientation="Horizontal">
+			<TextBlock Text="기능 설정" Margin="30, 15, 0, 0" FontSize="15" FontWeight="550"></TextBlock>
+			<CheckBox Name="SCRAP_CHECKBOX" Content="스크럽허용" Margin="20, 10, 0, 0" IsChecked="true"></CheckBox>
+			<CheckBox Name="COPY_CHECKBOX" Content="복사허용" Margin="20, 10, 0, 0" IsChecked="true"></CheckBox>
+			<CheckBox Name="CCL_CHECKBOX" Content="CCL" Margin="20, 10, 0, 0"></CheckBox>
+		</StackPanel>
+		<StackPanel>
+			<Button Margin="0, 10, 0, 0" Width="800" Height="31"
+					Background="#38CE8F" Foreground="Black"
+					Click="UploadArticleAsync"
+					>
+				<TextBlock Text="등록" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+			</Button>
+		</StackPanel>
+	</StackPanel>
+</Window>

@@ -1,0 +1,353 @@
+{
+  "Files": [
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\SmartEditor2.html",
+      "PackagePath": "staticwebassets\\dist\\SmartEditor2.html"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\SmartEditor2Skin.html",
+      "PackagePath": "staticwebassets\\dist\\SmartEditor2Skin.html"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\SmartEditor2Skin_en_US.html",
+      "PackagePath": "staticwebassets\\dist\\SmartEditor2Skin_en_US.html"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\SmartEditor2Skin_ja_JP.html",
+      "PackagePath": "staticwebassets\\dist\\SmartEditor2Skin_ja_JP.html"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\SmartEditor2Skin_ko_KR.html",
+      "PackagePath": "staticwebassets\\dist\\SmartEditor2Skin_ko_KR.html"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\SmartEditor2Skin_zh_CN.html",
+      "PackagePath": "staticwebassets\\dist\\SmartEditor2Skin_zh_CN.html"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\SmartEditor2Skin_zh_TW.html",
+      "PackagePath": "staticwebassets\\dist\\SmartEditor2Skin_zh_TW.html"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\en_US\\smart_editor2.css",
+      "PackagePath": "staticwebassets\\dist\\css\\en_US\\smart_editor2.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\en_US\\smart_editor2_in.css",
+      "PackagePath": "staticwebassets\\dist\\css\\en_US\\smart_editor2_in.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\en_US\\smart_editor2_items.css",
+      "PackagePath": "staticwebassets\\dist\\css\\en_US\\smart_editor2_items.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\en_US\\smart_editor2_out.css",
+      "PackagePath": "staticwebassets\\dist\\css\\en_US\\smart_editor2_out.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\ja_JP\\smart_editor2.css",
+      "PackagePath": "staticwebassets\\dist\\css\\ja_JP\\smart_editor2.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\ja_JP\\smart_editor2_in.css",
+      "PackagePath": "staticwebassets\\dist\\css\\ja_JP\\smart_editor2_in.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\ja_JP\\smart_editor2_items.css",
+      "PackagePath": "staticwebassets\\dist\\css\\ja_JP\\smart_editor2_items.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\ja_JP\\smart_editor2_out.css",
+      "PackagePath": "staticwebassets\\dist\\css\\ja_JP\\smart_editor2_out.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\ko_KR\\smart_editor2.css",
+      "PackagePath": "staticwebassets\\dist\\css\\ko_KR\\smart_editor2.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\ko_KR\\smart_editor2_in.css",
+      "PackagePath": "staticwebassets\\dist\\css\\ko_KR\\smart_editor2_in.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\ko_KR\\smart_editor2_items.css",
+      "PackagePath": "staticwebassets\\dist\\css\\ko_KR\\smart_editor2_items.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\ko_KR\\smart_editor2_out.css",
+      "PackagePath": "staticwebassets\\dist\\css\\ko_KR\\smart_editor2_out.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\zh_CN\\smart_editor2.css",
+      "PackagePath": "staticwebassets\\dist\\css\\zh_CN\\smart_editor2.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\zh_CN\\smart_editor2_in.css",
+      "PackagePath": "staticwebassets\\dist\\css\\zh_CN\\smart_editor2_in.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\zh_CN\\smart_editor2_items.css",
+      "PackagePath": "staticwebassets\\dist\\css\\zh_CN\\smart_editor2_items.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\zh_CN\\smart_editor2_out.css",
+      "PackagePath": "staticwebassets\\dist\\css\\zh_CN\\smart_editor2_out.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\zh_TW\\smart_editor2.css",
+      "PackagePath": "staticwebassets\\dist\\css\\zh_TW\\smart_editor2.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\zh_TW\\smart_editor2_in.css",
+      "PackagePath": "staticwebassets\\dist\\css\\zh_TW\\smart_editor2_in.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\zh_TW\\smart_editor2_items.css",
+      "PackagePath": "staticwebassets\\dist\\css\\zh_TW\\smart_editor2_items.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\css\\zh_TW\\smart_editor2_out.css",
+      "PackagePath": "staticwebassets\\dist\\css\\zh_TW\\smart_editor2_out.css"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\bg_b1.png",
+      "PackagePath": "staticwebassets\\dist\\img\\bg_b1.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\bg_button.gif",
+      "PackagePath": "staticwebassets\\dist\\img\\bg_button.gif"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\bg_button_left.gif",
+      "PackagePath": "staticwebassets\\dist\\img\\bg_button_left.gif"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\bg_button_right.gif",
+      "PackagePath": "staticwebassets\\dist\\img\\bg_button_right.gif"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\bg_find_h3.gif",
+      "PackagePath": "staticwebassets\\dist\\img\\bg_find_h3.gif"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\bg_help.gif",
+      "PackagePath": "staticwebassets\\dist\\img\\bg_help.gif"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\bg_line1.gif",
+      "PackagePath": "staticwebassets\\dist\\img\\bg_line1.gif"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\bg_quote2.gif",
+      "PackagePath": "staticwebassets\\dist\\img\\bg_quote2.gif"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\bg_set.gif",
+      "PackagePath": "staticwebassets\\dist\\img\\bg_set.gif"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\bg_spell.gif",
+      "PackagePath": "staticwebassets\\dist\\img\\bg_spell.gif"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\bg_text_tool.gif",
+      "PackagePath": "staticwebassets\\dist\\img\\bg_text_tool.gif"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\bx_set_110302.gif",
+      "PackagePath": "staticwebassets\\dist\\img\\bx_set_110302.gif"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\en_US\\btn_set.png",
+      "PackagePath": "staticwebassets\\dist\\img\\en_US\\btn_set.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\en_US\\text_tool_set.png",
+      "PackagePath": "staticwebassets\\dist\\img\\en_US\\text_tool_set.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\ico_extend.png",
+      "PackagePath": "staticwebassets\\dist\\img\\ico_extend.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\icon_set.gif",
+      "PackagePath": "staticwebassets\\dist\\img\\icon_set.gif"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\ja_JP\\btn_set.png",
+      "PackagePath": "staticwebassets\\dist\\img\\ja_JP\\btn_set.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\ja_JP\\text_tool_set.png",
+      "PackagePath": "staticwebassets\\dist\\img\\ja_JP\\text_tool_set.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\ko_KR\\avalonia-logo.ico",
+      "PackagePath": "staticwebassets\\dist\\img\\ko_KR\\avalonia-logo.ico"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\ko_KR\\btn_set.png",
+      "PackagePath": "staticwebassets\\dist\\img\\ko_KR\\btn_set.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\ko_KR\\text_tool_set.png",
+      "PackagePath": "staticwebassets\\dist\\img\\ko_KR\\text_tool_set.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\temp\\avalonia-logo.ico",
+      "PackagePath": "staticwebassets\\dist\\img\\temp\\avalonia-logo.ico"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\zh_CN\\btn_set.png",
+      "PackagePath": "staticwebassets\\dist\\img\\zh_CN\\btn_set.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\zh_CN\\text_tool_set.png",
+      "PackagePath": "staticwebassets\\dist\\img\\zh_CN\\text_tool_set.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\zh_TW\\btn_set.png",
+      "PackagePath": "staticwebassets\\dist\\img\\zh_TW\\btn_set.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\img\\zh_TW\\text_tool_set.png",
+      "PackagePath": "staticwebassets\\dist\\img\\zh_TW\\text_tool_set.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\index.html",
+      "PackagePath": "staticwebassets\\dist\\index.html"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\js\\bundle\\base.js",
+      "PackagePath": "staticwebassets\\dist\\js\\bundle\\base.js"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\js\\bundle\\extra.js",
+      "PackagePath": "staticwebassets\\dist\\js\\bundle\\extra.js"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\js\\bundle\\husky-range.js",
+      "PackagePath": "staticwebassets\\dist\\js\\bundle\\husky-range.js"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\js\\bundle\\index.js",
+      "PackagePath": "staticwebassets\\dist\\js\\bundle\\index.js"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\js\\bundle\\lazy.js",
+      "PackagePath": "staticwebassets\\dist\\js\\bundle\\lazy.js"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\js\\lib\\jindo2.all.js",
+      "PackagePath": "staticwebassets\\dist\\js\\lib\\jindo2.all.js"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\js\\lib\\jindo_component.js",
+      "PackagePath": "staticwebassets\\dist\\js\\lib\\jindo_component.js"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\js\\service\\HuskyEZCreator.js",
+      "PackagePath": "staticwebassets\\dist\\js\\service\\HuskyEZCreator.js"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\js\\service\\SE2BasicCreator.js",
+      "PackagePath": "staticwebassets\\dist\\js\\service\\SE2BasicCreator.js"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\js\\service\\SE2M_Configuration.js",
+      "PackagePath": "staticwebassets\\dist\\js\\service\\SE2M_Configuration.js"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\js\\smarteditor2.js",
+      "PackagePath": "staticwebassets\\dist\\js\\smarteditor2.js"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\smart_editor2_inputarea.html",
+      "PackagePath": "staticwebassets\\dist\\smart_editor2_inputarea.html"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\dist\\smart_editor2_inputarea_ie8.html",
+      "PackagePath": "staticwebassets\\dist\\smart_editor2_inputarea_ie8.html"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\461d244c0971922d.jpg",
+      "PackagePath": "staticwebassets\\uploads\\461d244c0971922d.jpg"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\461d244c0971922d_upscayl_5x_realesrgan-x4plus.png",
+      "PackagePath": "staticwebassets\\uploads\\461d244c0971922d_upscayl_5x_realesrgan-x4plus.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\52c4dbb3-0982-4657-a916-ac2b7a6a227d_cat.jpg",
+      "PackagePath": "staticwebassets\\uploads\\52c4dbb3-0982-4657-a916-ac2b7a6a227d_cat.jpg"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\Group 4.png",
+      "PackagePath": "staticwebassets\\uploads\\Group 4.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\blue.png",
+      "PackagePath": "staticwebassets\\uploads\\blue.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\blue_icon.png",
+      "PackagePath": "staticwebassets\\uploads\\blue_icon.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\cat.jpg",
+      "PackagePath": "staticwebassets\\uploads\\cat.jpg"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\cat3.jpg",
+      "PackagePath": "staticwebassets\\uploads\\cat3.jpg"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\cat4.jpg",
+      "PackagePath": "staticwebassets\\uploads\\cat4.jpg"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\cat5.jpg",
+      "PackagePath": "staticwebassets\\uploads\\cat5.jpg"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\cat6.png",
+      "PackagePath": "staticwebassets\\uploads\\cat6.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\e28a763b-1a54-48b1-a7e7-a692d816ff0e_cat6 (1).png",
+      "PackagePath": "staticwebassets\\uploads\\e28a763b-1a54-48b1-a7e7-a692d816ff0e_cat6 (1).png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\image.png",
+      "PackagePath": "staticwebassets\\uploads\\image.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\trash2.png",
+      "PackagePath": "staticwebassets\\uploads\\trash2.png"
+    },
+    {
+      "Id": "C:\\Github\\Programs\\NaverWriting\\WebApplication1\\wwwroot\\uploads\\upload2.png",
+      "PackagePath": "staticwebassets\\uploads\\upload2.png"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.WebApplication1.Microsoft.AspNetCore.StaticWebAssetEndpoints.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssetEndpoints.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.WebApplication1.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.build.WebApplication1.props",
+      "PackagePath": "build\\WebApplication1.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.buildMultiTargeting.WebApplication1.props",
+      "PackagePath": "buildMultiTargeting\\WebApplication1.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.buildTransitive.WebApplication1.props",
+      "PackagePath": "buildTransitive\\WebApplication1.props"
+    }
+  ],
+  "ElementsToRemove": []
+}

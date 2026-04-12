@@ -1,0 +1,433 @@
+<!-- Application 설정 -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+		xmlns:local="clr-namespace:AvaloniaApplication1;assembly=AvaloniaApplication1"
+		Width="1200" Height="800 "
+        x:Class="AvaloniaApplication1.naverDB"
+		Background="#1E1E1E"
+		Icon="/Assets/image.ico"
+		x:CompileBindings="False"
+		WindowStartupLocation="CenterScreen"
+        Title="네이버 DB 추출기">
+	
+	<!-- Datagrid header 글자 색 변경 -->
+	<Window.Styles>
+		<!-- DataGridColumnHeader 스타일 정의 -->
+		<Style Selector="DataGridColumnHeader">
+			<Setter Property="Foreground" Value="Black" />
+			<Setter Property="FontWeight" Value="600" />
+			<Setter Property="FontSize" Value="15" />
+			<!-- 헤더 텍스트 색상 설정 -->
+			<Setter Property="Background" Value="Gray" />
+			<!-- 필요에 따라 배경색도 설정 -->
+		</Style>
+		<!-- NumericUpDown 화살표 Foreground만 변경 -->
+		<Style Selector="NumericUpDown#start_page_input RepeatButton#PART_IncreaseButton">
+			<Setter Property="Foreground" Value="Red" />
+			<Setter Property="Background" Value="#424853" />
+		</Style>
+
+		<Style Selector="NumericUpDown#end_page_input RepeatButton#PART_DecreaseButton">
+			<Setter Property="Foreground" Value="Red" />
+			<Setter Property="Background" Value="#424853" />
+		</Style>
+	</Window.Styles>
+
+	<!-- 내부 컨텐츠 설정 -->
+	<Grid>
+		<!-- 행과 열 정의 -->
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition Height="Auto"/>
+		</Grid.RowDefinitions>
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="Auto"/>
+			<ColumnDefinition Width="Auto"/>
+			<ColumnDefinition Width="Auto"/>
+		</Grid.ColumnDefinitions>
+
+		<!-- 마이페이지 정보 -->
+		<StackPanel Background="#2D3239" Width="200" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="10 10, 0, 0" Grid.Row="0" Grid.Column="0" Grid.RowSpan="2">
+			<!-- 닉네임 & 인사말 -->
+			<TextBlock Text="" Name="NICKNAME" Foreground="White" HorizontalAlignment="Left" Margin="20, 15, 0, 5"></TextBlock>
+			<TextBlock Text="님 환영합니다." Foreground="DarkGray" HorizontalAlignment="Left" Margin="20, 5, 0, 10"></TextBlock>
+			
+			<Separator Width="160" Height="1" Background="White"></Separator>
+			
+			<!-- 구독관리 -->
+			<Grid>
+				<!-- 행과 열 정의 -->
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="*"/>
+				</Grid.RowDefinitions>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="*"/>
+					<ColumnDefinition Width="2*"/>
+				</Grid.ColumnDefinitions>
+				
+				<TextBlock Grid.Row="0" Grid.Column="0" Text="구독관리" Foreground="DarkGray" HorizontalAlignment="Left" Margin="20, 10, 0, 10" />
+				<TextBlock Name="SUB_REMAIN_TEXT" Grid.Row="0" Grid.Column="1" Text="" Foreground="White" HorizontalAlignment="Left" Margin="10, 10, 0, 10"></TextBlock>
+			</Grid>
+			
+			<Separator Width="160" Height="1" Background="White"></Separator>
+
+			<!-- 마이페이지 & 문의하기 & 로그아웃 버튼 -->
+			<Border CornerRadius="12">
+				<StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="5">
+					<Button Content="마이페이지" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Width="160" Height="40" Foreground="White" CornerRadius="8" Background="#424853" BorderBrush="#2D3239" Margin="20, 10, 20, 5" Click="Manage_MyPage"></Button>
+					<Button Content="문의하기" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Width="160" Height="40" Foreground="White" CornerRadius="8" Background="#424853" BorderBrush="#2D3239" Margin="20, 0, 20, 0" Click="Manage_QnA"></Button>
+					<Button Content="로그아웃" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Width="160" Height="40" Foreground="White" CornerRadius="8" Background="#1F2328" BorderBrush="#424853" BorderThickness="2" Margin="20, 5, 20, 10" Click="Logout"></Button>
+				</StackPanel>
+			</Border>
+			
+			<Separator Width="160" Height="1" Background="White"></Separator>
+
+			<!-- 제품명 -->
+			<StackPanel HorizontalAlignment="Left" VerticalAlignment="Center" Spacing="5">
+				<TextBlock Text="제품명" Foreground="DarkGray" HorizontalAlignment="Left" Margin="20, 10, 0, 5"></TextBlock>
+				<!-- 여러 색깔을 합성한 버튼-->
+				<Button Content="네이버 DB"
+                HorizontalContentAlignment="Center"
+                VerticalContentAlignment="Center"
+                Width="160"
+                Height="50"
+                Foreground="White"
+                CornerRadius="8"
+                Background="{Binding RelativeSource={RelativeSource Self}, Path=Background}"
+                BorderBrush="#2D3239"
+                Margin="20, 0, 20, 5"
+						>
+					<Button.Background>
+						<LinearGradientBrush>
+							<LinearGradientBrush.GradientStops>
+								<GradientStop Color="#4966FF" Offset="0.1"/>
+								<GradientStop Color="#424853" Offset="0"/>
+							</LinearGradientBrush.GradientStops>
+						</LinearGradientBrush>
+					</Button.Background>
+				</Button >
+
+				<TextBox Name="Id_input" HorizontalContentAlignment="Center"
+                VerticalContentAlignment="Center"
+                Width="160"
+                Height="40"
+                Foreground="White"
+                CornerRadius="8"
+                Background="#1E1E1E"
+                BorderBrush="#424853"
+				Watermark="네이버 ID 입력"
+				GotFocus="TextBox_GotFocus" LostFocus="TextBox_LostFocus"
+                Margin="20, 0, 20, 0">
+					
+				</TextBox>
+
+				<TextBox Name="Pw_input" HorizontalContentAlignment="Center"
+                VerticalContentAlignment="Center"
+                Width="160"
+                Height="40"
+                Foreground="White"
+                CornerRadius="8"
+                Background="#1E1E1E"
+                BorderBrush="#424853"
+				Watermark="네이버 PW 입력"
+				GotFocus="TextBox_GotFocus" LostFocus="TextBox_LostFocus"
+				PasswordChar="*"
+                Margin="20, 0, 20, 0">
+
+				</TextBox>
+				<Label Height="300" Content=""></Label>
+			</StackPanel>
+		</StackPanel>
+
+		<!-- 옵션 설정 -->
+		<StackPanel Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20, 10, 0, 0">
+			<!-- 추출 키워드 등록 -->
+			<TextBlock Text="추출 키워드" Background="#1F2328" Foreground="White" Margin="0, 5, 0, 0" FontWeight="550"></TextBlock>
+			
+			<Grid>
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="*"/>
+				</Grid.RowDefinitions>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="2*"/>
+					<ColumnDefinition Width="1*"/>
+				</Grid.ColumnDefinitions>
+				<Grid.Styles>
+					<!-- 기본 상태에서 이미지 설정 -->
+					<Style Selector="Button Image /template/Image">
+						<Setter Property="Source" Value="avares://AvaloniaApplication1/Assets/upload.png"/>
+					</Style>
+
+					<!-- hover 상태에서 이미지 변경 -->
+					<Style Selector="Button:pointerover /template/ContentPresenter">
+						<Setter Property="Background" Value="#2D3239"/>
+					</Style>
+
+					<!-- 버튼 클릭 상태에서 이미지 변경 -->
+					<Style Selector="Button:pressed Image /template/Image">
+						<Setter Property="Source" Value="avares://AvaloniaApplication1/Assets/upload.png"/>
+					</Style>
+				</Grid.Styles>
+				
+				<TextBox Name="extract_keyword_file" Width="300" Height="40" Margin="0, 15, 0, 0" HorizontalContentAlignment="Left" VerticalContentAlignment="Center" Watermark="추출할 키워드 파일을 업로드해주세요." Background="#1E1E1E" Foreground="White" BorderBrush="#727B8B" CornerRadius="8" Focusable="True" GotFocus="TextBox_GotFocus" LostFocus="TextBox_LostFocus" Grid.Row="0" Grid.Column="0"></TextBox>
+				<Button Width="100" Height="40" Margin="5, 15, 0, 0" Background="#2D3239" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Foreground="White" CornerRadius="8" Grid.Row="0" Grid.Column="1" Click="Extract_file_select">
+					<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+						<!-- 버튼의 텍스트 -->
+						<TextBlock Text="업로드" VerticalAlignment="Center"/>
+						<!-- 아이콘을 위한 이미지 -->
+						<Image Source="avares://AvaloniaApplication1/Assets/upload.png" Width="16" Height="16" Margin="5,0,0,0"/>
+					</StackPanel>
+				</Button>
+			</Grid>
+			<!-- 제외 키워드  등록 -->
+			<TextBlock Text="제외 키워드" Background="#1F2328" Foreground="White" Margin="0, 20, 0, 0" FontWeight="550"></TextBlock>
+			<Grid>
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="*"/>
+				</Grid.RowDefinitions>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="2*"/>
+					<ColumnDefinition Width="1*"/>
+				</Grid.ColumnDefinitions>
+				<Grid.Styles>
+					<!-- 기본 상태에서 이미지 설정 -->
+					<Style Selector="Button Image /template/Image">
+						<Setter Property="Source" Value="avares://AvaloniaApplication1/Assets/upload.png"/>
+					</Style>
+
+					<!-- hover 상태에서 이미지 변경 -->
+					<Style Selector="Button:pointerover /template/ContentPresenter">
+						<Setter Property="Background" Value="#2D3239"/>
+					</Style>
+
+					<!-- 버튼 클릭 상태에서 이미지 변경 -->
+					<Style Selector="Button:pressed Image /template/Image">
+						<Setter Property="Source" Value="avares://AvaloniaApplication1/Assets/upload.png"/>
+					</Style>
+				</Grid.Styles>
+
+				<TextBox Name="except_keyword_file" Width="300" Height="40" Margin="0, 15, 0, 0" HorizontalContentAlignment="Left" VerticalContentAlignment="Center" Watermark="제외할 키워드 파일을 업로드해주세요." Background="#1E1E1E" Foreground="White" BorderBrush="#727B8B" CornerRadius="8" Focusable="True" GotFocus="TextBox_GotFocus" LostFocus="TextBox_LostFocus" Grid.Row="0" Grid.Column="0"></TextBox>
+				<Button Width="100" Height="40" Margin="5, 15, 0, 0" Background="#2D3239" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Foreground="White" CornerRadius="8" Grid.Row="0" Grid.Column="1" Click="Except_file_select">
+					<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+						<!-- 버튼의 텍스트 -->
+						<TextBlock Text="업로드" VerticalAlignment="Center"/>
+						<!-- 아이콘을 위한 이미지 -->
+						<Image Source="avares://AvaloniaApplication1/Assets/upload.png" Width="16" Height="16" Margin="5,0,0,0"/>
+					</StackPanel>
+				</Button>
+			</Grid>
+			<!-- 옵션 세부 설정 -->
+			<Grid HorizontalAlignment="Left">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="*"/>
+				</Grid.RowDefinitions>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="1*"/>
+					<ColumnDefinition Width="1*"/>
+				</Grid.ColumnDefinitions>
+				<!-- 정렬 순서 -->
+				<RadioButton Name="sim" Content="관련도순" Foreground="White" Margin="0, 20, 0, 0" IsChecked="True" Grid.Row="0" Grid.Column="0"></RadioButton>
+				<RadioButton Name="date" Content="최신순" Foreground="White" Margin="40, 20, 0, 0" IsChecked="False" Grid.Row="0" Grid.Column="1"></RadioButton>
+			</Grid>
+
+			<Grid HorizontalAlignment="Left">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="*"/>
+				</Grid.RowDefinitions>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="1*"/>
+					<ColumnDefinition Width="1*"/>
+					<ColumnDefinition Width="1*"/>
+					<ColumnDefinition Width="1*"/>
+					<ColumnDefinition Width="1*"/>
+				</Grid.ColumnDefinitions>
+				<!-- 정렬 순서 -->
+				<RadioButton Name="All" Content="전체" Foreground="White" Margin="0, 10, 0, 0" IsChecked="True" Grid.Row="0" Grid.Column="0"></RadioButton>
+				<RadioButton Name="day" Content="1일" Foreground="White" Margin="35, 10, 0, 0" IsChecked="False" Grid.Row="0" Grid.Column="1"></RadioButton>
+				<RadioButton Name="week" Content="1주" Foreground="White" Margin="35, 10, 0, 0" IsChecked="False" Grid.Row="0" Grid.Column="2"></RadioButton>
+				<RadioButton Name="etc" Content="기타" Foreground="White" Margin="35, 10, 0, 0" IsChecked="False" Grid.Row="0" Grid.Column="4"></RadioButton>
+				<RadioButton Name="year" Content="1년" Foreground="White" Margin="35, 10, 0, 0" IsChecked="False" Grid.Row="0" Grid.Column="3"></RadioButton>
+			</Grid>
+			<!-- 날짜 지정 캘린더 -->
+			<Grid Name="CalendarGrid">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="*"/>
+				</Grid.RowDefinitions>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="1*"/>
+					<ColumnDefinition Width="1*"/>
+				</Grid.ColumnDefinitions>
+				<StackPanel Margin="-22, 10, 0, 0" Grid.Column="0">
+					<!-- 날짜를 표시할 TextBox -->
+					<TextBox Name="DateDisplay" Width="120" Height="30" HorizontalContentAlignment="Center" IsReadOnly="True" Watermark="시작 날짜 선택" GotFocus="Open_Start_Calendar"/>
+					<!-- 캘린더 -->
+					<Calendar Name="CalendarControl"
+							  SelectedDatesChanged="Start_Calendar_SelectedDateChanged"
+							  Margin="0,0,0,0"
+							  IsVisible="False">
+					</Calendar>
+				</StackPanel>
+				<StackPanel Margin="-30, 10, 0, 0" Grid.Column="1">
+					<!-- 날짜를 표시할 TextBox -->
+					<TextBox Name="DateDisplay2" Width="120" Height="30" HorizontalContentAlignment="Center" IsReadOnly="True" Watermark="종료 날짜 선택" GotFocus="Open_End_Calendar"/>
+					<!-- 캘린더 -->
+					<Calendar Name="CalendarControl2"
+							  SelectedDatesChanged="End_Calendar_SelectedDateChanged"
+							  Margin="0,0,0,0"
+							  IsVisible="False">
+					</Calendar>
+				</StackPanel>
+			</Grid>
+
+			<!-- 페이지 설정 -->
+			<Grid Margin="30, 5, 0, 0">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="*"/>
+				</Grid.RowDefinitions>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="2*"/>
+					<ColumnDefinition Width="Auto"/>
+					<ColumnDefinition Width="2*"/>
+					<ColumnDefinition Width="1*"/>
+				</Grid.ColumnDefinitions>
+
+				
+				<NumericUpDown Name="start_page_input" CornerRadius="4" Foreground="White" Background="#1E1E1E" BorderBrush="#FFFFFF" FormatString="F0" Margin="0, 15, 0, 0" Width="120" Grid.Column="0" Value="1" Minimum="1"></NumericUpDown>
+				<TextBlock Text=" ~ " Foreground="White" Margin="30, 15, 0, 0" Grid.Column="1" VerticalAlignment="Center"></TextBlock>
+				
+				<NumericUpDown Name="end_page_input" CornerRadius="4" Foreground="White" Background="#1E1E1E" BorderBrush="#FFFFFF" FormatString="F0" Margin="30, 15, 0, 0" Width="120" Grid.Column="2" Value="5" Minimum="1"></NumericUpDown>
+				<TextBlock Text="페이지 " Foreground="White" Margin="10, 15, 0, 0" Grid.Column="3" VerticalAlignment="Center"></TextBlock>
+			</Grid>
+
+			<!-- 저장 방식 설정 -->
+			<StackPanel>
+
+				<!-- 저장타이머 -->
+				<Grid Margin="0, 10, 0, 0">
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto"/>
+					</Grid.RowDefinitions>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="Auto"/>
+					</Grid.ColumnDefinitions>
+
+					<!--					<TextBlock VerticalAlignment="Center" Text="" Margin="0, 0, 0, 0" Foreground="White" Grid.Row="0" Grid.Column="0"></TextBlock>-->
+					<!--<ComboBox Name="timer_input" Width="100" Height="30" PlaceholderText="시간선택" Margin="20 0, 0, 0" Grid.Row="0" Grid.Column="1">
+						<ComboBoxItem HorizontalContentAlignment="Center" Content="1시간"></ComboBoxItem>
+						<ComboBoxItem  HorizontalContentAlignment="Center" Content="2시간"></ComboBoxItem>
+						<ComboBoxItem  HorizontalContentAlignment="Center" Content="3시간"></ComboBoxItem>
+						<ComboBoxItem  HorizontalContentAlignment="Center" Content="4시간"></ComboBoxItem>
+						<ComboBoxItem  HorizontalContentAlignment="Center" Content="5시간"></ComboBoxItem>
+						<ComboBoxItem  HorizontalContentAlignment="Center" Content="6시간"></ComboBoxItem>
+						<ComboBoxItem  HorizontalContentAlignment="Center" Content="7시간"></ComboBoxItem>
+						<ComboBoxItem  HorizontalContentAlignment="Center" Content="8시간"></ComboBoxItem>
+						<ComboBoxItem  HorizontalContentAlignment="Center" Content="9시간"></ComboBoxItem>
+						<ComboBoxItem  HorizontalContentAlignment="Center" Content="10시간"></ComboBoxItem>
+						<ComboBoxItem  HorizontalContentAlignment="Center" Content="11시간"></ComboBoxItem>
+						<ComboBoxItem  HorizontalContentAlignment="Center" Content="12시간"></ComboBoxItem>
+					</ComboBox>-->
+
+					<!-- 저장 시작 버튼 -->
+					<Button Content="작업 내역 저장" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+							Width="400" Height="30" Foreground="White" CornerRadius="8" 
+							Background="#424855" BorderBrush="#2D3239"
+							Margin="0, 10, 0, 0" Grid.Row="0" Grid.Column="0"
+							Click="SaveExcelThread"></Button>
+				</Grid>
+			</StackPanel>
+			
+			<!-- 타겟주소 -->
+			<StackPanel HorizontalAlignment="Left">
+				<TextBlock Text="타겟 카페 주소" Background="#1F2328" Foreground="White" Margin="0, 20, 0, 0" FontWeight="550"></TextBlock>
+				<Grid>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="*"/>
+					</Grid.RowDefinitions>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="Auto"/>
+						<ColumnDefinition Width="Auto"/>
+					</Grid.ColumnDefinitions>
+					
+					<TextBox Name="cafe_url_input" Margin="0, 15, 0, 0" Width="300" Height="40" VerticalContentAlignment="Center" Watermark="대상 카페 주소를 입력해주세요." Background="#1E1E1E" Foreground="White" BorderBrush="#727B8B" CornerRadius="8" Focusable="True" GotFocus="TextBox_GotFocus" LostFocus="TextBox_LostFocus" Grid.Row="0" Grid.Column="0"></TextBox>
+					<Button Content="적용" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Width="95" Height="40" Foreground="White" CornerRadius="8" Background="#424853" BorderBrush="#2D3239" Margin="5, 15, 0, 0" Grid.Row="0" Grid.Column="3" Click="Setting_target_url"></Button>
+				</Grid>
+			</StackPanel>
+		</StackPanel>
+
+		<!-- 작업 내역 -->
+		<StackPanel Grid.Row="0" Grid.Column="2" Margin="20, 10, 0, 0">
+			<TextBlock Text="작업 내역" Background="#1F2328" Foreground="White" Margin="0, 5, 0, 0" FontWeight="550"></TextBlock>
+			<StackPanel>
+				<ScrollViewer Name="scroll1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+					<DataGrid Width="520" Height="500" Margin="0, 20, 0, 0" ItemsSource="{Binding Data_}"
+							  AutoGenerateColumns="True" IsReadOnly="True"
+							  x:Name="MyDataGrid"
+							  GridLinesVisibility="All"
+							  Foreground="White"
+							  BorderThickness="1" BorderBrush="Gray">
+					</DataGrid>
+				</ScrollViewer>
+			</StackPanel>
+		</StackPanel>
+
+		<!-- 작업 로그 -->
+		<StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20, 25, 0, 0">
+			<TextBlock Text="작업 로그" Background="#1F2328" Foreground="White" Margin="0, 5, 0, 0" FontWeight="550"></TextBlock>
+			<Grid>
+				<!-- ScrollViewer를 사용하여 TextBox를 감쌉니다 -->
+				<ScrollViewer Grid.Row="0" Grid.Column="0" Margin="0, 10" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+					<TextBox x:Name="LogTextBox"
+							 Width="950"
+							 Height="180"
+							 AcceptsReturn="True"
+							 IsReadOnly="True"
+							 Background="#1E1E1E"
+							 Foreground="White"
+							 IsEnabled="False"
+							 BorderThickness="0"/>
+				</ScrollViewer>
+
+				<StackPanel Grid.Row="1" Grid.Column="1">
+					<!-- Clear 버튼 -->
+					<Button Content="초기화"
+							HorizontalAlignment="Right"
+							HorizontalContentAlignment="Center"
+							VerticalAlignment="Bottom"
+							Foreground="White"
+							Margin="0, 20, 0, 0"
+							Width="100" Height="30"
+							Click="Reset_data"/>
+					<!-- 시작 버튼 -->
+					<Button Content="시작"
+							HorizontalAlignment="Right"
+							HorizontalContentAlignment="Center"
+							VerticalAlignment="Bottom"
+							Foreground="White"
+							Margin="0, 20, 0, 0"
+							Width="100" Height="30"
+							Click="Start_macro"/>
+					<!-- 저장 버튼 -->
+					<Button Content="세팅 저장"
+							HorizontalAlignment="Right"
+							HorizontalContentAlignment="Center"
+							VerticalAlignment="Bottom"
+							Foreground="White"
+							Margin="0, 20, 0, 0"
+							Width="100" Height="30"
+							Click="Save_data"/>
+				</StackPanel>
+			</Grid>
+		</StackPanel>
+	</Grid>
+</Window>

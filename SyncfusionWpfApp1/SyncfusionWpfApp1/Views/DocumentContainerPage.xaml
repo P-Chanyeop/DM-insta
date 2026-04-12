@@ -1,0 +1,57 @@
+﻿<Page x:Class="SyncfusionWpfApp1.Views.DocumentContainerPage"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SyncfusionWpfApp1.ViewModels" 
+		xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:syncfusion="http://schemas.syncfusion.com/wpf"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <Page.Resources>
+        <ObjectDataProvider
+            x:Key="documentContainerMode"
+            MethodName="GetValues"
+            ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="syncfusion:DocumentContainerMode" />
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+        <ObjectDataProvider
+            x:Key="switchMode"
+            MethodName="GetValues"
+            ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="syncfusion:SwitchMode" />
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+    </Page.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="0.7*" />
+            <ColumnDefinition Width="0.3*" />
+        </Grid.ColumnDefinitions>
+        <syncfusion:DocumentContainer Name="DocContainer" Mode="MDI" SwitchMode="Immediate" IsTDIDragDropEnabled="True" >
+            <FlowDocumentScrollViewer
+                syncfusion:DocumentContainer.Header="Features"
+                syncfusion:DocumentContainer.MDIBounds="60,65,175,236"
+                syncfusion:DocumentContainer.SizetoContentInMDI="True"
+                syncfusion:DocumentContainer.MDIWindowState="Maximized" >
+                <FlowDocument>
+                    <Paragraph FontFamily="Segoe UI" FontSize="16">
+                        A DocumentContainer is a control that is used for holding the documents, controls and panels inside it. Using a DocumentContainer you can create interfaces like MDI and TDI, which can make the end-user to create easily navigable applications. This help section will demonstrate all the important properties of the DocumentContainer that will help the end-user to know about all the available features.
+                        Features
+                        Provides options for both MDI and TDI container mode.
+                        Various window switching styles. CTRL+TAB keyboard shortcut is used to easily navigate through the windows.
+                        Skins support.
+                        State persistence; the document container is used to load and save data in IS, BIN, and XML.
+                        A large set of properties, methods, and events for easy customization.
+                        Resizing and moving the DocumentContainer using the keyboard.
+                    </Paragraph>
+                </FlowDocument>
+            </FlowDocumentScrollViewer>
+            <FlowDocumentScrollViewer syncfusion:DocumentContainer.Header="Window1" />
+            <FlowDocumentScrollViewer syncfusion:DocumentContainer.Header="Document Container" />
+        </syncfusion:DocumentContainer>
+    </Grid>
+</Page>

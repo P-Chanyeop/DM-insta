@@ -1,0 +1,191 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<Palettes>
+	<Palette DisplayName="Default" Name="Default" PrimaryBackground="#005FB8" PrimaryForeground="#FFFFFF"  Theme="Windows11Light" PrimaryBackgroundAlt="#FFFFFF" PrimaryBorderColor="#005FB8"/>
+	<Palette DisplayName="Purple Shadow Dark" Name="PurpleShadowDark" PrimaryBackground="#6B69D6" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#13136A" Theme="Windows11Light" PrimaryBorderColor="#005FB8"/>
+	<Palette DisplayName="Violet Red" Name="VioletRed" PrimaryBackground="#881798" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#470D59"  Theme="Windows11Light" PrimaryBorderColor="#005FB8"/>
+	<Palette DisplayName="Plumb Light" Name="PlumbLight" PrimaryBackground="#E3008C" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#69002E"  Theme="Windows11Light" PrimaryBorderColor="#005FB8"/>
+	<Palette DisplayName="Mint Light" Name="MintLight" PrimaryBackground="#00B294" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#002E14"  Theme="Windows11Light" PrimaryBorderColor="#005FB8"/>
+	<Palette DisplayName="Yellow Gold" Name="YellowGold" PrimaryBackground="#FFB900" PrimaryForeground="#202020" PrimaryBackgroundAlt="#4B1300"  Theme="Windows11Light" PrimaryBorderColor="#005FB8"/>
+	<Palette DisplayName="Steel Blue" Name="SteelBlue" PrimaryBackground="#68768A" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#333333"  Theme="Windows11Light" PrimaryBorderColor="#005FB8"/>
+
+	<Palette DisplayName="Default" Name="Default" PrimaryBackground="#60CDFF" PrimaryForeground="#000000"  Theme="Windows11Dark" PrimaryBackgroundAlt="#FFFFFF" PrimaryBorderColor="#60CDFF"/>
+	<Palette DisplayName="Purple Shadow Dark" Name="PurpleShadowDark" PrimaryBackground="#6B69D6" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#13136A" Theme="Windows11Dark" PrimaryBorderColor="#60CDFF"/>
+	<Palette DisplayName="Violet Red" Name="VioletRed" PrimaryBackground="#881798" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#470D59"  Theme="Windows11Dark" PrimaryBorderColor="#60CDFF"/>
+	<Palette DisplayName="Plumb Light" Name="PlumbLight" PrimaryBackground="#E3008C" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#69002E"  Theme="Windows11Dark" PrimaryBorderColor="#60CDFF"/>
+	<Palette DisplayName="Mint Light" Name="MintLight" PrimaryBackground="#00B294" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#002E14"  Theme="Windows11Dark" PrimaryBorderColor="#60CDFF"/>
+	<Palette DisplayName="Yellow Gold" Name="YellowGold" PrimaryBackground="#FFB900" PrimaryForeground="#202020" PrimaryBackgroundAlt="#4B1300"  Theme="Windows11Dark" PrimaryBorderColor="#60CDFF"/>
+	<Palette DisplayName="Steel Blue" Name="SteelBlue" PrimaryBackground="#68768A" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#333333"  Theme="Windows11Dark" PrimaryBorderColor="#60CDFF"/>
+
+	<Palette DisplayName="Default" Name="Default" PrimaryBackground="#0078D4" PrimaryForeground="#FFFFFF"  Theme="FluentLight" PrimaryBackgroundAlt="#FFFFFF" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Pink red" Name="PinkRed" PrimaryBackground="#6B181F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4B1116" Theme="FluentLight" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Red" Name="Red" PrimaryBackground="#983131" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#872E2C"  Theme="FluentLight" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Red orange" Name="RedOrange" PrimaryBackground="#BD5727" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#8C3217"  Theme="FluentLight" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Orange" Name="Orange" PrimaryBackground="#F4AD59" PrimaryForeground="#000000" PrimaryBackgroundAlt="#AA783E"  Theme="FluentLight" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Green" Name="Green" PrimaryBackground="#2F671F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#214916"  Theme="FluentLight" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Green cyan" Name="GreenCyan" PrimaryBackground="#4DA95F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#367642"  Theme="FluentLight" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Cyan" Name="Cyan" PrimaryBackground="#388186" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#275A5E"  Theme="FluentLight" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Cyan blue" Name="CyanBlue" PrimaryBackground="#1C4E87" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#14375E"  Theme="FluentLight" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Blue" Name="Blue" PrimaryBackground="#526DE5" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#394CA0"  Theme="FluentLight" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Blue magenta" Name="BlueMegenta" PrimaryBackground="#55338C" PrimaryForeground="#E6E6E6" PrimaryBackgroundAlt="#3B2462"  Theme="FluentLight" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Magenta" Name="Megenta" PrimaryBackground="#7D2793" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#571B67"  Theme="FluentLight" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Magenta pink" Name="MegentaPink" PrimaryBackground="#8E1D60" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#631443"  Theme="FluentLight" PrimaryBorderColor="#0078D4"/>
+
+	<Palette DisplayName="Default" Name="Default" PrimaryBackground="#0078D4" PrimaryForeground="#FFFFFF" Theme="FluentDark" PrimaryBackgroundAlt="#313131" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Pink red" Name="PinkRed" PrimaryBackground="#6B181F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4B1116"  Theme="FluentDark" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Red" Name="Red" PrimaryBackground="#983131" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#872E2C"  Theme="FluentDark" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Red orange" Name="RedOrange" PrimaryBackground="#BD5727" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#8C3217"  Theme="FluentDark" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Orange" Name="Orange" PrimaryBackground="#F4AD59" PrimaryForeground="#000000" PrimaryBackgroundAlt="#AA783E"  Theme="FluentDark" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Green" Name="Green" PrimaryBackground="#2F671F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#214916"  Theme="FluentDark" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Green cyan" Name="GreenCyan" PrimaryBackground="#4DA95F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#367642"  Theme="FluentDark" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Cyan" Name="Cyan" PrimaryBackground="#388186" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#275A5E"  Theme="FluentDark" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Cyan blue" Name="CyanBlue" PrimaryBackground="#1C4E87" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#14375E"  Theme="FluentDark" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Blue" Name="Blue" PrimaryBackground="#526DE5" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#394CA0"  Theme="FluentDark" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Blue magenta" Name="BlueMegenta" PrimaryBackground="#55338C" PrimaryForeground="#E6E6E6" PrimaryBackgroundAlt="#3B2462"  Theme="FluentDark" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Magenta" Name="Megenta" PrimaryBackground="#7D2793" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#571B67"  Theme="FluentDark" PrimaryBorderColor="#0078D4"/>
+	<Palette DisplayName="Magenta pink" Name="MegentaPink" PrimaryBackground="#8E1D60" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#631443" Theme="FluentDark" PrimaryBorderColor="#0078D4"/>
+
+	<Palette DisplayName="Default" Name="Default" PrimaryBackground="#0179FF" PrimaryForeground="#FFFFFF"  Theme="MaterialLight" PrimaryBackgroundAlt="#FFFFFF" PrimaryBorderColor="#0179FF"/>
+	<Palette DisplayName="Red" Name="Red" PrimaryBackground="#D32F2F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#EF9A9A"  Theme="MaterialLight" PrimaryBorderColor="#0179FF"/>
+	<Palette DisplayName="Pink" Name="Pink" PrimaryBackground="#C2185B" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#F48FB1"  Theme="MaterialLight" PrimaryBorderColor="#0179FF"/>
+	<Palette DisplayName="Purple" Name="Purple" PrimaryBackground="#6B181F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#BA68C8" Theme="MaterialLight" PrimaryBorderColor="#0179FF"/>
+	<Palette DisplayName="Deep purple" Name="DeepPurple" PrimaryBackground="#512DA8" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#9575CD" Theme="MaterialLight" PrimaryBorderColor="#0179FF"/>
+	<Palette DisplayName="Indigo" Name="Indigo" PrimaryBackground="#303F9F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#7986CB"  Theme="MaterialLight" PrimaryBorderColor="#0179FF"/>
+	<Palette DisplayName="Blue" Name="Blue" PrimaryBackground="#1976D2" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#64B5F6"  Theme="MaterialLight" PrimaryBorderColor="#0179FF"/>
+	<Palette DisplayName="Light blue" Name="LightBlue" PrimaryBackground="#0277BD" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2F5027"  Theme="MaterialLight" PrimaryBorderColor="#0179FF"/>
+	<Palette DisplayName="Cyan" Name="Cyan" PrimaryBackground="#006064" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4DD0E1"  Theme="MaterialLight" PrimaryBorderColor="#0179FF"/>
+	<Palette DisplayName="Green" Name="Green" PrimaryBackground="#1B5E20" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#81C784"  Theme="MaterialLight" PrimaryBorderColor="#0179FF"/>
+	<Palette DisplayName="Orange" Name="Orange" PrimaryBackground="#E65100" PrimaryForeground="#000000" PrimaryBackgroundAlt="#FFB74D" Theme="MaterialLight" PrimaryBorderColor="#0179FF"/>
+
+	<Palette DisplayName="Default" Name="Default" PrimaryBackground="#05DAC5" PrimaryForeground="#000000"  Theme="MaterialDark" PrimaryBackgroundAlt="#848484" PrimaryBorderColor="#05DAC5"/>
+	<Palette DisplayName="Red" Name="Red" PrimaryBackground="#D32F2F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#EF9A9A"  Theme="MaterialDark" PrimaryBorderColor="#05DAC5"/>
+	<Palette DisplayName="Pink" Name="Pink" PrimaryBackground="#C2185B" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#F48FB1"  Theme="MaterialDark" PrimaryBorderColor="#05DAC5"/>
+	<Palette DisplayName="Purple" Name="Purple" PrimaryBackground="#6B181F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#BA68C8" Theme="MaterialDark" PrimaryBorderColor="#05DAC5"/>
+	<Palette DisplayName="Deep purple" Name="DeepPurple" PrimaryBackground="#512DA8" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#9575CD" Theme="MaterialDark" PrimaryBorderColor="#05DAC5"/>
+	<Palette DisplayName="Indigo" Name="Indigo" PrimaryBackground="#303F9F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#7986CB"  Theme="MaterialDark" PrimaryBorderColor="#05DAC5"/>
+	<Palette DisplayName="Blue" Name="Blue" PrimaryBackground="#1976D2" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#64B5F6"  Theme="MaterialDark" PrimaryBorderColor="#05DAC5"/>
+	<Palette DisplayName="Light blue" Name="LightBlue" PrimaryBackground="#0277BD" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2F5027"  Theme="MaterialDark" PrimaryBorderColor="#05DAC5"/>
+	<Palette DisplayName="Cyan" Name="Cyan" PrimaryBackground="#006064" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4DD0E1"  Theme="MaterialDark" PrimaryBorderColor="#05DAC5"/>
+	<Palette DisplayName="Green" Name="Green" PrimaryBackground="#1B5E20" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#81C784"  Theme="MaterialDark" PrimaryBorderColor="#05DAC5"/>
+	<Palette DisplayName="Orange" Name="Orange" PrimaryBackground="#E65100" PrimaryForeground="#000000" PrimaryBackgroundAlt="#FFB74D"  Theme="MaterialDark" PrimaryBorderColor="#05DAC5"/>
+
+	<Palette DisplayName="Default" Name="Default" PrimaryBackground="#0E73AF" PrimaryForeground="#FFFFFF"  Theme="MaterialLightBlue" PrimaryBackgroundAlt="#BEFFF3" PrimaryBorderColor="#0E73AF"/>
+	<Palette DisplayName="Red" Name="Red" PrimaryBackground="#D32F2F" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#EF9A9A" Theme="MaterialLightBlue" PrimaryBorderColor="#0E73AF"/>
+	<Palette DisplayName="Pink" Name="Pink" PrimaryBackground="#C2185B" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#F48FB1"  Theme="MaterialLightBlue" PrimaryBorderColor="#0E73AF"/>
+	<Palette DisplayName="Purple" Name="Purple" PrimaryBackground="#6B181F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#BA68C8" Theme="MaterialLightBlue" PrimaryBorderColor="#0E73AF"/>
+	<Palette DisplayName="Deep purple" Name="DeepPurple" PrimaryBackground="#512DA8" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#9575CD" Theme="MaterialLightBlue" PrimaryBorderColor="#0E73AF"/>
+	<Palette DisplayName="Indigo" Name="Indigo" PrimaryBackground="#303F9F" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#7986CB"  Theme="MaterialLightBlue" PrimaryBorderColor="#0E73AF"/>
+	<Palette DisplayName="Blue" Name="Blue" PrimaryBackground="#1976D2" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#64B5F6" Theme="MaterialLightBlue" PrimaryBorderColor="#0E73AF"/>
+	<Palette DisplayName="Light blue" Name="LightBlue" PrimaryBackground="#0277BD" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2F5027"  Theme="MaterialLightBlue" PrimaryBorderColor="#0E73AF"/>
+	<Palette DisplayName="Cyan" Name="Cyan" PrimaryBackground="#006064" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4DD0E1"  Theme="MaterialLightBlue" PrimaryBorderColor="#0E73AF"/>
+	<Palette DisplayName="Green"  Name="Green" PrimaryBackground="#1B5E20" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#81C784"  Theme="MaterialLightBlue" PrimaryBorderColor="#0E73AF"/>
+	<Palette DisplayName="Orange" Name="Orange" PrimaryBackground="#E65100" PrimaryForeground="#000000" PrimaryBackgroundAlt="#FFB74D"  Theme="MaterialLightBlue" PrimaryBorderColor="#0E73AF"/>
+
+	<Palette DisplayName="Default" Name="Default" PrimaryBackground="#89D13F" PrimaryForeground="#000000"  Theme="MaterialDarkBlue" PrimaryBackgroundAlt="#808EA3" PrimaryBorderColor="#89D13F"/>
+	<Palette  DisplayName="Red" Name="Red" PrimaryBackground="#D32F2F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#EF9A9A"  Theme="MaterialDarkBlue" PrimaryBorderColor="#89D13F"/>
+	<Palette DisplayName="Pink" Name="Pink" PrimaryBackground="#C2185B" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#F48FB1"  Theme="MaterialDarkBlue" PrimaryBorderColor="#89D13F"/>
+	<Palette DisplayName="Purple" Name="Purple" PrimaryBackground="#6B181F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#BA68C8" Theme="MaterialDarkBlue" PrimaryBorderColor="#89D13F"/>
+	<Palette DisplayName="Deep purple" Name="DeepPurple" PrimaryBackground="#512DA8" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#9575CD" Theme="MaterialDarkBlue" PrimaryBorderColor="#89D13F"/>
+	<Palette DisplayName="Indigo" Name="Indigo" PrimaryBackground="#303F9F" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#7986CB"  Theme="MaterialDarkBlue" PrimaryBorderColor="#89D13F"/>
+	<Palette DisplayName="Blue" Name="Blue" PrimaryBackground="#1976D2" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#64B5F6"  Theme="MaterialDarkBlue" PrimaryBorderColor="#89D13F"/>
+	<Palette DisplayName="Light blue" Name="LightBlue" PrimaryBackground="#0277BD" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2F5027"  Theme="MaterialDarkBlue" PrimaryBorderColor="#89D13F"/>
+	<Palette DisplayName="Cyan" Name="Cyan" PrimaryBackground="#006064" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4DD0E1" Theme="MaterialDarkBlue" PrimaryBorderColor="#89D13F"/>
+	<Palette  DisplayName="Green"  Name="Green" PrimaryBackground="#1B5E20" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#81C784" Theme="MaterialDarkBlue" PrimaryBorderColor="#89D13F"/>
+	<Palette DisplayName="Orange" Name="Orange" PrimaryBackground="#E65100" PrimaryForeground="#000000" PrimaryBackgroundAlt="#FFB74D"  Theme="MaterialDarkBlue" PrimaryBorderColor="#89D13F"/>
+
+	<Palette DisplayName="Default" Name="Default" PrimaryBackground="#2A579A" PrimaryForeground="#FFFFFF" Theme="Office2019Colorful" PrimaryBackgroundAlt="#FFFFFF" PrimaryBorderColor="#2A579A"/>
+	<Palette  DisplayName="Red" Name="Red" PrimaryBackground="#983F3E" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#6A2C2B" Theme="Office2019Colorful" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Blue" Name="Blue" PrimaryBackground="#2E78CD" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#21538F" Theme="Office2019Colorful" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Green" Name="Green" PrimaryBackground="#3A714A" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#284F34" Theme="Office2019Colorful" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Red orange" Name="RedOrange" PrimaryBackground="#C84721" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#8B3217" Theme="Office2019Colorful" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Violet" Name="Violet" PrimaryBackground="#6C27A4" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4C1B72"  Theme="Office2019Colorful" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Deep green" Name="DeepGreen" PrimaryBackground="#437238" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2F5027" Theme="Office2019Colorful" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Deep violet" Name="DeepViolet" PrimaryBackground="#6B2E70" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4B204E"  Theme="Office2019Colorful" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Red brown" Name="RedBrown" PrimaryBackground="#AA4E34" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#773624" Theme="Office2019Colorful" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Green cyan" Name="GreenCyan" PrimaryBackground="#327368" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#235049"  Theme="Office2019Colorful" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Deep green cyan" Name="DeepGreenCyan" PrimaryBackground="#378072" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#265950" Theme="Office2019Colorful" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Light violet" Name="LightViolet" PrimaryBackground="#6165A2" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#434771"  Theme="Office2019Colorful" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Mariner blue" Name="MarinerBlue" PrimaryBackground="#3D569E" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2B3C6E"  Theme="Office2019Colorful" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Deep blue" Name="DeepBlue" PrimaryBackground="#345795" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#253D68"  Theme="Office2019Colorful" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Light blue" Name="LightBlue" PrimaryBackground="#2E6DB8" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#214C80" Theme="Office2019Colorful" PrimaryBorderColor="#2A579A"/>
+
+	<Palette DisplayName="Default" Name="Default" PrimaryBackground="#255AAA" PrimaryForeground="#FFFFFF" Theme="Office2019Black" PrimaryBackgroundAlt="#020202" PrimaryBorderColor="#255AAA"/>
+	<Palette DisplayName="Red" Name="Red" PrimaryBackground="#983F3E" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#6A2C2B" Theme="Office2019Black" PrimaryBorderColor="#255AAA"/>
+	<Palette  DisplayName="Blue" Name="Blue" PrimaryBackground="#2E78CD" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#21538F" Theme="Office2019Black" PrimaryBorderColor="#255AAA"/>
+	<Palette DisplayName="Green"  Name="Green" PrimaryBackground="#3A714A" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#284F34" Theme="Office2019Black" PrimaryBorderColor="#255AAA"/>
+	<Palette DisplayName="Red orange" Name="RedOrange" PrimaryBackground="#C84721" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#8B3217" Theme="Office2019Black" PrimaryBorderColor="#255AAA"/>
+	<Palette DisplayName="Violet" Name="Violet" PrimaryBackground="#6C27A4" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4C1B72"  Theme="Office2019Black" PrimaryBorderColor="#255AAA"/>
+	<Palette DisplayName="Deep green" Name="DeepGreen" PrimaryBackground="#437238" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2F5027" Theme="Office2019Black" PrimaryBorderColor="#255AAA"/>
+	<Palette DisplayName="Deep violet" Name="DeepViolet" PrimaryBackground="#6B2E70" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4B204E"  Theme="Office2019Black" PrimaryBorderColor="#255AAA"/>
+	<Palette DisplayName="Red brown" Name="RedBrown" PrimaryBackground="#AA4E34" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#773624"  Theme="Office2019Black" PrimaryBorderColor="#255AAA"/>
+	<Palette DisplayName="Green cyan" Name="GreenCyan" PrimaryBackground="#327368" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#235049"  Theme="Office2019Black" PrimaryBorderColor="#255AAA"/>
+	<Palette DisplayName="Deep green cyan" Name="DeepGreenCyan" PrimaryBackground="#378072" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#265950" Theme="Office2019Black" PrimaryBorderColor="#255AAA"/>
+	<Palette DisplayName="Light violet" Name="LightViolet" PrimaryBackground="#6165A2" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#434771"  Theme="Office2019Black" PrimaryBorderColor="#255AAA"/>
+	<Palette DisplayName="Mariner blue" Name="MarinerBlue" PrimaryBackground="#3D569E" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2B3C6E"  Theme="Office2019Black" PrimaryBorderColor="#255AAA"/>
+	<Palette DisplayName="Deep blue" Name="DeepBlue" PrimaryBackground="#345795" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#253D68"  Theme="Office2019Black" PrimaryBorderColor="#255AAA"/>
+	<Palette DisplayName="Light blue" Name="LightBlue" PrimaryBackground="#2E6DB8" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#214C80" Theme="Office2019Black" PrimaryBorderColor="#255AAA"/>
+
+	<Palette DisplayName="Default" Name="Default" PrimaryBackground="#2A579A" PrimaryForeground="#FFFFFF" Theme="Office2019White" PrimaryBackgroundAlt="#FFFFFF" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Red" Name="Red" PrimaryBackground="#983F3E" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#6A2C2B" Theme="Office2019White" PrimaryBorderColor="#2A579A"/>
+	<Palette  DisplayName="Blue" Name="Blue" PrimaryBackground="#2E78CD" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#21538F" Theme="Office2019White" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Green" Name="Green" PrimaryBackground="#3A714A" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#284F34" Theme="Office2019White" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Red orange" Name="RedOrange" PrimaryBackground="#C84721" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#8B3217" Theme="Office2019White" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Violet" Name="Violet" PrimaryBackground="#6C27A4" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4C1B72"  Theme="Office2019White" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Deep green" Name="DeepGreen" PrimaryBackground="#437238" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2F5027" Theme="Office2019White" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Deep violet" Name="DeepViolet" PrimaryBackground="#6B2E70" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4B204E"  Theme="Office2019White" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Red brown" Name="RedBrown" PrimaryBackground="#AA4E34" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#773624" Theme="Office2019White" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Green cyan" Name="GreenCyan" PrimaryBackground="#327368" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#235049"  Theme="Office2019White" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Deep green cyan" Name="DeepGreenCyan" PrimaryBackground="#378072" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#265950" Theme="Office2019White" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Light violet" Name="LightViolet" PrimaryBackground="#6165A2" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#434771"  Theme="Office2019White" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Mariner blue" Name="MarinerBlue" PrimaryBackground="#3D569E" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2B3C6E" Theme="Office2019White" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Deep blue" Name="DeepBlue" PrimaryBackground="#345795" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#253D68"  Theme="Office2019White" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Light blue" Name="LightBlue" PrimaryBackground="#2E6DB8" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#214C80" Theme="Office2019White" PrimaryBorderColor="#2A579A"/>
+
+	<Palette DisplayName="Default" Name="Default" PrimaryBackground="#2A579A" PrimaryForeground="#FFFFFF" Theme="Office2019DarkGray" PrimaryBackgroundAlt="#949494" PrimaryBorderColor="#2A579A"/>
+	<Palette  DisplayName="Red" Name="Red" PrimaryBackground="#983F3E" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#6A2C2B" Theme="Office2019DarkGray" PrimaryBorderColor="#2A579A"/>
+	<Palette  DisplayName="Blue" Name="Blue" PrimaryBackground="#2E78CD" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#21538F" Theme="Office2019DarkGray" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Green" Name="Green" PrimaryBackground="#3A714A" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#284F34" Theme="Office2019DarkGray" PrimaryBorderColor="#2A579A"/>
+	<Palette  DisplayName="Red orange" Name="RedOrange" PrimaryBackground="#C84721" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#8B3217" Theme="Office2019DarkGray" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Violet" Name="Violet" PrimaryBackground="#6C27A4" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4C1B72"  Theme="Office2019DarkGray" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Deep green" Name="DeepGreen" PrimaryBackground="#437238" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2F5027" Theme="Office2019DarkGray" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Deep violet" Name="DeepViolet" PrimaryBackground="#6B2E70" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4B204E"  Theme="Office2019DarkGray" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Red brown" Name="RedBrown" PrimaryBackground="#AA4E34" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#773624"  Theme="Office2019DarkGray" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Green cyan" Name="GreenCyan" PrimaryBackground="#327368" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#235049"  Theme="Office2019DarkGray" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Deep green cyan" Name="DeepGreenCyan" PrimaryBackground="#378072" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#265950" Theme="Office2019DarkGray" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Light violet" Name="LightViolet" PrimaryBackground="#6165A2" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#434771"  Theme="Office2019DarkGray" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Mariner blue" Name="MarinerBlue" PrimaryBackground="#3D569E" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2B3C6E"  Theme="Office2019DarkGray" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Deep blue" Name="DeepBlue" PrimaryBackground="#345795" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#253D68" Theme="Office2019DarkGray" PrimaryBorderColor="#2A579A"/>
+	<Palette DisplayName="Light blue" Name="LightBlue" PrimaryBackground="#2E6DB8" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#214C80" Theme="Office2019DarkGray" PrimaryBorderColor="#2A579A"/>
+
+	<Palette DisplayName="Default" Name="Default" PrimaryBackground="#FAD95A" PrimaryForeground="#000000" Theme="Office2019HighContrast" PrimaryBackgroundAlt="#000000" PrimaryBorderColor="#FAD95A"/>
+	<Palette DisplayName="Red" Name="Red" PrimaryBackground="#983F3E" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#6A2C2B" Theme="Office2019HighContrast" PrimaryBorderColor="#FAD95A"/>
+	<Palette DisplayName="Blue" Name="Blue" PrimaryBackground="#2E78CD" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#21538F"  Theme="Office2019HighContrast" PrimaryBorderColor="#FAD95A"/>
+	<Palette  DisplayName="Green" Name="Green" PrimaryBackground="#3A714A" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#284F34"  Theme="Office2019HighContrast" PrimaryBorderColor="#FAD95A"/>
+	<Palette  DisplayName="Red orange"  Name="RedOrange" PrimaryBackground="#C84721" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#8B3217" Theme="Office2019HighContrast" PrimaryBorderColor="#FAD95A"/>
+	<Palette  DisplayName="Violet" Name="Violet" PrimaryBackground="#6C27A4" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#4C1B72" Theme="Office2019HighContrast" PrimaryBorderColor="#FAD95A"/>
+	<Palette DisplayName="Deep green" Name="DeepGreen" PrimaryBackground="#437238" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2F5027" Theme="Office2019HighContrast" PrimaryBorderColor="#FAD95A"/>
+	<Palette DisplayName="Deep violet" Name="DeepViolet" PrimaryBackground="#6B2E70" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4B204E" Theme="Office2019HighContrast" PrimaryBorderColor="#FAD95A"/>
+	<Palette DisplayName="Red brown"  Name="RedBrown" PrimaryBackground="#AA4E34" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#773624"  Theme="Office2019HighContrast" PrimaryBorderColor="#FAD95A"/>
+	<Palette DisplayName="Green cyan" Name="GreenCyan" PrimaryBackground="#327368" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#235049" Theme="Office2019HighContrast" PrimaryBorderColor="#FAD95A"/>
+	<Palette  DisplayName="Deep green cyan" Name="DeepGreenCyan" PrimaryBackground="#378072" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#265950"  Theme="Office2019HighContrast" PrimaryBorderColor="#FAD95A"/>
+	<Palette DisplayName="Light violet" Name="LightViolet" PrimaryBackground="#6165A2" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#434771"  Theme="Office2019HighContrast" PrimaryBorderColor="#FAD95A"/>
+	<Palette  DisplayName="Mariner blue" Name="MarinerBlue" PrimaryBackground="#3D569E" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2B3C6E" Theme="Office2019HighContrast" PrimaryBorderColor="#FAD95A"/>
+	<Palette DisplayName="Deep blue" Name="DeepBlue" PrimaryBackground="#345795" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#253D68" Theme="Office2019HighContrast" PrimaryBorderColor="#FAD95A"/>
+	<Palette DisplayName="Light blue" Name="LightBlue" PrimaryBackground="#2E6DB8" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#214C80" Theme="Office2019HighContrast" PrimaryBorderColor="#FAD95A"/>
+
+	<Palette DisplayName="Default" Name="Default" PrimaryBackground="#4C0094" PrimaryForeground="#FFFFFF" Theme="Office2019HighContrastWhite" PrimaryBackgroundAlt="#FFFFFF" PrimaryBorderColor="#4C0094"/>
+	<Palette DisplayName="Red" Name="Red" PrimaryBackground="#983F3E" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#6A2C2B" Theme="Office2019HighContrastWhite" PrimaryBorderColor="#4C0094"/>
+	<Palette DisplayName="Blue" Name="Blue" PrimaryBackground="#2E78CD" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#21538F"  Theme="Office2019HighContrastWhite" PrimaryBorderColor="#4C0094"/>
+	<Palette DisplayName="Green" Name="Green" PrimaryBackground="#3A714A" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#284F34"  Theme="Office2019HighContrastWhite" PrimaryBorderColor="#4C0094"/>
+	<Palette DisplayName="Red orange" Name="RedOrange" PrimaryBackground="#C84721" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#8B3217" Theme="Office2019HighContrastWhite" PrimaryBorderColor="#4C0094"/>
+	<Palette DisplayName="Violet" Name="Violet" PrimaryBackground="#6C27A4" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4C1B72"  Theme="Office2019HighContrastWhite" PrimaryBorderColor="#4C0094"/>
+	<Palette DisplayName="Deep green" Name="DeepGreen" PrimaryBackground="#437238" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2F5027" Theme="Office2019HighContrastWhite" PrimaryBorderColor="#4C0094"/>
+	<Palette DisplayName="Deep violet" Name="DeepViolet" PrimaryBackground="#6B2E70" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#4B204E" Theme="Office2019HighContrastWhite" PrimaryBorderColor="#4C0094"/>
+	<Palette DisplayName="Red brown" Name="RedBrown" PrimaryBackground="#AA4E34" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#773624"  Theme="Office2019HighContrastWhite" PrimaryBorderColor="#4C0094"/>
+	<Palette DisplayName="Green cyan" Name="GreenCyan" PrimaryBackground="#327368" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#235049"  Theme="Office2019HighContrastWhite" PrimaryBorderColor="#4C0094"/>
+	<Palette DisplayName="Deep green cyan" Name="DeepGreenCyan" PrimaryBackground="#378072" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#265950"  Theme="Office2019HighContrastWhite" PrimaryBorderColor="#4C0094"/>
+	<Palette DisplayName="Light violet" Name="LightViolet" PrimaryBackground="#6165A2" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#434771"  Theme="Office2019HighContrastWhite" PrimaryBorderColor="#4C0094"/>
+	<Palette DisplayName="Mariner blue" Name="MarinerBlue" PrimaryBackground="#3D569E" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#2B3C6E" Theme="Office2019HighContrastWhite" PrimaryBorderColor="#4C0094"/>
+	<Palette DisplayName="Deep blue" Name="DeepBlue" PrimaryBackground="#345795" PrimaryForeground="#FFFFFF"  PrimaryBackgroundAlt="#253D68" Theme="Office2019HighContrastWhite" PrimaryBorderColor="#4C0094"/>
+	<Palette DisplayName="Light blue" Name="LightBlue" PrimaryBackground="#2E6DB8" PrimaryForeground="#FFFFFF" PrimaryBackgroundAlt="#214C80" Theme="Office2019HighContrastWhite" PrimaryBorderColor="#4C0094"/>
+</Palettes>

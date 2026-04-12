@@ -1,0 +1,115 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
+        x:Class="Datalab_.MainWindow"
+		Width="900" Height="600"
+		Background="#1E1E1E"
+		WindowStartupLocation="CenterScreen"
+	
+		Icon="/Assets/image.ico"
+		
+        Title="Softcat ver.1.0.0    Datalab_">
+
+	<Grid>
+		<!-- 행과 열 정의 -->
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto"/>
+		</Grid.RowDefinitions>
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="1*"/>
+			<ColumnDefinition Width="2*"/>
+		</Grid.ColumnDefinitions>
+
+		<!-- 분류 설정 -->
+		<StackPanel Width="300" Height="600" Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20, 20, 0, 0">
+			<TextBlock Text="분류 설정" Foreground="White"></TextBlock>
+
+			<StackPanel>
+				<!-- 1차 분류 -->
+				<ComboBox Name="first_category" Width="260" Height="40" Margin="0, 20, 0, 0"
+					  PlaceholderText="1차 분류" PlaceholderForeground="White" Background="#1E1E1E" 
+						  Foreground="White" BorderBrush="#727B8B" CornerRadius="8">
+					<ComboBoxItem HorizontalContentAlignment="Center" Content="1시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="2시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="3시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="4시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="5시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="6시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="7시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="8시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="9시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="10시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="11시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="12시간"></ComboBoxItem>
+				</ComboBox>
+		
+				<!-- 2차 분류 -->
+				<ComboBox Name="second_category" Width="260" Height="40" Margin="0, 20, 0, 0"
+					  PlaceholderText="2차 분류" PlaceholderForeground="White" Background="#1E1E1E"
+						  Foreground="White" BorderBrush="#727B8B" CornerRadius="8">
+					<ComboBoxItem HorizontalContentAlignment="Center" Content="1시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="2시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="3시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="4시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="5시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="6시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="7시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="8시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="9시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="10시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="11시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="12시간"></ComboBoxItem>
+				</ComboBox>
+				<!-- 1차 분류 -->
+				<ComboBox Name="third_category" Width="260" Height="40" Margin="0, 20, 0, 0"
+					  PlaceholderText="3차 분류" PlaceholderForeground="White" Background="#1E1E1E"
+						  Foreground="White" BorderBrush="#727B8B" CornerRadius="8">
+					<ComboBoxItem HorizontalContentAlignment="Center" Content="1시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="2시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="3시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="4시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="5시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="6시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="7시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="8시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="9시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="10시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="11시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="12시간"></ComboBoxItem>
+				</ComboBox>
+				<!-- 1차 분류 -->
+				<ComboBox Name="fourth_category" Width="260" Height="40" Margin="0, 20, 0, 0"
+					  PlaceholderText="4차 분류" PlaceholderForeground="White" Background="#1E1E1E"
+						  Foreground="White" BorderBrush="#727B8B" CornerRadius="8">
+					<ComboBoxItem HorizontalContentAlignment="Center" Content="1시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="2시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="3시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="4시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="5시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="6시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="7시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="8시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="9시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="10시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="11시간"></ComboBoxItem>
+					<ComboBoxItem  HorizontalContentAlignment="Center" Content="12시간"></ComboBoxItem>
+				</ComboBox>
+			</StackPanel>
+
+			<!-- 조회하기 버튼 -->
+			<Button Width="260" Height="40" Content="조회하기" Background="#424853"
+					Margin="0, 260"
+					HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+					Foreground="White" CornerRadius="8"></Button>
+		</StackPanel>
+		
+		<StackPanel Width="600" Height="600" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20, 20, 0, 0">
+			<TextBlock Text="로그 내역" Foreground="White" Margin="0, 0, 0, 0"></TextBlock>
+			
+			<TextBox Width="540" Height="520" IsEnabled="False" CornerRadius="12" Margin="-60, 15, 0, 0"
+					 Background="#424853" Foreground="White"></TextBox>
+		</StackPanel> 
+	</Grid>
+</Window>

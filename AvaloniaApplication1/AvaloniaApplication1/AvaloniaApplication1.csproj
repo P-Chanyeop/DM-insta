@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ApplicationIcon>softcat2.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Assets\avalonia-logo.ico" />
+    <None Remove="Assets\hover_upload.png" />
+    <None Remove="Assets\image.ico" />
+    <None Remove="Assets\upload.png" />
+    <None Remove="image.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\avalonia-logo.ico" />
+    <AvaloniaResource Include="Assets\hover_upload.png" />
+    <AvaloniaResource Include="Assets\image.ico" />
+    <AvaloniaResource Include="Assets\upload.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="softcat2.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.1.3" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.1.3" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.1.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.1.3" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.1.3" />
+    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.1.3" />
+    <PackageReference Include="EPPlus" Version="7.3.1" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.12.1" />
+    <PackageReference Include="MessageBox.Avalonia" Version="3.1.6" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Selenium.WebDriver" Version="4.31.0" />
+    <PackageReference Include="System.Formats.Asn1" Version="9.0.5" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
+    <PackageReference Include="TextCopy" Version="6.2.1" />
+  </ItemGroup>
+</Project>

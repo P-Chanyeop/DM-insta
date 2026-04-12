@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "새 프로필",
+    "Projects": [
+      {
+        "Path": "NaverWriting\\NaverWriting.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "WebApplication1\\WebApplication1.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

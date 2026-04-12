@@ -1,0 +1,66 @@
+﻿<Page
+    x:Class="SyncfusionWpfApp1.Views.ChartsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:properties="clr-namespace:SyncfusionWpfApp1.Properties"
+    xmlns:chart="clr-namespace:Syncfusion.UI.Xaml.Charts;assembly=Syncfusion.SfChart.WPF"
+	xmlns:vm="clr-namespace:SyncfusionWpfApp1.ViewModels"
+    mc:Ignorable="d"
+    d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid>
+            <chart:SfChart Margin="20" 
+                    Header="Trade Volume Analysis: Imports and Exports"
+                    FontSize="17"
+                    FontWeight="Bold">
+                <chart:SfChart.DataContext>
+                    <vm:ChartsViewModel/>
+                </chart:SfChart.DataContext>
+                <chart:SfChart.PrimaryAxis>
+                    <chart:CategoryAxis PlotOffset="20" />
+                </chart:SfChart.PrimaryAxis>
+                <chart:SfChart.SecondaryAxis>
+                    <chart:NumericalAxis/>
+                </chart:SfChart.SecondaryAxis>
+                 <chart:SfChart.Legend>
+                    <chart:ChartLegend Margin="11" />
+                </chart:SfChart.Legend>
+                <chart:SfChart.Behaviors>
+                <chart:ChartSelectionBehavior EnableSegmentSelection="True"/>
+                <chart:ChartTrackBallBehavior/>
+                <chart:ChartZoomPanBehavior EnableDirectionalZooming="True"
+                             EnablePanning="True"
+                             EnableSelectionZooming="True"/>
+                </chart:SfChart.Behaviors>
+            <chart:LineSeries ItemsSource="{Binding Data}" 
+                              XBindingPath="Name" 
+                              YBindingPath="Imports"
+                              EnableAnimation="True"
+                              SegmentSelectionBrush="#d1d1e0"
+                              ShowTooltip="True"
+                              Label="Imports">
+                    <chart:LineSeries.AdornmentsInfo>
+                        <chart:ChartAdornmentInfo ShowLabel="True" SegmentLabelFormat="0.00'B">
+                        </chart:ChartAdornmentInfo>
+                    </chart:LineSeries.AdornmentsInfo>
+                </chart:LineSeries>
+                <chart:LineSeries ItemsSource="{Binding Data}" 
+                XBindingPath="Name" 
+                YBindingPath="Exports"
+                EnableAnimation="True"
+                SegmentSelectionBrush="#d1d1e0"
+                ShowTooltip="True"
+                Label="Exports">
+                <chart:LineSeries.AdornmentsInfo>
+                        <chart:ChartAdornmentInfo ShowLabel="True" 
+                               LabelPosition="Inner" 
+                               SegmentLabelFormat="0.00'B" >
+                        </chart:ChartAdornmentInfo>
+                    </chart:LineSeries.AdornmentsInfo>
+            </chart:LineSeries>
+            </chart:SfChart>
+        </Grid>
+    </Grid>
+</Page>

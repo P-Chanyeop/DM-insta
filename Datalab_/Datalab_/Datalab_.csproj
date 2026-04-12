@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Assets\blue.ico" />
+    <None Remove="Assets\blue.png" />
+    <None Remove="Assets\blue_icon.png" />
+    <None Remove="Assets\icon_v2.png" />
+    <None Remove="Assets\icon_v3.ico" />
+    <None Remove="Assets\image.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\blue.ico" />
+    <AvaloniaResource Include="Assets\blue_icon.png" />
+    <AvaloniaResource Include="Assets\icon_v2.png" />
+    <AvaloniaResource Include="Assets\icon_v3.ico" />
+    <AvaloniaResource Include="Assets\image.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.1.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.1.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.1.0" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.1.0" />
+    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\blue.png" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,62 @@
+﻿<Page x:Class="SyncfusionWpfApp1.Views.TabControlExtPage"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SyncfusionWpfApp1.ViewModels" 
+		xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:syncfusion="http://schemas.syncfusion.com/wpf"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <Page.Resources>
+        <ObjectDataProvider
+            x:Key="dataFromEnum"
+            MethodName="GetValues"
+            ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="Dock" />
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+        <ObjectDataProvider
+            x:Key="flowDirection"
+            MethodName="GetValues"
+            ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="FlowDirection" />
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+        <ObjectDataProvider
+            x:Key="closeButtonType"
+            MethodName="GetValues"
+            ObjectType="{x:Type sys:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="syncfusion:CloseButtonType" />
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+    </Page.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="0.7*" />
+            <ColumnDefinition Width="0.3*" />
+        </Grid.ColumnDefinitions>
+        <syncfusion:TabControlExt 
+            TabStripPlacement="Bottom"
+            CloseButtonType="Both"
+            x:Name="tabControlExt"
+			IsNewButtonClosedonNoChild="False"
+            IsCustomTabItemContextMenuEnabled="True"
+            IsNewButtonEnabled="True"
+            NewButtonClick="TabControlExt_NewButtonClick" >
+            <syncfusion:TabItemExt Header="Item1" AllowPin="True" IsPinned="True" ShowPin="True" >
+                <syncfusion:TabItemExt.ContextMenuItems>
+                    <syncfusion:CustomMenuItem Header="Edit" />
+                </syncfusion:TabItemExt.ContextMenuItems>
+            </syncfusion:TabItemExt>
+            <syncfusion:TabItemExt Header="Item2" AllowPin="True" IsPinned="True" ShowPin="True" />
+            <syncfusion:TabItemExt Header="Item3" AllowPin="True" IsPinned="True" ShowPin="True" />
+            <syncfusion:TabItemExt Header="Item4" AllowPin="True" IsPinned="True" ShowPin="True" />
+            <syncfusion:TabItemExt Header="Item5" AllowPin="True" IsPinned="True" ShowPin="True" />
+            <syncfusion:TabItemExt Header="Item6" AllowPin="True" IsPinned="True" ShowPin="True" />
+        </syncfusion:TabControlExt>
+    </Grid>
+</Page>

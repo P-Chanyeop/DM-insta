@@ -1,0 +1,20 @@
+﻿<Page x:Class="SyncfusionWpfApp1.Views.RatingPage"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SyncfusionWpfApp1.ViewModels" 
+		xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:syncfusion="http://schemas.syncfusion.com/wpf"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+	<Grid>
+        <syncfusion:SfRating ItemsCount="5" Precision="Exact" ShowToolTip="True"  Value="2" Width="150">
+            <syncfusion:SfRating.ItemContainerStyle>
+                <Style TargetType="syncfusion:SfRatingItem">
+                    <Setter Property="RatedFill" Value="Green"></Setter>
+                </Style>
+            </syncfusion:SfRating.ItemContainerStyle>
+        </syncfusion:SfRating>
+    </Grid>
+</Page>

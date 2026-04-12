@@ -1,0 +1,134 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Github\\Programs\\AvaloniaApplication1\\AvaloniaApplication1\\AvaloniaApplication1.csproj": {}
+  },
+  "projects": {
+    "C:\\Github\\Programs\\AvaloniaApplication1\\AvaloniaApplication1\\AvaloniaApplication1.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Github\\Programs\\AvaloniaApplication1\\AvaloniaApplication1\\AvaloniaApplication1.csproj",
+        "projectName": "AvaloniaApplication1",
+        "projectPath": "C:\\Github\\Programs\\AvaloniaApplication1\\AvaloniaApplication1\\AvaloniaApplication1.csproj",
+        "packagesPath": "C:\\Users\\IRENE_XD\\.nuget\\packages\\",
+        "outputPath": "C:\\Github\\Programs\\AvaloniaApplication1\\AvaloniaApplication1\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
+          "C:\\Program Files (x86)\\Syncfusion\\Essential Studio\\WPF\\27.1.48\\ToolboxNuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\IRENE_XD\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Syncfusion Toolbox for WPF.config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "all"
+        },
+        "SdkAnalysisLevel": "9.0.100"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Avalonia": {
+              "target": "Package",
+              "version": "[11.1.3, )"
+            },
+            "Avalonia.Controls.DataGrid": {
+              "target": "Package",
+              "version": "[11.1.3, )"
+            },
+            "Avalonia.Desktop": {
+              "target": "Package",
+              "version": "[11.1.3, )"
+            },
+            "Avalonia.Diagnostics": {
+              "target": "Package",
+              "version": "[11.1.3, )"
+            },
+            "Avalonia.Fonts.Inter": {
+              "target": "Package",
+              "version": "[11.1.3, )"
+            },
+            "Avalonia.Themes.Fluent": {
+              "target": "Package",
+              "version": "[11.1.3, )"
+            },
+            "EPPlus": {
+              "target": "Package",
+              "version": "[7.3.1, )"
+            },
+            "HtmlAgilityPack": {
+              "target": "Package",
+              "version": "[1.12.1, )"
+            },
+            "MessageBox.Avalonia": {
+              "target": "Package",
+              "version": "[3.1.6, )"
+            },
+            "Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[13.0.3, )"
+            },
+            "Selenium.WebDriver": {
+              "target": "Package",
+              "version": "[4.31.0, )"
+            },
+            "System.Formats.Asn1": {
+              "target": "Package",
+              "version": "[9.0.5, )"
+            },
+            "System.Text.Encoding.CodePages": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            },
+            "TextCopy": {
+              "target": "Package",
+              "version": "[6.2.1, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.100/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
