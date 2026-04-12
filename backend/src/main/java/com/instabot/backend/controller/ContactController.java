@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -28,7 +29,7 @@ public class ContactController {
     }
 
     @PatchMapping("/{id}")
-    public ResponseEntity<ContactDto.Response> updateContact(@PathVariable Long id, @RequestBody ContactDto.UpdateRequest request) {
+    public ResponseEntity<ContactDto.Response> updateContact(@PathVariable Long id, @Valid @RequestBody ContactDto.UpdateRequest request) {
         return ResponseEntity.ok(contactService.updateContact(id, request));
     }
 }

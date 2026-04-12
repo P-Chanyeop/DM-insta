@@ -5,6 +5,7 @@ import com.instabot.backend.dto.FlowDto;
 import com.instabot.backend.service.FlowService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,7 +28,7 @@ public class FlowController {
     }
 
     @PostMapping
-    public ResponseEntity<FlowDto.Response> createFlow(@RequestBody FlowDto.CreateRequest request) {
+    public ResponseEntity<FlowDto.Response> createFlow(@Valid @RequestBody FlowDto.CreateRequest request) {
         return ResponseEntity.ok(flowService.createFlow(SecurityUtils.currentUserId(), request));
     }
 

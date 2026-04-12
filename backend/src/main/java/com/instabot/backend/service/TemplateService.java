@@ -2,6 +2,7 @@ package com.instabot.backend.service;
 
 import com.instabot.backend.dto.TemplateDto;
 import com.instabot.backend.entity.Template;
+import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.TemplateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,7 @@ public class TemplateService {
     @Transactional
     public void incrementUsage(Long id) {
         Template t = templateRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("템플릿을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("템플릿을 찾을 수 없습니다."));
         t.setUsageCount(t.getUsageCount() + 1);
         templateRepository.save(t);
     }

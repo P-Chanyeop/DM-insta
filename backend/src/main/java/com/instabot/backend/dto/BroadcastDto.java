@@ -1,5 +1,6 @@
 package com.instabot.backend.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -7,7 +8,9 @@ public class BroadcastDto {
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor
     public static class CreateRequest {
+        @NotBlank(message = "브로���캐스트 이름��� 필수입니다")
         private String name;
+        @NotBlank(message = "메시지 내용은 필수입니다")
         private String messageContent;
         private String segment;
         private LocalDateTime scheduledAt;

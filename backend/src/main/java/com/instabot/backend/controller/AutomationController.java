@@ -5,6 +5,7 @@ import com.instabot.backend.dto.AutomationDto;
 import com.instabot.backend.service.AutomationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,7 +27,7 @@ public class AutomationController {
     }
 
     @PostMapping
-    public ResponseEntity<AutomationDto.Response> createAutomation(@RequestBody AutomationDto.CreateRequest request) {
+    public ResponseEntity<AutomationDto.Response> createAutomation(@Valid @RequestBody AutomationDto.CreateRequest request) {
         return ResponseEntity.ok(automationService.createAutomation(SecurityUtils.currentUserId(), request));
     }
 

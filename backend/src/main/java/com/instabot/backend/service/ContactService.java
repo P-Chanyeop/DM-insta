@@ -2,6 +2,7 @@ package com.instabot.backend.service;
 
 import com.instabot.backend.dto.ContactDto;
 import com.instabot.backend.entity.Contact;
+import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.ContactRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -21,13 +22,13 @@ public class ContactService {
 
     public ContactDto.Response getContact(Long id) {
         return toResponse(contactRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("연락처를 찾을 수 없습니다.")));
+                .orElseThrow(() -> new ResourceNotFoundException("연락처를 찾을 수 없습니다.")));
     }
 
     @Transactional
     public ContactDto.Response updateContact(Long id, ContactDto.UpdateRequest request) {
         Contact contact = contactRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("연락처를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("연락처를 찾을 수 없습니다."));
 
         if (request.getTags() != null) contact.setTags(request.getTags());
         if (request.getMemo() != null) contact.setMemo(request.getMemo());

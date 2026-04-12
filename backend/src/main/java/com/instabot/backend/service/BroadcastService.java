@@ -3,6 +3,7 @@ package com.instabot.backend.service;
 import com.instabot.backend.dto.BroadcastDto;
 import com.instabot.backend.entity.Broadcast;
 import com.instabot.backend.entity.User;
+import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.BroadcastRepository;
 import com.instabot.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,7 @@ public class BroadcastService {
     @Transactional
     public BroadcastDto.Response createBroadcast(Long userId, BroadcastDto.CreateRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
         Broadcast broadcast = Broadcast.builder()
                 .user(user)
@@ -44,7 +45,7 @@ public class BroadcastService {
     @Transactional
     public void cancelBroadcast(Long id) {
         Broadcast broadcast = broadcastRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("브로드캐스트를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("브로드캐스트를 찾을 수 없습니다."));
         broadcast.setStatus(Broadcast.BroadcastStatus.CANCELLED);
         broadcastRepository.save(broadcast);
     }

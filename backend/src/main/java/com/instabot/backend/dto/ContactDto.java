@@ -1,5 +1,6 @@
 package com.instabot.backend.dto;
 
+import jakarta.validation.constraints.Size;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -23,6 +24,7 @@ public class ContactDto {
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor
     public static class UpdateRequest {
+        @Size(max = 20, message = "태그는 최대 20개까지 가능합니다")
         private Set<String> tags;
         private String memo;
         private String customFields;

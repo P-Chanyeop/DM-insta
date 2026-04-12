@@ -5,6 +5,7 @@ import com.instabot.backend.dto.SequenceDto;
 import com.instabot.backend.service.SequenceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,7 +23,7 @@ public class SequenceController {
     }
 
     @PostMapping
-    public ResponseEntity<SequenceDto.Response> createSequence(@RequestBody SequenceDto.CreateRequest request) {
+    public ResponseEntity<SequenceDto.Response> createSequence(@Valid @RequestBody SequenceDto.CreateRequest request) {
         return ResponseEntity.ok(sequenceService.createSequence(SecurityUtils.currentUserId(), request));
     }
 

@@ -3,6 +3,7 @@ package com.instabot.backend.service;
 import com.instabot.backend.dto.GrowthToolDto;
 import com.instabot.backend.entity.GrowthTool;
 import com.instabot.backend.entity.User;
+import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.GrowthToolRepository;
 import com.instabot.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,7 @@ public class GrowthToolService {
     @Transactional
     public GrowthToolDto.Response createTool(Long userId, GrowthToolDto.CreateRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
         GrowthTool tool = GrowthTool.builder()
                 .user(user)

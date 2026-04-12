@@ -3,6 +3,7 @@ package com.instabot.backend.service;
 import com.instabot.backend.dto.AutomationDto;
 import com.instabot.backend.entity.Automation;
 import com.instabot.backend.entity.User;
+import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.AutomationRepository;
 import com.instabot.backend.repository.FlowRepository;
 import com.instabot.backend.repository.UserRepository;
@@ -82,7 +83,7 @@ public class AutomationService {
     @Transactional
     public AutomationDto.Response createAutomation(Long userId, AutomationDto.CreateRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
         Automation automation = Automation.builder()
                 .user(user)
@@ -103,7 +104,7 @@ public class AutomationService {
     @Transactional
     public AutomationDto.Response toggleAutomation(Long id) {
         Automation automation = automationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("자동화를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("자동화를 찾을 수 없습니다."));
         automation.setActive(!automation.isActive());
         return toResponse(automationRepository.save(automation));
     }

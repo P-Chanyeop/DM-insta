@@ -4,6 +4,7 @@ import com.instabot.backend.dto.SequenceDto;
 import com.instabot.backend.entity.Sequence;
 import com.instabot.backend.entity.SequenceStep;
 import com.instabot.backend.entity.User;
+import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.SequenceRepository;
 import com.instabot.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +29,7 @@ public class SequenceService {
     @Transactional
     public SequenceDto.Response createSequence(Long userId, SequenceDto.CreateRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
         Sequence seq = Sequence.builder()
                 .user(user)
@@ -56,7 +57,7 @@ public class SequenceService {
     @Transactional
     public SequenceDto.Response toggleSequence(Long id) {
         Sequence seq = sequenceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("시퀀스를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("시퀀스를 찾을 수 없습니다."));
         seq.setActive(!seq.isActive());
         return toResponse(sequenceRepository.save(seq));
     }

@@ -1,5 +1,6 @@
 package com.instabot.backend.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -8,6 +9,7 @@ public class SequenceDto {
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor
     public static class CreateRequest {
+        @NotBlank(message = "시퀀스 이��은 필수입니다")
         private String name;
         private String description;
         private List<StepRequest> steps;

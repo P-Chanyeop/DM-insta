@@ -3,6 +3,7 @@ package com.instabot.backend.service;
 import com.instabot.backend.dto.IntegrationDto;
 import com.instabot.backend.entity.Integration;
 import com.instabot.backend.entity.User;
+import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.IntegrationRepository;
 import com.instabot.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,7 @@ public class IntegrationService {
     @Transactional
     public IntegrationDto.Response createIntegration(Long userId, IntegrationDto.CreateRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
         Integration integ = Integration.builder()
                 .user(user)
@@ -42,7 +43,7 @@ public class IntegrationService {
     @Transactional
     public IntegrationDto.Response toggleIntegration(Long id) {
         Integration integ = integrationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("연동을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("연동을 찾을 수 없습니다."));
         integ.setActive(!integ.isActive());
         return toResponse(integrationRepository.save(integ));
     }
