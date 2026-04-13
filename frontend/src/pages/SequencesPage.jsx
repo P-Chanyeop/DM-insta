@@ -1,52 +1,14 @@
 import { useState, useEffect } from 'react'
 import { sequenceService } from '../api/services'
 
-const MOCK_SEQUENCES = [
-  {
-    id: 'seq-1',
-    name: '신규 고객 온보딩',
-    description: '신규 구독자에게 5일에 걸쳐 브랜드를 소개하는 시퀀스',
-    active: true,
-    steps: [
-      { delay: '즉시', name: '환영 메시지', active: true },
-      { delay: '1일 후', name: '브랜드 스토리', active: true },
-      { delay: '3일 후', name: '인기 상품 소개', active: true },
-      { delay: '5일 후', name: '특별 할인 쿠폰', active: false },
-    ],
-    stats: { enrolled: 1284, completed: 892, inProgress: 392 },
-  },
-  {
-    id: 'seq-2',
-    name: '재구매 유도 캠페인',
-    description: '구매 후 7일, 14일, 30일에 걸쳐 재구매를 유도하는 시퀀스',
-    active: true,
-    steps: [
-      { delay: '7일 후', name: '사용 후기 요청', active: true },
-      { delay: '14일 후', name: '관련 상품 추천', active: true },
-      { delay: '30일 후', name: '재구매 할인 쿠폰', active: false },
-    ],
-    stats: { enrolled: 456, completed: 234, inProgress: 222 },
-  },
-  {
-    id: 'seq-3',
-    name: '장바구니 이탈 복구',
-    description: '장바구니에 상품을 담고 떠난 고객에게 리마인드 메시지를 보내는 시퀀스',
-    active: false,
-    steps: [
-      { delay: '1시간 후', name: '장바구니 리마인더', active: true },
-      { delay: '1일 후', name: '한정 할인 제안', active: true },
-      { delay: '3일 후', name: '마지막 기회 알림', active: false },
-    ],
-    stats: { enrolled: 723, completed: 318, inProgress: 405 },
-  },
-]
-
 export default function SequencesPage() {
   const [sequences, setSequences] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({ name: '', description: '' })
   const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState(null)
 
   useEffect(() => {
     loadSequences()
@@ -54,15 +16,13 @@ export default function SequencesPage() {
 
   async function loadSequences() {
     setLoading(true)
+    setError(null)
     try {
       const data = await sequenceService.list()
-      if (data && data.length > 0) {
-        setSequences(data)
-      } else {
-        setSequences(MOCK_SEQUENCES)
-      }
-    } catch {
-      setSequences(MOCK_SEQUENCES)
+      setSequences(data ?? [])
+    } catch (err) {
+      setError(err.message || '시퀀스를 불러오는 데 실패했습니다.')
+      setSequences([])
     } finally {
       setLoading(false)
     }
@@ -72,48 +32,41 @@ export default function SequencesPage() {
     e.preventDefault()
     if (!formData.name.trim()) return
     setCreating(true)
+    setCreateError(null)
     try {
       const newSeq = await sequenceService.create({
         name: formData.name,
         description: formData.description,
       })
       setSequences((prev) => [...prev, newSeq])
-    } catch {
-      const mockNew = {
-        id: `seq-${Date.now()}`,
-        name: formData.name,
-        description: formData.description,
-        active: false,
-        steps: [],
-        stats: { enrolled: 0, completed: 0, inProgress: 0 },
-      }
-      setSequences((prev) => [...prev, mockNew])
-    } finally {
       setFormData({ name: '', description: '' })
       setShowForm(false)
+    } catch (err) {
+      setCreateError(err.message || '시퀀스 생성에 실패했습니다. 다시 시도해주세요.')
+    } finally {
       setCreating(false)
     }
   }
 
   async function handleToggle(id) {
+    const prev = sequences
+    setSequences((s) => s.map((seq) => (seq.id === id ? { ...seq, active: !seq.active } : seq)))
     try {
       await sequenceService.toggle(id)
     } catch {
-      // toggle locally as fallback
+      setSequences(prev)
     }
-    setSequences((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, active: !s.active } : s))
-    )
   }
 
   async function handleDelete(id) {
     if (!window.confirm('이 시퀀스를 삭제하시겠습니까?')) return
+    const prev = sequences
+    setSequences((s) => s.filter((seq) => seq.id !== id))
     try {
       await sequenceService.delete(id)
     } catch {
-      // delete locally as fallback
+      setSequences(prev)
     }
-    setSequences((prev) => prev.filter((s) => s.id !== id))
   }
 
   function formatNumber(n) {
@@ -155,11 +108,16 @@ export default function SequencesPage() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
+              {createError && (
+                <div style={{ color: '#ff4d6a', fontSize: 14 }}>
+                  {createError}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button type="submit" className="btn-primary" disabled={creating || !formData.name.trim()}>
                   {creating ? '생성 중...' : '생성'}
                 </button>
-                <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>
+                <button type="button" className="btn-secondary" onClick={() => { setShowForm(false); setCreateError(null) }}>
                   취소
                 </button>
               </div>
@@ -171,6 +129,14 @@ export default function SequencesPage() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
           <i className="ri-loader-4-line" style={{ fontSize: 24 }} /> 시퀀스를 불러오는 중...
+        </div>
+      ) : error ? (
+        <div style={{ textAlign: 'center', padding: 60, color: '#888' }}>
+          <i className="ri-error-warning-line" style={{ fontSize: 48, display: 'block', marginBottom: 12, color: '#ff4d6a' }} />
+          <p style={{ marginBottom: 16 }}>{error}</p>
+          <button className="btn-primary" onClick={loadSequences}>
+            <i className="ri-refresh-line" /> 다시 시도
+          </button>
         </div>
       ) : sequences.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#888' }}>

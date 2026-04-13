@@ -153,45 +153,10 @@ export default function ContactsPage() {
     if (file) setImportFile(file)
   }
 
-  const handleImportSubmit = async () => {
-    if (!importFile) return
-    try {
-      const text = await importFile.text()
-      const lines = text.split('\n').filter((l) => l.trim())
-      if (lines.length < 2) {
-        setError('CSV 파일에 데이터가 없습니다.')
-        return
-      }
-      // Parse header and rows
-      const header = lines[0].split(',').map((h) => h.replace(/"/g, '').trim())
-      const nameIdx = header.findIndex((h) => h === '이름' || h.toLowerCase() === 'name')
-      const usernameIdx = header.findIndex((h) => h === '사용자명' || h.toLowerCase() === 'username')
-      const emailIdx = header.findIndex((h) => h === '이메일' || h.toLowerCase() === 'email')
-
-      let importCount = 0
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(',').map((c) => c.replace(/"/g, '').trim())
-        const contact = {
-          name: nameIdx >= 0 ? cols[nameIdx] : '',
-          username: usernameIdx >= 0 ? cols[usernameIdx] : '',
-          email: emailIdx >= 0 ? cols[emailIdx] : '',
-        }
-        if (contact.name || contact.username) {
-          try {
-            await contactService.create?.(contact) || await contactService.update?.('', contact)
-            importCount++
-          } catch {
-            // skip individual failures
-          }
-        }
-      }
-      setShowImport(false)
-      setImportFile(null)
-      await loadContacts(0)
-      alert(`${importCount}건의 연락처를 가져왔습니다.`)
-    } catch (err) {
-      setError('CSV 파일을 처리하는 중 오류가 발생했습니다.')
-    }
+  const handleImportSubmit = () => {
+    setError('CSV 가져오기 기능은 현재 준비 중입니다.')
+    setShowImport(false)
+    setImportFile(null)
   }
 
   // --- View detail ---
@@ -223,18 +188,9 @@ export default function ContactsPage() {
   }
 
   // --- Bulk actions ---
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedIds.size === 0) return
-    if (!confirm(`${selectedIds.size}명의 연락처를 삭제하시겠습니까?`)) return
-    try {
-      for (const id of selectedIds) {
-        await contactService.delete?.(id)
-      }
-      setSelectedIds(new Set())
-      await loadContacts(page)
-    } catch (err) {
-      setError('일부 연락처 삭제에 실패했습니다.')
-    }
+    setError('연락처 삭제 기능은 현재 준비 중입니다.')
   }
 
   const handleBulkTag = async () => {

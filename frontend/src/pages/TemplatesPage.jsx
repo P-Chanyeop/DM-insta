@@ -4,88 +4,6 @@ import { templateService } from '../api/services'
 
 const CATEGORIES = ['전체', '쇼핑몰', '예약/서비스', '이벤트', '리드수집', '고객지원']
 
-const DEMO_TEMPLATES = [
-  {
-    id: 'tpl-1',
-    category: '쇼핑몰',
-    icon: 'ri-store-2-line',
-    bg: 'linear-gradient(135deg, #FF6B9D, #C44AFF)',
-    title: '쇼핑몰 상품 안내',
-    desc: '댓글 키워드 → DM 상품 안내',
-    uses: 3241,
-    rating: 4.9,
-  },
-  {
-    id: 'tpl-2',
-    category: '예약/서비스',
-    icon: 'ri-calendar-check-line',
-    bg: 'linear-gradient(135deg, #4FACFE, #00F2FE)',
-    title: '예약 접수 자동화',
-    desc: 'DM → 날짜/시간 선택 → 확인',
-    uses: 2187,
-    rating: 4.8,
-  },
-  {
-    id: 'tpl-3',
-    category: '이벤트',
-    icon: 'ri-gift-line',
-    bg: 'linear-gradient(135deg, #43E97B, #38F9D7)',
-    title: '이벤트/프로모션',
-    desc: '댓글 참여 → 쿠폰 자동 발급',
-    uses: 4892,
-    rating: 4.9,
-  },
-  {
-    id: 'tpl-4',
-    category: '고객지원',
-    icon: 'ri-customer-service-2-line',
-    bg: 'linear-gradient(135deg, #FA709A, #FEE140)',
-    title: '고객 상담 봇',
-    desc: 'FAQ 자동응답 + 상담원 배정',
-    uses: 1956,
-    rating: 4.7,
-  },
-  {
-    id: 'tpl-5',
-    category: '리드수집',
-    icon: 'ri-user-star-line',
-    bg: 'linear-gradient(135deg, #A18CD1, #FBC2EB)',
-    title: '리드 수집',
-    desc: '이름/연락처/관심사 자동 수집',
-    uses: 2634,
-    rating: 4.8,
-  },
-  {
-    id: 'tpl-6',
-    category: '이벤트',
-    icon: 'ri-megaphone-line',
-    bg: 'linear-gradient(135deg, #667EEA, #764BA2)',
-    title: '스토리 멘션 감사',
-    desc: '멘션 → 감사 DM + 할인코드',
-    uses: 1478,
-    rating: 4.8,
-  },
-  {
-    id: 'tpl-7',
-    category: '쇼핑몰',
-    icon: 'ri-truck-line',
-    bg: 'linear-gradient(135deg, #F093FB, #F5576C)',
-    title: '배송 안내 자동화',
-    desc: '배송 문의 키워드 → 운송장 안내',
-    uses: 1123,
-    rating: 4.6,
-  },
-  {
-    id: 'tpl-8',
-    category: '리드수집',
-    icon: 'ri-survey-line',
-    bg: 'linear-gradient(135deg, #FFD200, #F7971E)',
-    title: '설문조사 봇',
-    desc: 'DM으로 간편 설문 자동 진행',
-    uses: 891,
-    rating: 4.5,
-  },
-]
 
 export default function TemplatesPage() {
   const navigate = useNavigate()
@@ -93,6 +11,7 @@ export default function TemplatesPage() {
   const [search, setSearch] = useState('')
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     loadTemplates()
@@ -100,15 +19,13 @@ export default function TemplatesPage() {
 
   async function loadTemplates() {
     setLoading(true)
+    setError('')
     try {
       const data = await templateService.list()
-      if (data && data.length > 0) {
-        setTemplates(data)
-      } else {
-        setTemplates(DEMO_TEMPLATES)
-      }
+      setTemplates(data || [])
     } catch {
-      setTemplates(DEMO_TEMPLATES)
+      setError('템플릿을 불러올 수 없습니다. 다시 시도해주세요.')
+      setTemplates([])
     } finally {
       setLoading(false)
     }
@@ -117,9 +34,9 @@ export default function TemplatesPage() {
   async function handleUse(tpl) {
     try {
       const result = await templateService.use(tpl.id)
-      navigate('/flows/builder', { state: { template: result || tpl } })
+      navigate('/app/flows/builder', { state: { template: result || tpl } })
     } catch {
-      navigate('/flows/builder', { state: { template: tpl } })
+      navigate('/app/flows/builder', { state: { template: tpl } })
     }
   }
 
@@ -175,7 +92,15 @@ export default function TemplatesPage() {
         ))}
       </div>
 
-      {loading ? (
+      {error ? (
+        <div style={{ textAlign: 'center', padding: 60, color: '#ef4444' }}>
+          <i className="ri-error-warning-line" style={{ fontSize: 48, display: 'block', marginBottom: 12 }} />
+          <p>{error}</p>
+          <button className="btn-primary" onClick={loadTemplates} style={{ marginTop: 12 }}>
+            <i className="ri-refresh-line" /> 다시 시도
+          </button>
+        </div>
+      ) : loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
           <i className="ri-loader-4-line" style={{ fontSize: 24 }} /> 템플릿을 불러오는 중...
         </div>

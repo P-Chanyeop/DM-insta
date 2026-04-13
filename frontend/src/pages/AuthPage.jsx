@@ -83,32 +83,10 @@ export default function AuthPage() {
     }
   }
 
-  const handleResetSubmit = async (e) => {
+  const handleResetSubmit = (e) => {
     e.preventDefault()
     setResetError('')
-    setResetMessage('')
-
-    if (!resetEmail.trim()) {
-      setResetError('이메일을 입력해주세요')
-      return
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resetEmail)) {
-      setResetError('올바른 이메일 형식을 입력해주세요')
-      return
-    }
-
-    setResetLoading(true)
-    try {
-      // Attempt API call if available, otherwise show success message
-      if (authService.resetPassword) {
-        await authService.resetPassword({ email: resetEmail })
-      }
-      setResetMessage('비밀번호 재설정 링크가 이메일로 발송되었습니다. 메일함을 확인해주세요.')
-    } catch (err) {
-      setResetError(err.message || '오류가 발생했습니다. 다시 시도해주세요.')
-    } finally {
-      setResetLoading(false)
-    }
+    setResetMessage('비밀번호 재설정은 로그인 후 설정 페이지에서 가능합니다.')
   }
 
   const handleInstagramOAuth = () => {

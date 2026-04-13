@@ -134,20 +134,35 @@ export default function DashboardPage() {
             </select>
           </div>
           <div className="chart-container">
-            <div className="css-chart">
-              <div className="chart-bars">
-                {[['월', 45], ['화', 65], ['수', 80], ['목', 55], ['금', 90], ['토', 70], ['일', 85]].map(([d, h], i) => (
-                  <div className="chart-bar-group" key={d}>
-                    <div className={`chart-bar${i === 6 ? ' active' : ''}`} style={{ height: `${h}%` }}><span>{d}</span></div>
-                  </div>
-                ))}
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+                <i className="ri-loader-4-line" /> 데이터를 불러오는 중...
               </div>
-              <div className="chart-legend">
-                <span><i className="dot blue" /> 발송</span>
-                <span><i className="dot green" /> 열림</span>
-                <span><i className="dot purple" /> 클릭</span>
+            ) : !dashboard ? (
+              <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
+                <i className="ri-bar-chart-box-line" style={{ fontSize: 32, display: 'block', marginBottom: 8 }} />
+                <p>데이터가 없습니다.</p>
               </div>
-            </div>
+            ) : (
+              <div className="css-chart">
+                <div className="chart-bars">
+                  {[
+                    ['발송', dashboard.totalMessagesSent ? Math.min(100, Math.max(10, 100)) : 0],
+                    ['열림', dashboard.avgOpenRate || 0],
+                    ['클릭', dashboard.avgClickRate || 0],
+                  ].map(([label, h], i) => (
+                    <div className="chart-bar-group" key={label}>
+                      <div className={`chart-bar${i === 0 ? ' active' : ''}`} style={{ height: `${Math.max(h, 2)}%` }}><span>{label}</span></div>
+                    </div>
+                  ))}
+                </div>
+                <div className="chart-legend">
+                  <span><i className="dot blue" /> 발송 {formatNumber(dashboard.totalMessagesSent)}건</span>
+                  <span><i className="dot green" /> 열림률 {formatPercent(dashboard.avgOpenRate)}</span>
+                  <span><i className="dot purple" /> 클릭률 {formatPercent(dashboard.avgClickRate)}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
