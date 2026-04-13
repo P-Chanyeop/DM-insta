@@ -187,19 +187,39 @@ public class InstagramApiService {
 
     /**
      * 사용자가 해당 IG 계정을 팔로우하는지 확인
-     * (Instagram API 제한: 비즈니스 계정의 팔로워 목록에서 확인)
+     *
+     * Instagram Graph API를 통해 팔로워 목록을 조회하여 특정 사용자 포함 여부 확인.
+     * API 제한으로 최대 100명까지만 확인 가능하며, 팔로워가 많은 계정에서는
+     * 최근 팔로워만 조회되므로 100% 정확하지 않을 수 있음.
+     *
+     * 참고: Instagram은 1:1 팔로우 여부 확인 API가 없어서
+     *       팔로워 목록 페이징으로 우회 조회함.
      */
     public boolean isFollower(String igUserId, String checkUserId, String accessToken) {
         try {
+            // Instagram Graph API: 팔로워 목록 조회 (비즈니스/크리에이터 계정만 가능)
             String url = apiBaseUrl + "/v21.0/" + igUserId
-                    + "?fields=business_discovery.fields(followers_count)&access_token=" + accessToken;
-            // Instagram API는 특정 사용자의 팔로우 여부를 직접 확인하는 엔드포인트가 없음
-            // 실제 구현에서는 Webhook 이벤트로 팔로우 상태를 추적하거나
-            // 사용자에게 팔로우 요청 후 재확인하는 방식 사용
-            log.info("팔로우 확인 요청: igUserId={}, checkUserId={}", igUserId, checkUserId);
-            return false; // 기본적으로 미팔로우로 처리, Webhook으로 업데이트
+                    + "/followers?fields=id&limit=100&access_token=" + accessToken;
+
+            ResponseEntity<JsonNode> resp = restTemplate.getForEntity(url, JsonNode.class);
+            JsonNode body = resp.getBody();
+
+            if (body != null && body.has("data")) {
+                for (JsonNode follower : body.get("data")) {
+                    if (checkUserId.equals(follower.path("id").asText())) {
+                        log.info("팔로우 확인됨: igUserId={}, follower={}", igUserId, checkUserId);
+                        return true;
+                    }
+                }
+            }
+
+            log.info("팔로우 미확인: igUserId={}, checkUserId={}", igUserId, checkUserId);
+            return false;
+
         } catch (Exception e) {
-            log.error("팔로우 확인 실패: {}", e.getMessage());
+            // API 호출 실패 (권한 부족, 비즈니스 계정 아님 등)
+            // → 안전하게 미팔로우로 처리 (사용자가 재확인 버튼으로 재시도 가능)
+            log.warn("팔로우 확인 API 호출 실패 (미팔로우로 처리): igUserId={}, error={}", igUserId, e.getMessage());
             return false;
         }
     }

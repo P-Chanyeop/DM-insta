@@ -114,22 +114,30 @@ public class FlowExecutionService {
     // ═══════════════════════════════════════════════════════════
 
     /**
-     * 사용자가 오프닝DM 버튼을 클릭했을 때 호출 (WebhookEventService에서 호출)
+     * 사용자가 버튼을 클릭했을 때 호출 (WebhookEventService에서 호출)
+     * - OPENING_DM_CLICKED: 오프닝DM 버튼 → requirements 시작
+     * - FOLLOW_CHECK: 팔로우 재확인 버튼 → 팔로우 확인 후 진행
      */
     @Async
     @Transactional
     public void handlePostback(String senderIgId, String payload) {
-        if (!"OPENING_DM_CLICKED".equals(payload)) {
-            log.debug("알 수 없는 postback payload: {}", payload);
-            return;
-        }
 
+        if ("OPENING_DM_CLICKED".equals(payload)) {
+            handleOpeningDmPostback(senderIgId);
+        } else if ("FOLLOW_CHECK".equals(payload)) {
+            handleFollowCheckPostback(senderIgId);
+        } else {
+            log.debug("알 수 없는 postback payload: {}", payload);
+        }
+    }
+
+    private void handleOpeningDmPostback(String senderIgId) {
         PendingFlowAction pending = pendingFlowActionRepository
                 .findFirstBySenderIgIdAndPendingStepOrderByCreatedAtDesc(senderIgId, PendingStep.AWAITING_POSTBACK)
                 .orElse(null);
 
         if (pending == null || pending.isExpired()) {
-            log.debug("유효한 대기 액션 없음: sender={}", senderIgId);
+            log.debug("유효한 AWAITING_POSTBACK 없음: sender={}", senderIgId);
             return;
         }
 
@@ -138,16 +146,58 @@ public class FlowExecutionService {
 
         try {
             JsonNode flowData = objectMapper.readTree(flow.getFlowData());
-            log.info("postback 수신 → requirements 진행: flowId={}, sender={}", flow.getId(), senderIgId);
+            log.info("오프닝DM 버튼 클릭 → requirements 진행: flowId={}, sender={}", flow.getId(), senderIgId);
 
-            proceedToRequirements(flow, igAccount, senderIgId, flowData);
-
-            // 기존 AWAITING_POSTBACK 완료 처리
+            // 기존 AWAITING_POSTBACK 완료
             pending.setPendingStep(PendingStep.COMPLETED);
             pendingFlowActionRepository.save(pending);
 
+            proceedToRequirements(flow, igAccount, senderIgId, flowData);
+
         } catch (Exception e) {
-            log.error("postback 처리 실패: flowId={}, error={}", flow.getId(), e.getMessage(), e);
+            log.error("오프닝DM postback 처리 실패: flowId={}, error={}", flow.getId(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * "✅ 팔로우 했어요" 버튼 클릭 시: 팔로우 재확인
+     * - 팔로우 확인됨 → 다음 단계 (이메일 수집 or 메인DM)
+     * - 팔로우 안 됨 → "팔로우가 확인되지 않았어요!" + 재확인 버튼 다시 발송
+     */
+    private void handleFollowCheckPostback(String senderIgId) {
+        PendingFlowAction pending = pendingFlowActionRepository
+                .findFirstBySenderIgIdAndPendingStepOrderByCreatedAtDesc(senderIgId, PendingStep.AWAITING_FOLLOW)
+                .orElse(null);
+
+        if (pending == null || pending.isExpired()) {
+            log.debug("유효한 AWAITING_FOLLOW 없음: sender={}", senderIgId);
+            return;
+        }
+
+        Flow flow = pending.getFlow();
+        InstagramAccount igAccount = pending.getInstagramAccount();
+        String accessToken = instagramApiService.getDecryptedToken(igAccount);
+        String botIgId = igAccount.getIgUserId();
+
+        try {
+            JsonNode flowData = objectMapper.readTree(flow.getFlowData());
+            boolean isFollower = instagramApiService.isFollower(botIgId, senderIgId, accessToken);
+
+            if (isFollower) {
+                // ✅ 팔로우 확인됨 → 다음 단계 진행
+                log.info("팔로우 확인 완료: flowId={}, sender={}", flow.getId(), senderIgId);
+                pending.setPendingStep(PendingStep.COMPLETED);
+                pendingFlowActionRepository.save(pending);
+
+                proceedToRequirementsAfterFollow(flow, igAccount, senderIgId, flowData);
+            } else {
+                // ❌ 아직 팔로우 안 됨 → 재확인 메시지 + 버튼 다시 발송
+                log.info("팔로우 미확인 → 재확인 버튼 발송: flowId={}, sender={}", flow.getId(), senderIgId);
+                sendFollowRetryMessage(botIgId, senderIgId, accessToken, igAccount, flow);
+            }
+
+        } catch (Exception e) {
+            log.error("팔로우 확인 postback 처리 실패: flowId={}, error={}", flow.getId(), e.getMessage(), e);
         }
     }
 
@@ -170,19 +220,12 @@ public class FlowExecutionService {
             if (followCheck != null && followCheck.path("enabled").asBoolean(false)) {
                 boolean isFollower = instagramApiService.isFollower(botIgId, senderIgId, accessToken);
                 if (!isFollower) {
-                    // 팔로우 요청 메시지 발송
-                    String followMsg = followCheck.path("message").asText("팔로우 후 다시 메시지를 보내주세요!");
-                    try {
-                        instagramApiService.sendTextMessage(botIgId, senderIgId, followMsg, accessToken);
-                        conversationService.saveOutboundMessage(
-                                igAccount.getUser(), senderIgId, followMsg, true, flow.getName());
-                    } catch (Exception e) {
-                        log.error("팔로우 요청 메시지 발송 실패: {}", e.getMessage());
-                    }
-                    // AWAITING_FOLLOW 상태로 저장
+                    // 팔로우 안내 메시지 + "✅ 팔로우 했어요" 재확인 버튼 발송
+                    sendFollowRequestMessage(followCheck, botIgId, senderIgId, accessToken, igAccount, flow);
+                    // AWAITING_FOLLOW 상태로 저장 → 버튼 클릭 시 handleFollowCheckPostback() 호출됨
                     savePendingAction(flow, igAccount, senderIgId, null, PendingStep.AWAITING_FOLLOW);
                     log.info("팔로우 대기 상태 저장: flowId={}, sender={}", flow.getId(), senderIgId);
-                    return; // 팔로우할 때까지 여기서 중단
+                    return; // 팔로우 확인 버튼 클릭할 때까지 여기서 중단
                 }
             }
         }
@@ -432,6 +475,42 @@ public class FlowExecutionService {
     // ═══════════════════════════════════════════════════════════
     // 유틸리티
     // ═══════════════════════════════════════════════════════════
+
+    /**
+     * 첫 팔로우 요청: 안내 메시지 + "✅ 팔로우 했어요" 버튼
+     */
+    private void sendFollowRequestMessage(JsonNode followCheck, String botIgId, String senderIgId,
+                                            String accessToken, InstagramAccount igAccount, Flow flow) {
+        String followMsg = followCheck.path("message").asText("링크를 받으시려면 먼저 팔로우를 해주세요!");
+        try {
+            List<Map<String, String>> quickReplies = List.of(
+                    Map.of("title", "✅ 팔로우 했어요", "payload", "FOLLOW_CHECK")
+            );
+            instagramApiService.sendQuickReplyMessage(botIgId, senderIgId, followMsg, quickReplies, accessToken);
+            conversationService.saveOutboundMessage(
+                    igAccount.getUser(), senderIgId, followMsg, true, flow.getName());
+        } catch (Exception e) {
+            log.error("팔로우 요청 메시지 발송 실패: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 팔로우 재확인 실패: "확인되지 않았어요" 메시지 + "✅ 팔로우 했어요" 재시도 버튼
+     */
+    private void sendFollowRetryMessage(String botIgId, String senderIgId,
+                                          String accessToken, InstagramAccount igAccount, Flow flow) {
+        String retryMsg = "팔로우가 확인되지 않았어요! 😅\n팔로우 후 아래 버튼을 다시 눌러주세요.";
+        try {
+            List<Map<String, String>> quickReplies = List.of(
+                    Map.of("title", "✅ 팔로우 했어요", "payload", "FOLLOW_CHECK")
+            );
+            instagramApiService.sendQuickReplyMessage(botIgId, senderIgId, retryMsg, quickReplies, accessToken);
+            conversationService.saveOutboundMessage(
+                    igAccount.getUser(), senderIgId, retryMsg, true, flow.getName());
+        } catch (Exception e) {
+            log.error("팔로우 재확인 메시지 발송 실패: {}", e.getMessage());
+        }
+    }
 
     private boolean hasActiveRequirements(JsonNode flowData) {
         JsonNode req = flowData.get("requirements");
