@@ -5,6 +5,7 @@ import com.instabot.backend.entity.Conversation;
 import com.instabot.backend.entity.Flow;
 import com.instabot.backend.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,6 +20,7 @@ public class DashboardService {
     private final MessageRepository messageRepository;
     private final BroadcastRepository broadcastRepository;
 
+    @Cacheable(value = "dashboard", key = "#userId")
     public DashboardDto getDashboard(Long userId) {
         // 플로우 openRate 평균 계산
         List<Flow> flows = flowRepository.findByUserIdOrderByCreatedAtDesc(userId);

@@ -33,6 +33,11 @@ public class SecurityConfig {
     }
 
     @Bean
+    public RateLimitFilter rateLimitFilter() {
+        return new RateLimitFilter();
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -43,8 +48,15 @@ public class SecurityConfig {
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()
             )
+            .addFilterBefore(rateLimitFilter(), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
-            .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
+            .headers(headers -> headers
+                .frameOptions(frame -> frame.sameOrigin())
+                .contentSecurityPolicy(csp ->
+                    csp.policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://graph.instagram.com https://graph.facebook.com"))
+                .httpStrictTransportSecurity(hsts ->
+                    hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
+            );
 
         return http.build();
     }

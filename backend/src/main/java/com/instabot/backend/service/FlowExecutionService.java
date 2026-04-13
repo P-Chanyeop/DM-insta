@@ -54,7 +54,7 @@ public class FlowExecutionService {
             log.info("플로우 실행 시작: flowId={}, sender={}", flow.getId(), senderIgId);
 
             JsonNode flowData = objectMapper.readTree(flow.getFlowData());
-            String accessToken = igAccount.getAccessToken();
+            String accessToken = instagramApiService.getDecryptedToken(igAccount);
             String botIgId = igAccount.getIgUserId();
 
             // 1. 공개 댓글 답장

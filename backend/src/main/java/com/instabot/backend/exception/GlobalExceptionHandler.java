@@ -41,7 +41,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleRuntime(RuntimeException ex) {
         // 인증 관련 메시지는 401로
         String msg = ex.getMessage();
-        if (msg != null && (msg.contains("인증") || msg.contains("토큰") || msg.contains("로그인"))) {
+        if (msg != null && (msg.contains("인증") || msg.contains("토큰") || msg.contains("로그인")
+                || msg.contains("비밀번호") || msg.contains("올바르지 않습니다"))) {
             return buildResponse(HttpStatus.UNAUTHORIZED, msg);
         }
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,

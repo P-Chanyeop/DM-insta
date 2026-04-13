@@ -107,7 +107,7 @@ public class SequenceExecutionService {
                 igAccount.getIgUserId(),
                 contact.getIgUserId(),
                 content,
-                igAccount.getAccessToken()
+                instagramApiService.getDecryptedToken(igAccount)
         );
 
         conversationService.saveOutboundMessage(user, contact.getIgUserId(), content, true, "시퀀스: " + step.getName());

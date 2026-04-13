@@ -19,6 +19,8 @@ public class InstagramAccount {
     private String igUserId;
 
     private String username;
+
+    @Column(length = 1024)
     private String accessToken;
     private String profilePictureUrl;
     private Long followersCount;

@@ -8,6 +8,11 @@ spring:
   flyway:
     enabled: false
 
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=100,expireAfterWrite=30s
+
 server:
   port: 8080
   servlet:
@@ -31,6 +36,20 @@ instagram:
     redirect-uri: ${INSTAGRAM_OAUTH_REDIRECT_URI:http://localhost:8080/api/auth/instagram/callback}
   webhook:
     verify-token: ${INSTAGRAM_WEBHOOK_VERIFY_TOKEN:instabot-webhook-verify-token}
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# Encryption (AES-256 for access token storage)
+encryption:
+  secret: ${ENCRYPTION_SECRET:sendit-encryption-secret-change-in-production}
 
 # CORS
 cors:

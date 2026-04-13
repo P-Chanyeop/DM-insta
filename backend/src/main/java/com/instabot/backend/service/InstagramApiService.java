@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.instabot.backend.entity.InstagramAccount;
 import com.instabot.backend.repository.InstagramAccountRepository;
+import com.instabot.backend.config.EncryptionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +33,7 @@ public class InstagramApiService {
     private final InstagramAccountRepository instagramAccountRepository;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final EncryptionUtil encryptionUtil;
 
     @Value("${instagram.api.base-url}")
     private String apiBaseUrl;
@@ -65,7 +67,7 @@ public class InstagramApiService {
                         .build());
 
         account.setUsername(username);
-        account.setAccessToken(longLivedToken);
+        account.setAccessToken(encryptionUtil.encrypt(longLivedToken));
         account.setConnected(true);
         account.setConnectedAt(LocalDateTime.now());
         account.setTokenExpiresAt(LocalDateTime.now().plusDays(60));
@@ -234,14 +236,15 @@ public class InstagramApiService {
 
         for (InstagramAccount account : expiringAccounts) {
             try {
+                String decryptedToken = encryptionUtil.decrypt(account.getAccessToken());
                 String url = apiBaseUrl + "/v21.0/oauth/access_token"
                         + "?grant_type=ig_refresh_token"
-                        + "&access_token=" + account.getAccessToken();
+                        + "&access_token=" + decryptedToken;
 
                 ResponseEntity<JsonNode> resp = restTemplate.getForEntity(url, JsonNode.class);
                 String newToken = resp.getBody().get("access_token").asText();
 
-                account.setAccessToken(newToken);
+                account.setAccessToken(encryptionUtil.encrypt(newToken));
                 account.setTokenExpiresAt(LocalDateTime.now().plusDays(60));
                 instagramAccountRepository.save(account);
 
@@ -279,5 +282,12 @@ public class InstagramApiService {
                 .filter(InstagramAccount::isConnected)
                 .findFirst()
                 .orElse(null);
+    }
+
+    /**
+     * Decrypt the stored access token for API calls.
+     */
+    public String getDecryptedToken(InstagramAccount account) {
+        return encryptionUtil.decrypt(account.getAccessToken());
     }
 }

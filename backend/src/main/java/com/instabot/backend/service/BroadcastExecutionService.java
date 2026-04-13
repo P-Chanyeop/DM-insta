@@ -66,7 +66,7 @@ public class BroadcastExecutionService {
                         igAccount.getIgUserId(),
                         contact.getIgUserId(),
                         broadcast.getMessageContent(),
-                        igAccount.getAccessToken()
+                        instagramApiService.getDecryptedToken(igAccount)
                 );
 
                 // 발신 메시지 저장
