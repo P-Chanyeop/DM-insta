@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api } from '../api/client'
-import { integrationService } from '../api/services'
+import { api, getStoredUser, setStoredUser } from '../api/client'
+import { integrationService, userService } from '../api/services'
 
 const TABS = [
   { key: 'account', icon: 'ri-instagram-line', label: '계정 연결' },
@@ -88,14 +88,6 @@ const PLANS = [
   },
 ]
 
-const TEAM_MEMBERS_INIT = [
-  { id: 1, name: '김민수', email: 'minsu@mybrand.co.kr', role: 'owner', avatar: null, joinedAt: '2024-01-15' },
-  { id: 2, name: '이서연', email: 'seoyeon@mybrand.co.kr', role: 'admin', avatar: null, joinedAt: '2024-03-20' },
-  { id: 3, name: '박지훈', email: 'jihun@mybrand.co.kr', role: 'member', avatar: null, joinedAt: '2024-06-10' },
-]
-
-const ROLE_LABELS = { owner: '소유자', admin: '관리자', member: '멤버' }
-
 /* ── Toast component ── */
 function Toast({ message, visible, type = 'success' }) {
   if (!visible) return null
@@ -166,10 +158,6 @@ function saveNotifications(notifications) {
   } catch { /* ignore */ }
 }
 
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-}
-
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('account')
 
@@ -202,20 +190,20 @@ export default function SettingsPage() {
 
   // Profile state
   const [profile, setProfile] = useState({
-    name: '김민수',
-    email: 'admin@mybrand.co.kr',
+    name: '',
+    email: '',
     timezone: 'Asia/Seoul',
     language: 'ko',
   })
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(true)
 
-  // Team state
-  const [teamMembers, setTeamMembers] = useState(TEAM_MEMBERS_INIT)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteRole, setInviteRole] = useState('member')
-  const [showInviteForm, setShowInviteForm] = useState(false)
-  const [inviteError, setInviteError] = useState('')
+  // Password change state
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [passwordSaving, setPasswordSaving] = useState(false)
+
+  // Team state (feature pending)
 
   // Notification state - loaded from localStorage
   const [notifications, setNotifications] = useState(loadNotifications)
@@ -229,6 +217,38 @@ export default function SettingsPage() {
   // Billing state
   const [currentPlan, setCurrentPlan] = useState('free')
   const [planUpgrading, setPlanUpgrading] = useState(null)
+
+  // Load user profile from backend
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const userData = await userService.getMe()
+        if (!mounted) return
+        setProfile(prev => ({
+          ...prev,
+          name: userData.name || '',
+          email: userData.email || '',
+        }))
+        setCurrentPlan((userData.plan || 'FREE').toLowerCase())
+        setStoredUser({ email: userData.email, name: userData.name, plan: userData.plan })
+      } catch {
+        // Fallback to stored user if API fails
+        const stored = getStoredUser()
+        if (stored && mounted) {
+          setProfile(prev => ({
+            ...prev,
+            name: stored.name || '',
+            email: stored.email || '',
+          }))
+          setCurrentPlan((stored.plan || 'FREE').toLowerCase())
+        }
+      } finally {
+        if (mounted) setProfileLoading(false)
+      }
+    })()
+    return () => { mounted = false }
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -294,66 +314,61 @@ export default function SettingsPage() {
     setProfileSaved(false)
   }
 
-  const handleProfileSave = () => {
+  const handleProfileSave = async () => {
     if (!profile.name.trim()) {
       showToast('이름을 입력해 주세요.', 'error')
       return
     }
-    if (!isValidEmail(profile.email)) {
-      showToast('올바른 이메일 주소를 입력해 주세요.', 'error')
-      return
-    }
     setProfileSaving(true)
-    setTimeout(() => {
-      setProfileSaving(false)
+    try {
+      const updated = await userService.updateMe({ name: profile.name.trim() })
+      setProfile(prev => ({ ...prev, name: updated.name, email: updated.email }))
+      setStoredUser({ email: updated.email, name: updated.name, plan: updated.plan })
       setProfileSaved(true)
       showToast('프로필이 저장되었습니다.')
       setTimeout(() => setProfileSaved(false), 3000)
-    }, 800)
+    } catch (err) {
+      showToast(err.message || '프로필 저장에 실패했습니다.', 'error')
+    } finally {
+      setProfileSaving(false)
+    }
   }
 
-  // Team handlers
+  const handlePasswordChange = async () => {
+    if (!passwordForm.currentPassword) {
+      showToast('현재 비밀번호를 입력해 주세요.', 'error')
+      return
+    }
+    if (!passwordForm.newPassword || passwordForm.newPassword.length < 6) {
+      showToast('새 비밀번호는 최소 6자 이상이어야 합니다.', 'error')
+      return
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      showToast('새 비밀번호가 일치하지 않습니다.', 'error')
+      return
+    }
+    setPasswordSaving(true)
+    try {
+      await userService.changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      })
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      showToast('비밀번호가 변경되었습니다.')
+    } catch (err) {
+      showToast(err.message || '비밀번호 변경에 실패했습니다.', 'error')
+    } finally {
+      setPasswordSaving(false)
+    }
+  }
+
+  // Team handlers (feature not yet implemented - show placeholder)
   const handleInvite = () => {
-    setInviteError('')
-    if (!inviteEmail.trim()) {
-      setInviteError('이메일 주소를 입력해 주세요.')
-      return
-    }
-    if (!isValidEmail(inviteEmail)) {
-      setInviteError('올바른 이메일 형식이 아닙니다. (예: user@example.com)')
-      return
-    }
-    if (teamMembers.some(m => m.email.toLowerCase() === inviteEmail.toLowerCase())) {
-      setInviteError('이미 등록된 팀 멤버입니다.')
-      return
-    }
-    const newMember = {
-      id: Date.now(),
-      name: inviteEmail.split('@')[0],
-      email: inviteEmail,
-      role: inviteRole,
-      avatar: null,
-      joinedAt: new Date().toISOString().slice(0, 10),
-    }
-    setTeamMembers((prev) => [...prev, newMember])
-    setInviteEmail('')
-    setInviteRole('member')
-    setShowInviteForm(false)
-    showToast(`${newMember.email}에게 초대를 보냈습니다.`)
+    showToast('팀 멤버 기능은 준비 중입니다.', 'info')
   }
 
-  const handleRemoveMember = (member) => {
-    showConfirm({
-      title: '팀 멤버 제거',
-      message: `정말 ${member.name} (${member.email})님을 팀에서 제거하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
-      confirmLabel: '제거',
-      danger: true,
-      onConfirm: () => {
-        setTeamMembers((prev) => prev.filter((m) => m.id !== member.id))
-        closeConfirm()
-        showToast(`${member.name}님이 팀에서 제거되었습니다.`)
-      },
-    })
+  const handleRemoveMember = () => {
+    showToast('팀 멤버 기능은 준비 중입니다.', 'info')
   }
 
   // Notification handler
@@ -470,20 +485,7 @@ export default function SettingsPage() {
       showToast('Enterprise 플랜 문의가 접수되었습니다. 영업팀에서 연락드리겠습니다.', 'info')
       return
     }
-    showConfirm({
-      title: '플랜 업그레이드',
-      message: `${plan.name} 플랜 (${plan.price}${plan.period})으로 업그레이드하시겠습니까? 즉시 새 플랜이 적용됩니다.`,
-      confirmLabel: '업그레이드',
-      onConfirm: () => {
-        closeConfirm()
-        setPlanUpgrading(plan.id)
-        setTimeout(() => {
-          setCurrentPlan(plan.id)
-          setPlanUpgrading(null)
-          showToast(`${plan.name} 플랜으로 업그레이드되었습니다!`)
-        }, 1500)
-      },
-    })
+    showToast('결제 시스템은 준비 중입니다. 곧 업그레이드가 가능해집니다.', 'info')
   }
 
   // Tab content renderers
@@ -564,71 +566,132 @@ export default function SettingsPage() {
   )
 
   const renderProfileTab = () => (
-    <div className="settings-section">
-      <h3>프로필 정보</h3>
-      <div className="settings-form">
-        <div className="settings-form-group">
-          <label className="settings-label">이름</label>
-          <input
-            type="text"
-            className="setting-input"
-            value={profile.name}
-            onChange={(e) => handleProfileChange('name', e.target.value)}
-          />
-        </div>
-        <div className="settings-form-group">
-          <label className="settings-label">이메일</label>
-          <input
-            type="email"
-            className="setting-input"
-            value={profile.email}
-            onChange={(e) => handleProfileChange('email', e.target.value)}
-          />
-        </div>
-        <div className="settings-form-group">
-          <label className="settings-label">타임존</label>
-          <select
-            className="filter-select"
-            value={profile.timezone}
-            onChange={(e) => handleProfileChange('timezone', e.target.value)}
-          >
-            {TIMEZONES.map((tz) => (
-              <option key={tz} value={tz}>{tz}</option>
-            ))}
-          </select>
-        </div>
-        <div className="settings-form-group">
-          <label className="settings-label">언어</label>
-          <select
-            className="filter-select"
-            value={profile.language}
-            onChange={(e) => handleProfileChange('language', e.target.value)}
-          >
-            {LANGUAGES.map((lang) => (
-              <option key={lang.value} value={lang.value}>{lang.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="settings-form-actions">
-          <button
-            className="btn-primary"
-            onClick={handleProfileSave}
-            disabled={profileSaving}
-          >
-            {profileSaving ? (
-              <><i className="ri-loader-4-line spin" /> 저장 중...</>
-            ) : (
-              '저장하기'
-            )}
-          </button>
-          {profileSaved && (
-            <span className="settings-save-feedback">
-              <i className="ri-check-line" /> 저장되었습니다
-            </span>
-          )}
+    <>
+      <div className="settings-section">
+        <h3>프로필 정보</h3>
+        {profileLoading ? (
+          <div style={{ padding: '24px 0', textAlign: 'center', color: '#94A3B8' }}>
+            <i className="ri-loader-4-line spin" style={{ fontSize: 20 }} /> 로딩 중...
+          </div>
+        ) : (
+          <div className="settings-form">
+            <div className="settings-form-group">
+              <label className="settings-label">이름</label>
+              <input
+                type="text"
+                className="setting-input"
+                value={profile.name}
+                onChange={(e) => handleProfileChange('name', e.target.value)}
+              />
+            </div>
+            <div className="settings-form-group">
+              <label className="settings-label">이메일</label>
+              <input
+                type="email"
+                className="setting-input"
+                value={profile.email}
+                disabled
+                style={{ background: '#F1F5F9', color: '#94A3B8', cursor: 'not-allowed' }}
+              />
+              <span style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>
+                이메일 변경은 지원되지 않습니다.
+              </span>
+            </div>
+            <div className="settings-form-group">
+              <label className="settings-label">타임존</label>
+              <select
+                className="filter-select"
+                value={profile.timezone}
+                onChange={(e) => handleProfileChange('timezone', e.target.value)}
+              >
+                {TIMEZONES.map((tz) => (
+                  <option key={tz} value={tz}>{tz}</option>
+                ))}
+              </select>
+            </div>
+            <div className="settings-form-group">
+              <label className="settings-label">언어</label>
+              <select
+                className="filter-select"
+                value={profile.language}
+                onChange={(e) => handleProfileChange('language', e.target.value)}
+              >
+                {LANGUAGES.map((lang) => (
+                  <option key={lang.value} value={lang.value}>{lang.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="settings-form-actions">
+              <button
+                className="btn-primary"
+                onClick={handleProfileSave}
+                disabled={profileSaving}
+              >
+                {profileSaving ? (
+                  <><i className="ri-loader-4-line spin" /> 저장 중...</>
+                ) : (
+                  '저장하기'
+                )}
+              </button>
+              {profileSaved && (
+                <span className="settings-save-feedback">
+                  <i className="ri-check-line" /> 저장되었습니다
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="settings-section">
+        <h3>비밀번호 변경</h3>
+        <div className="settings-form">
+          <div className="settings-form-group">
+            <label className="settings-label">현재 비밀번호</label>
+            <input
+              type="password"
+              className="setting-input"
+              value={passwordForm.currentPassword}
+              onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+              placeholder="현재 비밀번호 입력"
+            />
+          </div>
+          <div className="settings-form-group">
+            <label className="settings-label">새 비밀번호</label>
+            <input
+              type="password"
+              className="setting-input"
+              value={passwordForm.newPassword}
+              onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+              placeholder="새 비밀번호 입력 (최소 6자)"
+            />
+          </div>
+          <div className="settings-form-group">
+            <label className="settings-label">새 비밀번호 확인</label>
+            <input
+              type="password"
+              className="setting-input"
+              value={passwordForm.confirmPassword}
+              onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+              placeholder="새 비밀번호 다시 입력"
+            />
+          </div>
+          <div className="settings-form-actions">
+            <button
+              className="btn-primary"
+              onClick={handlePasswordChange}
+              disabled={passwordSaving}
+            >
+              {passwordSaving ? (
+                <><i className="ri-loader-4-line spin" /> 변경 중...</>
+              ) : (
+                '비밀번호 변경'
+              )}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 
   const renderTeamTab = () => (
@@ -636,73 +699,15 @@ export default function SettingsPage() {
       <div className="settings-section">
         <div className="settings-section-header">
           <h3>팀 멤버</h3>
-          <button className="btn-primary small" onClick={() => { setShowInviteForm(true); setInviteError('') }}>
-            <i className="ri-user-add-line" /> 멤버 초대
-          </button>
         </div>
-
-        {showInviteForm && (
-          <div className="settings-invite-form">
-            <div className="settings-invite-row">
-              <input
-                type="email"
-                className={`setting-input${inviteError ? ' input-error' : ''}`}
-                placeholder="이메일 주소 입력"
-                value={inviteEmail}
-                onChange={(e) => { setInviteEmail(e.target.value); setInviteError('') }}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleInvite() }}
-                style={inviteError ? { borderColor: '#EF4444' } : undefined}
-              />
-              <select
-                className="filter-select"
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value)}
-              >
-                <option value="admin">관리자</option>
-                <option value="member">멤버</option>
-              </select>
-              <button className="btn-primary small" onClick={handleInvite}>
-                초대
-              </button>
-              <button className="btn-secondary small" onClick={() => { setShowInviteForm(false); setInviteError('') }}>
-                취소
-              </button>
-            </div>
-            {inviteError && (
-              <p style={{ color: '#EF4444', fontSize: 13, margin: '4px 0 0', padding: '0 4px' }}>
-                <i className="ri-error-warning-line" /> {inviteError}
-              </p>
-            )}
+        <div className="settings-empty-state">
+          <div className="settings-empty-icon">
+            <i className="ri-team-line" />
           </div>
-        )}
-
-        <div className="settings-team-list">
-          {teamMembers.map((member) => (
-            <div className="settings-team-member" key={member.id}>
-              <div className="settings-team-info">
-                <div className="settings-team-avatar">
-                  {member.name.charAt(0)}
-                </div>
-                <div>
-                  <strong>{member.name}</strong>
-                  <span>{member.email}</span>
-                </div>
-              </div>
-              <div className="settings-team-meta">
-                <span className={`settings-role-badge ${member.role}`}>
-                  {ROLE_LABELS[member.role]}
-                </span>
-                {member.role !== 'owner' && (
-                  <button
-                    className="btn-danger small"
-                    onClick={() => handleRemoveMember(member)}
-                  >
-                    제거
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+          <p>팀 멤버 기능은 준비 중입니다.</p>
+          <p className="settings-empty-desc">
+            곧 팀 멤버를 초대하고 역할을 관리할 수 있게 됩니다.
+          </p>
         </div>
       </div>
     </>

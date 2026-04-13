@@ -78,6 +78,12 @@ export const integrationService = {
   delete: (id) => api.delete(`/integrations/${id}`),
 }
 
+export const userService = {
+  getMe: () => api.get('/users/me'),
+  updateMe: (data) => api.put('/users/me', data),
+  changePassword: (data) => api.put('/users/me/password', data),
+}
+
 export const analyticsService = {
   get: (period) => {
     const days = period === '7d' ? 7 : period === '30d' ? 30 : 90
