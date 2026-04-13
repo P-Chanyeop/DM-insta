@@ -81,3 +81,11 @@ export const integrationService = {
 export const analyticsService = {
   get: (period) => api.get(`/dashboard${period ? `?period=${period}` : ''}`),
 }
+
+export const conversationService = {
+  list: (status) => api.get(`/conversations${status ? `?status=${status}` : ''}`),
+  get: (id) => api.get(`/conversations/${id}`),
+  getMessages: (id) => api.get(`/conversations/${id}/messages`),
+  sendMessage: (id, content) => api.post(`/conversations/${id}/messages`, { content }),
+  update: (id, data) => api.patch(`/conversations/${id}`, data),
+}

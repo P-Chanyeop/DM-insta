@@ -1,4 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { conversationService } from '../api/services'
+import { Client } from '@stomp/stompjs'
+import SockJS from 'sockjs-client'
 
 const TEAM_MEMBERS = [
   { id: 1, name: '박지민', role: '매니저' },
@@ -24,129 +27,53 @@ const now = () => {
   return `${h >= 12 ? '오후' : '오전'} ${h > 12 ? h - 12 : h}:${m}`
 }
 
-const INITIAL_CHATS = [
-  {
-    id: 1,
-    name: '김수현',
-    time: '2분 전',
-    bg: 'linear-gradient(135deg, #667eea, #764ba2)',
-    initial: '김',
-    badge: 'auto',
-    status: 'open',
-    unread: 0,
-    tags: ['VIP', '스킨케어', '재구매'],
-    memo: 'VIP 고객. 스킨케어 제품 관심 높음.',
-    assignee: null,
-    automationPaused: false,
-    automationPauseEnd: null,
-    followers: 1234,
-    firstMessage: '2024.02.15',
-    subscribed: true,
-    messages: [
-      { id: 1, type: 'received', text: '안녕하세요! 인스타에서 봤는데 상품 가격이 궁금해요', time: '오후 2:15' },
-      {
-        id: 2, type: 'sent', auto: true, text: '안녕하세요! 반갑습니다 :) 어떤 상품이 궁금하신가요?',
-        buttons: ['스킨케어', '메이크업', '바디케어'], time: '오후 2:15',
-      },
-      { id: 3, type: 'received', text: '스킨케어 가격 알려주세요!', time: '오후 2:16' },
-      {
-        id: 4, type: 'sent', auto: true, text: '스킨케어 베스트 제품을 안내드릴게요!',
-        card: { title: '수분 크림 50ml', desc: '₩38,000 → ₩29,000 (24% 할인)', btnText: '구매하기' },
-        time: '오후 2:16',
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: '이지은',
-    time: '5분 전',
-    bg: 'linear-gradient(135deg, #f093fb, #f5576c)',
-    initial: '이',
-    status: 'open',
-    unread: 2,
-    tags: ['신규'],
-    memo: '',
-    assignee: null,
-    automationPaused: false,
-    automationPauseEnd: null,
-    followers: 892,
-    firstMessage: '2024.03.01',
-    subscribed: true,
-    messages: [
-      { id: 1, type: 'received', text: '예약 변경하고 싶어요', time: '오후 1:50' },
-      { id: 2, type: 'received', text: '내일로 바꿀 수 있나요?', time: '오후 1:51' },
-    ],
-  },
-  {
-    id: 3,
-    name: '박준호',
-    time: '12분 전',
-    bg: 'linear-gradient(135deg, #43e97b, #38f9d7)',
-    initial: '박',
-    status: 'done',
-    unread: 0,
-    tags: ['재구매'],
-    memo: '단골 고객. 매달 주문.',
-    assignee: '박지민',
-    automationPaused: false,
-    automationPauseEnd: null,
-    followers: 456,
-    firstMessage: '2023.11.20',
-    subscribed: true,
-    messages: [
-      { id: 1, type: 'received', text: '감사합니다! 주문했습니다', time: '오후 1:43' },
-      { id: 2, type: 'sent', text: '감사합니다! 빠르게 배송 도와드리겠습니다.', time: '오후 1:45' },
-    ],
-  },
-  {
-    id: 4,
-    name: '최유리',
-    time: '15분 전',
-    bg: 'linear-gradient(135deg, #4facfe, #00f2fe)',
-    initial: '최',
-    status: 'open',
-    unread: 1,
-    tags: ['문의중'],
-    memo: '',
-    assignee: null,
-    automationPaused: false,
-    automationPauseEnd: null,
-    followers: 2100,
-    firstMessage: '2024.03.10',
-    subscribed: false,
-    messages: [
-      { id: 1, type: 'received', text: '배송은 얼마나 걸리나요?', time: '오후 1:40' },
-    ],
-  },
-  {
-    id: 5,
-    name: '정다운',
-    time: '1시간 전',
-    bg: 'linear-gradient(135deg, #fa709a, #fee140)',
-    initial: '정',
-    status: 'open',
-    unread: 0,
-    tags: ['메이크업'],
-    memo: '메이크업 관심 고객',
-    assignee: '김하늘',
-    automationPaused: false,
-    automationPauseEnd: null,
-    followers: 3500,
-    firstMessage: '2024.01.05',
-    subscribed: true,
-    messages: [
-      { id: 1, type: 'received', text: '제품 추천해주세요', time: '오후 12:30' },
-      {
-        id: 2, type: 'sent', auto: true, text: '어떤 제품을 찾고 계신가요?',
-        buttons: ['립스틱', '파운데이션', '아이섀도'], time: '오후 12:30',
-      },
-    ],
-  },
-]
+// Map backend conversation object to the shape used by the UI
+function mapConversation(conv) {
+  return {
+    id: conv.id,
+    name: conv.participantName || conv.name || '알 수 없음',
+    time: conv.lastMessageTime || '',
+    bg: conv.avatarGradient || 'linear-gradient(135deg, #667eea, #764ba2)',
+    initial: (conv.participantName || conv.name || '?').charAt(0),
+    badge: conv.automationType === 'auto' ? 'auto' : null,
+    status: conv.status || 'open',
+    unread: conv.unreadCount || 0,
+    tags: conv.tags || [],
+    memo: conv.memo || '',
+    assignee: conv.assignedTo || null,
+    automationPaused: conv.automationPaused || false,
+    automationPauseEnd: conv.automationPauseEnd ? new Date(conv.automationPauseEnd).getTime() : null,
+    followers: conv.followerCount || 0,
+    firstMessage: conv.firstMessageDate || '',
+    subscribed: conv.subscribed ?? false,
+    messages: [], // messages are loaded separately
+  }
+}
+
+// Map backend message object to the shape used by the UI
+function mapMessage(msg) {
+  return {
+    id: msg.id,
+    type: msg.direction === 'inbound' ? 'received' : msg.direction === 'outbound' ? 'sent' : msg.type || 'received',
+    text: msg.content || msg.text || '',
+    time: msg.sentAt ? formatTime(msg.sentAt) : (msg.time || ''),
+    auto: msg.auto || msg.isAutomated || false,
+    buttons: msg.buttons || undefined,
+    card: msg.card || undefined,
+    isImage: msg.isImage || false,
+  }
+}
+
+function formatTime(isoString) {
+  const d = new Date(isoString)
+  const h = d.getHours()
+  const m = String(d.getMinutes()).padStart(2, '0')
+  return `${h >= 12 ? '오후' : '오전'} ${h > 12 ? h - 12 : h}:${m}`
+}
 
 export default function LiveChatPage() {
-  const [chats, setChats] = useState(INITIAL_CHATS)
-  const [selectedId, setSelectedId] = useState(1)
+  const [chats, setChats] = useState([])
+  const [selectedId, setSelectedId] = useState(null)
   const [inputText, setInputText] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('전체')
@@ -157,12 +84,177 @@ export default function LiveChatPage() {
   const [showTagSuggestions, setShowTagSuggestions] = useState(false)
   const [showAssignDropdown, setShowAssignDropdown] = useState(false)
   const [automationTimers, setAutomationTimers] = useState({})
+  const [loading, setLoading] = useState(true)
   const textareaRef = useRef(null)
   const messagesEndRef = useRef(null)
   const fileInputRef = useRef(null)
   const tagInputRef = useRef(null)
+  const stompClientRef = useRef(null)
+  const messageSubRef = useRef(null)
 
   const selectedChat = chats.find((c) => c.id === selectedId)
+
+  // ---- Fetch conversations on mount ----
+  useEffect(() => {
+    let cancelled = false
+    async function fetchConversations() {
+      try {
+        setLoading(true)
+        const data = await conversationService.list()
+        if (cancelled) return
+        const mapped = (Array.isArray(data) ? data : data?.content || []).map(mapConversation)
+        setChats(mapped)
+        if (mapped.length > 0 && !selectedId) {
+          setSelectedId(mapped[0].id)
+        }
+      } catch (err) {
+        console.error('대화 목록 로드 실패:', err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchConversations()
+    return () => { cancelled = true }
+  }, [])
+
+  // ---- Fetch messages when selecting a chat ----
+  useEffect(() => {
+    if (!selectedId) return
+    let cancelled = false
+    async function fetchMessages() {
+      try {
+        const data = await conversationService.getMessages(selectedId)
+        if (cancelled) return
+        const messages = (Array.isArray(data) ? data : data?.content || []).map(mapMessage)
+        setChats((prev) =>
+          prev.map((c) => (c.id === selectedId ? { ...c, messages } : c))
+        )
+      } catch (err) {
+        console.error('메시지 로드 실패:', err)
+      }
+    }
+    fetchMessages()
+    return () => { cancelled = true }
+  }, [selectedId])
+
+  // ---- WebSocket connection ----
+  useEffect(() => {
+    const token = localStorage.getItem('authToken')
+    const wsBaseUrl = import.meta.env.VITE_WS_BASE_URL || 'http://localhost:8080/ws'
+
+    const client = new Client({
+      webSocketFactory: () => new SockJS(`${wsBaseUrl}?token=${encodeURIComponent(token || '')}`),
+      reconnectDelay: 5000,
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
+      connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+      onConnect: () => {
+        console.log('WebSocket 연결됨')
+
+        // Subscribe to conversation-level updates (new conversations, status changes, etc.)
+        const userId = localStorage.getItem('userId') || 'me'
+        client.subscribe(`/topic/conversations/${userId}`, (frame) => {
+          try {
+            const payload = JSON.parse(frame.body)
+            if (payload.type === 'new_message_notification') {
+              // Update the chat list entry (unread count, last message, time)
+              setChats((prev) => {
+                const exists = prev.find((c) => c.id === payload.conversationId)
+                if (exists) {
+                  return prev.map((c) =>
+                    c.id === payload.conversationId
+                      ? {
+                          ...c,
+                          time: payload.time || '방금',
+                          unread: c.id === selectedId ? c.unread : c.unread + 1,
+                        }
+                      : c
+                  )
+                }
+                // New conversation - refetch list
+                conversationService.list().then((data) => {
+                  const mapped = (Array.isArray(data) ? data : data?.content || []).map(mapConversation)
+                  setChats(mapped)
+                }).catch(() => {})
+                return prev
+              })
+            } else if (payload.type === 'conversation_update') {
+              const updated = mapConversation(payload.conversation || payload)
+              setChats((prev) => {
+                const exists = prev.find((c) => c.id === updated.id)
+                if (exists) {
+                  return prev.map((c) =>
+                    c.id === updated.id ? { ...c, ...updated, messages: c.messages } : c
+                  )
+                }
+                return [updated, ...prev]
+              })
+            }
+          } catch (e) {
+            console.error('WebSocket 메시지 파싱 오류:', e)
+          }
+        })
+      },
+      onStompError: (frame) => {
+        console.error('STOMP 오류:', frame.headers?.message)
+      },
+      onWebSocketClose: () => {
+        console.log('WebSocket 연결 종료')
+      },
+    })
+
+    client.activate()
+    stompClientRef.current = client
+
+    return () => {
+      if (client.active) {
+        client.deactivate()
+      }
+    }
+  }, [])
+
+  // ---- Subscribe to messages for the active conversation ----
+  useEffect(() => {
+    const client = stompClientRef.current
+    if (!client || !client.connected || !selectedId) return
+
+    // Unsubscribe from previous conversation messages
+    if (messageSubRef.current) {
+      messageSubRef.current.unsubscribe()
+      messageSubRef.current = null
+    }
+
+    messageSubRef.current = client.subscribe(
+      `/topic/messages/${selectedId}`,
+      (frame) => {
+        try {
+          const payload = JSON.parse(frame.body)
+          const newMsg = mapMessage(payload)
+          setChats((prev) =>
+            prev.map((c) => {
+              if (c.id !== selectedId) return c
+              // Avoid duplicate messages
+              if (c.messages.some((m) => m.id === newMsg.id)) return c
+              return {
+                ...c,
+                messages: [...c.messages, newMsg],
+                time: '방금',
+              }
+            })
+          )
+        } catch (e) {
+          console.error('메시지 수신 오류:', e)
+        }
+      }
+    )
+
+    return () => {
+      if (messageSubRef.current) {
+        messageSubRef.current.unsubscribe()
+        messageSubRef.current = null
+      }
+    }
+  }, [selectedId, stompClientRef.current?.connected])
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -230,13 +322,48 @@ export default function LiveChatPage() {
     setShowAssignDropdown(false)
   }
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     const text = inputText.trim()
     if (!text || !selectedChat) return
-    addMessage(selectedId, { type: 'sent', text, time: now() })
+
+    // Optimistic UI update
+    const tempId = Date.now()
+    addMessage(selectedId, { id: tempId, type: 'sent', text, time: now() })
     setInputText('')
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
+    }
+
+    try {
+      const savedMsg = await conversationService.sendMessage(selectedId, text)
+      // Replace the temp message with the real one from the server
+      if (savedMsg && savedMsg.id) {
+        setChats((prev) =>
+          prev.map((c) => {
+            if (c.id !== selectedId) return c
+            return {
+              ...c,
+              messages: c.messages.map((m) =>
+                m.id === tempId ? mapMessage(savedMsg) : m
+              ),
+            }
+          })
+        )
+      }
+    } catch (err) {
+      console.error('메시지 전송 실패:', err)
+      // Mark the message as failed
+      setChats((prev) =>
+        prev.map((c) => {
+          if (c.id !== selectedId) return c
+          return {
+            ...c,
+            messages: c.messages.map((m) =>
+              m.id === tempId ? { ...m, failed: true } : m
+            ),
+          }
+        })
+      )
     }
   }
 
@@ -279,9 +406,30 @@ export default function LiveChatPage() {
     })
   }
 
-  const handleQuickReply = (reply) => {
-    addMessage(selectedId, { type: 'sent', text: reply, time: now() })
+  const handleQuickReply = async (reply) => {
+    // Optimistic update
+    const tempId = Date.now()
+    addMessage(selectedId, { id: tempId, type: 'sent', text: reply, time: now() })
     setShowQuickReplies(false)
+
+    try {
+      const savedMsg = await conversationService.sendMessage(selectedId, reply)
+      if (savedMsg && savedMsg.id) {
+        setChats((prev) =>
+          prev.map((c) => {
+            if (c.id !== selectedId) return c
+            return {
+              ...c,
+              messages: c.messages.map((m) =>
+                m.id === tempId ? mapMessage(savedMsg) : m
+              ),
+            }
+          })
+        )
+      }
+    } catch (err) {
+      console.error('빠른 답장 전송 실패:', err)
+    }
   }
 
   const handleToggleQuickReplies = () => {
@@ -293,18 +441,37 @@ export default function LiveChatPage() {
     setShowTagSuggestions(true)
   }
 
-  const handleAddTag = (tag) => {
+  const handleAddTag = async (tag) => {
     const trimmed = (tag || newTagText).trim()
     if (!trimmed || !selectedChat) return
     if (selectedChat.tags.includes(trimmed)) return
-    updateChat(selectedId, (c) => ({ ...c, tags: [...c.tags, trimmed] }))
+
+    const newTags = [...selectedChat.tags, trimmed]
+    updateChat(selectedId, (c) => ({ ...c, tags: newTags }))
     setNewTagText('')
     setShowTagInput(false)
     setShowTagSuggestions(false)
+
+    try {
+      await conversationService.update(selectedId, { tags: newTags })
+    } catch (err) {
+      console.error('태그 추가 실패:', err)
+      // Revert on failure
+      updateChat(selectedId, (c) => ({ ...c, tags: c.tags.filter((t) => t !== trimmed) }))
+    }
   }
 
-  const handleRemoveTag = (tag) => {
-    updateChat(selectedId, (c) => ({ ...c, tags: c.tags.filter((t) => t !== tag) }))
+  const handleRemoveTag = async (tag) => {
+    const newTags = selectedChat.tags.filter((t) => t !== tag)
+    updateChat(selectedId, (c) => ({ ...c, tags: newTags }))
+
+    try {
+      await conversationService.update(selectedId, { tags: newTags })
+    } catch (err) {
+      console.error('태그 삭제 실패:', err)
+      // Revert on failure
+      updateChat(selectedId, (c) => ({ ...c, tags: [...c.tags, tag] }))
+    }
   }
 
   const handleTagKeyDown = (e) => {
@@ -318,21 +485,44 @@ export default function LiveChatPage() {
     }
   }
 
-  const handleMemoBlur = (e) => {
-    updateChat(selectedId, { memo: e.target.value })
-  }
-
-  const handleToggleAutomation = () => {
-    if (!selectedChat) return
-    if (selectedChat.automationPaused) {
-      updateChat(selectedId, { automationPaused: false, automationPauseEnd: null })
-    } else {
-      const pauseEnd = Date.now() + 24 * 60 * 60 * 1000 // 24 hours
-      updateChat(selectedId, { automationPaused: true, automationPauseEnd: pauseEnd })
+  const handleMemoBlur = async (e) => {
+    const memo = e.target.value
+    updateChat(selectedId, { memo })
+    try {
+      await conversationService.update(selectedId, { memo })
+    } catch (err) {
+      console.error('메모 저장 실패:', err)
     }
   }
 
-  const handleAssign = (member) => {
+  const handleToggleAutomation = async () => {
+    if (!selectedChat) return
+
+    const newPaused = !selectedChat.automationPaused
+    const pauseEnd = newPaused ? Date.now() + 24 * 60 * 60 * 1000 : null
+
+    updateChat(selectedId, {
+      automationPaused: newPaused,
+      automationPauseEnd: pauseEnd,
+    })
+
+    try {
+      await conversationService.update(selectedId, {
+        automationPaused: newPaused,
+        automationPauseEnd: pauseEnd ? new Date(pauseEnd).toISOString() : null,
+      })
+    } catch (err) {
+      console.error('자동화 상태 변경 실패:', err)
+      // Revert
+      updateChat(selectedId, {
+        automationPaused: !newPaused,
+        automationPauseEnd: !newPaused ? null : selectedChat.automationPauseEnd,
+      })
+    }
+  }
+
+  const handleAssign = async (member) => {
+    const prevAssignee = selectedChat?.assignee
     updateChat(selectedId, { assignee: member.name })
     setShowAssignDropdown(false)
     addMessage(selectedId, {
@@ -340,9 +530,17 @@ export default function LiveChatPage() {
       text: `대화가 ${member.name} (${member.role})에게 배정되었습니다.`,
       time: now(),
     })
+
+    try {
+      await conversationService.update(selectedId, { assignedTo: member.name })
+    } catch (err) {
+      console.error('배정 실패:', err)
+      updateChat(selectedId, { assignee: prevAssignee })
+    }
   }
 
-  const handleUnassign = () => {
+  const handleUnassign = async () => {
+    const prevAssignee = selectedChat?.assignee
     updateChat(selectedId, { assignee: null })
     setShowAssignDropdown(false)
     addMessage(selectedId, {
@@ -350,6 +548,26 @@ export default function LiveChatPage() {
       text: '대화 배정이 해제되었습니다.',
       time: now(),
     })
+
+    try {
+      await conversationService.update(selectedId, { assignedTo: null })
+    } catch (err) {
+      console.error('배정 해제 실패:', err)
+      updateChat(selectedId, { assignee: prevAssignee })
+    }
+  }
+
+  const handleStatusToggle = async () => {
+    if (!selectedChat) return
+    const newStatus = selectedChat.status === 'open' ? 'done' : 'open'
+    updateChat(selectedId, (c) => ({ ...c, status: newStatus }))
+
+    try {
+      await conversationService.update(selectedId, { status: newStatus })
+    } catch (err) {
+      console.error('상태 변경 실패:', err)
+      updateChat(selectedId, (c) => ({ ...c, status: c.status === 'open' ? 'done' : 'open' }))
+    }
   }
 
   const handleMsgButtonClick = (btnLabel) => {
@@ -412,7 +630,12 @@ export default function LiveChatPage() {
           )}
         </div>
         <div className="chat-list">
-          {filteredChats.length === 0 && (
+          {loading && (
+            <div style={{ padding: '24px 16px', textAlign: 'center', color: '#999', fontSize: '14px' }}>
+              대화 목록을 불러오는 중...
+            </div>
+          )}
+          {!loading && filteredChats.length === 0 && (
             <div style={{ padding: '24px 16px', textAlign: 'center', color: '#999', fontSize: '14px' }}>
               검색 결과가 없습니다.
             </div>
@@ -537,7 +760,7 @@ export default function LiveChatPage() {
               )
             }
             return (
-              <div key={msg.id} className={`chat-msg ${msg.type}${msg.auto ? ' auto' : ''}`}>
+              <div key={msg.id} className={`chat-msg ${msg.type}${msg.auto ? ' auto' : ''}${msg.failed ? ' failed' : ''}`}>
                 {msg.auto && (
                   <div className="msg-auto-badge"><i className="ri-robot-2-line" /> 자동 응답</div>
                 )}
@@ -547,6 +770,9 @@ export default function LiveChatPage() {
                   </p>
                 ) : (
                   <p>{msg.text}</p>
+                )}
+                {msg.failed && (
+                  <span style={{ fontSize: 11, color: '#e74c3c' }}>전송 실패</span>
                 )}
                 {msg.buttons && (
                   <div className="msg-buttons">
@@ -694,7 +920,7 @@ export default function LiveChatPage() {
                 <span
                   className={`status-badge ${selectedChat.status === 'open' ? 'active' : ''}`}
                   style={{ cursor: 'pointer' }}
-                  onClick={() => updateChat(selectedId, (c) => ({ ...c, status: c.status === 'open' ? 'done' : 'open' }))}
+                  onClick={handleStatusToggle}
                 >
                   {selectedChat.status === 'open' ? '열림' : '완료'}
                 </span>
