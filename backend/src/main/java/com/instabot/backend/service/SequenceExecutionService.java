@@ -4,9 +4,11 @@ import com.instabot.backend.entity.*;
 import com.instabot.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -26,15 +28,16 @@ public class SequenceExecutionService {
     private final ConversationService conversationService;
     private final ContactRepository contactRepository;
     private final SequenceRepository sequenceRepository;
+    private final TaskScheduler taskScheduler;
 
     /**
      * 특정 Contact에 대해 시퀀스 실행 (비동기)
+     * 각 Step의 지연시간을 TaskScheduler로 스케줄링하여 스레드를 차단하지 않음
      */
     @Async
     public void executeSequence(Sequence sequence, Contact contact, InstagramAccount igAccount) {
         if (!sequence.isActive() || igAccount == null || contact.getIgUserId() == null) return;
 
-        User user = sequence.getUser();
         List<SequenceStep> steps = sequence.getSteps().stream()
                 .sorted(Comparator.comparingInt(SequenceStep::getStepOrder))
                 .toList();
@@ -46,49 +49,73 @@ public class SequenceExecutionService {
                 (sequence.getActiveSubscribers() != null ? sequence.getActiveSubscribers() : 0) + 1);
         sequenceRepository.save(sequence);
 
-        int completedSteps = 0;
+        // 누적 지연시간을 계산하여 각 Step을 스케줄링
+        long cumulativeDelayMs = 0;
 
-        for (SequenceStep step : steps) {
-            try {
-                // 지연 대기
-                if (step.getDelayMinutes() > 0) {
-                    long delayMs = step.getDelayMinutes() * 60_000L;
-                    log.debug("시퀀스 지연 대기: {}분 (stepOrder={})", step.getDelayMinutes(), step.getStepOrder());
-                    Thread.sleep(delayMs);
-                }
+        for (int i = 0; i < steps.size(); i++) {
+            SequenceStep step = steps.get(i);
+            final boolean isLastStep = (i == steps.size() - 1);
 
-                switch (step.getType()) {
-                    case MESSAGE -> executeMessageStep(step, contact, igAccount, user);
-                    case CONDITION -> {
-                        if (!evaluateCondition(step, contact)) {
-                            log.debug("조건 미충족, 시퀀스 중단: stepOrder={}", step.getStepOrder());
-                            return;
+            // 지연시간 누적
+            if (step.getDelayMinutes() > 0) {
+                cumulativeDelayMs += step.getDelayMinutes() * 60_000L;
+            }
+
+            if (cumulativeDelayMs > 0) {
+                // 지연이 있으면 TaskScheduler로 스케줄링 (스레드 차단 없음)
+                Instant executeAt = Instant.now().plusMillis(cumulativeDelayMs);
+                Long seqId = sequence.getId();
+                Long contactId = contact.getId();
+
+                taskScheduler.schedule(() -> {
+                    try {
+                        // DB에서 최신 상태 조회 (서버 재시작 대비)
+                        Contact freshContact = contactRepository.findById(contactId).orElse(null);
+                        Sequence freshSeq = sequenceRepository.findById(seqId).orElse(null);
+                        if (freshContact == null || freshSeq == null || !freshSeq.isActive()) return;
+
+                        executeStep(step, freshContact, igAccount, freshSeq.getUser());
+
+                        if (isLastStep) {
+                            completeSequence(freshSeq);
                         }
+                    } catch (Exception e) {
+                        log.error("시퀀스 스케줄 Step 실행 실패: stepOrder={}, error={}",
+                                step.getStepOrder(), e.getMessage());
                     }
-                    case TAG -> executeTagStep(step, contact);
-                    case DELAY -> {
-                        // DELAY type은 delayMinutes로 이미 처리됨
+                }, executeAt);
+
+                log.debug("시퀀스 Step 스케줄됨: stepOrder={}, executeAt={}", step.getStepOrder(), executeAt);
+            } else {
+                // 즉시 실행
+                try {
+                    executeStep(step, contact, igAccount, sequence.getUser());
+                    if (isLastStep) {
+                        completeSequence(sequence);
                     }
-                    case NOTIFY -> log.info("알림 Step 실행: contact={}, step={}", contact.getId(), step.getName());
+                } catch (Exception e) {
+                    log.error("시퀀스 Step 실행 실패: stepOrder={}, error={}", step.getStepOrder(), e.getMessage());
                 }
-
-                completedSteps++;
-
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.warn("시퀀스 중단(인터럽트): seqId={}, contact={}", sequence.getId(), contact.getId());
-                return;
-            } catch (Exception e) {
-                log.error("시퀀스 Step 실행 실패: stepOrder={}, error={}", step.getStepOrder(), e.getMessage());
             }
         }
+    }
 
-        // 완료 처리
-        if (completedSteps == steps.size()) {
-            log.info("시퀀스 완료: seqId={}, contact={}", sequence.getId(), contact.getId());
+    private void executeStep(SequenceStep step, Contact contact, InstagramAccount igAccount, User user) {
+        switch (step.getType()) {
+            case MESSAGE -> executeMessageStep(step, contact, igAccount, user);
+            case CONDITION -> {
+                if (!evaluateCondition(step, contact)) {
+                    log.debug("조건 미충족: stepOrder={}", step.getStepOrder());
+                }
+            }
+            case TAG -> executeTagStep(step, contact);
+            case DELAY -> { /* delay is handled by scheduling */ }
+            case NOTIFY -> log.info("알림 Step 실행: contact={}, step={}", contact.getId(), step.getName());
         }
+    }
 
-        // activeSubscribers 감소
+    private void completeSequence(Sequence sequence) {
+        log.info("시퀀스 완료: seqId={}", sequence.getId());
         sequence.setActiveSubscribers(
                 Math.max(0, (sequence.getActiveSubscribers() != null ? sequence.getActiveSubscribers() : 1) - 1));
         sequenceRepository.save(sequence);

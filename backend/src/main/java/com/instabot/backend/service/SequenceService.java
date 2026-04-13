@@ -55,16 +55,24 @@ public class SequenceService {
     }
 
     @Transactional
-    public SequenceDto.Response toggleSequence(Long id) {
+    public SequenceDto.Response toggleSequence(Long userId, Long id) {
         Sequence seq = sequenceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("시퀀스를 찾을 수 없습니다."));
+        if (!seq.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("시퀀스를 찾을 수 없습니다.");
+        }
         seq.setActive(!seq.isActive());
         return toResponse(sequenceRepository.save(seq));
     }
 
     @Transactional
-    public void deleteSequence(Long id) {
-        sequenceRepository.deleteById(id);
+    public void deleteSequence(Long userId, Long id) {
+        Sequence seq = sequenceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("시퀀스를 찾을 수 없습니다."));
+        if (!seq.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("시퀀스를 찾을 수 없습니다.");
+        }
+        sequenceRepository.delete(seq);
     }
 
     private SequenceDto.Response toResponse(Sequence seq) {

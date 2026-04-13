@@ -3,12 +3,15 @@ import { conversationService } from '../api/services'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 
-const TEAM_MEMBERS = [
-  { id: 1, name: '박지민', role: '매니저' },
-  { id: 2, name: '김하늘', role: '상담사' },
-  { id: 3, name: '이서준', role: '상담사' },
-  { id: 4, name: '정유진', role: '팀장' },
-]
+// 현재 로그인한 사용자를 팀 멤버로 사용 (팀 기능 확장 시 API로 교체)
+function getTeamMembers() {
+  try {
+    const raw = localStorage.getItem('authUser')
+    const user = raw ? JSON.parse(raw) : null
+    if (user?.name) return [{ id: 1, name: user.name, role: '관리자' }]
+  } catch {}
+  return [{ id: 1, name: '나', role: '관리자' }]
+}
 
 const QUICK_REPLIES = [
   '안녕하세요! 무엇을 도와드릴까요?',
@@ -149,7 +152,7 @@ export default function LiveChatPage() {
       heartbeatOutgoing: 10000,
       connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
       onConnect: () => {
-        console.log('WebSocket 연결됨')
+        // WebSocket connected
 
         // Subscribe to conversation-level updates (new conversations, status changes, etc.)
         const userId = localStorage.getItem('userId') || 'me'
@@ -199,7 +202,7 @@ export default function LiveChatPage() {
         console.error('STOMP 오류:', frame.headers?.message)
       },
       onWebSocketClose: () => {
-        console.log('WebSocket 연결 종료')
+        // WebSocket disconnected
       },
     })
 
@@ -706,7 +709,7 @@ export default function LiveChatPage() {
                   <div style={{ padding: '8px 12px', fontSize: 12, color: '#999', borderBottom: '1px solid #f0f0f0' }}>
                     팀원 배정
                   </div>
-                  {TEAM_MEMBERS.map((m) => (
+                  {getTeamMembers().map((m) => (
                     <div
                       key={m.id}
                       onClick={() => handleAssign(m)}

@@ -29,12 +29,12 @@ public class SequenceController {
 
     @PatchMapping("/{id}/toggle")
     public ResponseEntity<SequenceDto.Response> toggleSequence(@PathVariable Long id) {
-        return ResponseEntity.ok(sequenceService.toggleSequence(id));
+        return ResponseEntity.ok(sequenceService.toggleSequence(SecurityUtils.currentUserId(), id));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSequence(@PathVariable Long id) {
-        sequenceService.deleteSequence(id);
+        sequenceService.deleteSequence(SecurityUtils.currentUserId(), id);
         return ResponseEntity.noContent().build();
     }
 }

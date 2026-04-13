@@ -84,7 +84,7 @@ class FlowServiceTest {
         when(flowRepository.findById(10L)).thenReturn(Optional.of(flow));
 
         // when
-        FlowDto.Response result = flowService.getFlow(10L);
+        FlowDto.Response result = flowService.getFlow(1L, 10L);
 
         // then
         assertThat(result.getId()).isEqualTo(10L);
@@ -100,7 +100,7 @@ class FlowServiceTest {
         when(flowRepository.findById(999L)).thenReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> flowService.getFlow(999L))
+        assertThatThrownBy(() -> flowService.getFlow(1L, 999L))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -143,7 +143,7 @@ class FlowServiceTest {
         // flowData, active, and status are left null -- should not be changed
 
         // when
-        FlowDto.Response result = flowService.updateFlow(10L, request);
+        FlowDto.Response result = flowService.updateFlow(1L, 10L, request);
 
         // then
         assertThat(result.getName()).isEqualTo("Updated Name");
@@ -160,7 +160,7 @@ class FlowServiceTest {
         when(flowRepository.save(any(Flow.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        FlowDto.Response result = flowService.toggleFlow(10L);
+        FlowDto.Response result = flowService.toggleFlow(1L, 10L);
 
         // then
         assertThat(result.isActive()).isTrue();
@@ -168,11 +168,15 @@ class FlowServiceTest {
 
     @Test
     void deleteFlow_callsRepository() {
+        // given
+        Flow flow = createTestFlow(createTestUser());
+        when(flowRepository.findById(10L)).thenReturn(Optional.of(flow));
+
         // when
-        flowService.deleteFlow(10L);
+        flowService.deleteFlow(1L, 10L);
 
         // then
-        verify(flowRepository).deleteById(10L);
+        verify(flowRepository).delete(flow);
     }
 
     @Test

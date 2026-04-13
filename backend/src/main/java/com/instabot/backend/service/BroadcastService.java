@@ -51,9 +51,12 @@ public class BroadcastService {
     }
 
     @Transactional
-    public void cancelBroadcast(Long id) {
+    public void cancelBroadcast(Long userId, Long id) {
         Broadcast broadcast = broadcastRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("브로드캐스트를 찾을 수 없습니다."));
+        if (!broadcast.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("브로드캐스트를 찾을 수 없습니다.");
+        }
         if (broadcast.getStatus() != Broadcast.BroadcastStatus.SCHEDULED
                 && broadcast.getStatus() != Broadcast.BroadcastStatus.DRAFT) {
             throw new com.instabot.backend.exception.BadRequestException("SCHEDULED 또는 DRAFT 상태에서만 취소할 수 있습니다.");

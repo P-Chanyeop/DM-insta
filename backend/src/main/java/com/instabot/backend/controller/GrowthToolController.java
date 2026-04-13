@@ -26,9 +26,14 @@ public class GrowthToolController {
         return ResponseEntity.ok(growthToolService.createTool(SecurityUtils.currentUserId(), request));
     }
 
+    @PatchMapping("/{id}/toggle")
+    public ResponseEntity<GrowthToolDto.Response> toggleGrowthTool(@PathVariable Long id) {
+        return ResponseEntity.ok(growthToolService.toggleTool(SecurityUtils.currentUserId(), id));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteGrowthTool(@PathVariable Long id) {
-        growthToolService.deleteTool(id);
+        growthToolService.deleteTool(SecurityUtils.currentUserId(), id);
         return ResponseEntity.noContent().build();
     }
 }

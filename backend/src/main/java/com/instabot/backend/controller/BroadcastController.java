@@ -29,7 +29,7 @@ public class BroadcastController {
 
     @PatchMapping("/{id}/cancel")
     public ResponseEntity<Void> cancelBroadcast(@PathVariable Long id) {
-        broadcastService.cancelBroadcast(id);
+        broadcastService.cancelBroadcast(SecurityUtils.currentUserId(), id);
         return ResponseEntity.noContent().build();
     }
 }

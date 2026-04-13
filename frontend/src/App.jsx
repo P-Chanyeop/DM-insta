@@ -14,12 +14,15 @@ import AnalyticsPage from './pages/AnalyticsPage'
 import TemplatesPage from './pages/TemplatesPage'
 import SettingsPage from './pages/SettingsPage'
 import FlowBuilderPage from './pages/FlowBuilderPage'
+import LegalPage from './pages/LegalPage'
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<AuthPage />} />
+      <Route path="/terms" element={<LegalPage />} />
+      <Route path="/privacy" element={<LegalPage />} />
       <Route path="/signup" element={<AuthPage />} />
       <Route path="/app" element={<DashboardLayout />}>
         <Route index element={<DashboardPage />} />

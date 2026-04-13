@@ -130,8 +130,32 @@ function QrCodeCard({ tool }) {
   const trackingUrl = tool.config.trackingUrl || tool.refUrl || ''
 
   const handleDownload = () => {
-    setDownloadMsg('QR 코드 생성 서비스가 아직 연결되지 않았습니다.')
-    setTimeout(() => setDownloadMsg(''), 3000)
+    if (!trackingUrl) {
+      setDownloadMsg('추적 URL이 없습니다.')
+      setTimeout(() => setDownloadMsg(''), 3000)
+      return
+    }
+    // Google Charts QR API로 이미지 생성 후 다운로드
+    const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=${size}x${size}&chl=${encodeURIComponent(trackingUrl)}&chco=${fg.replace('#', '')}|${bg.replace('#', '')}&chld=M|2`
+    const link = document.createElement('a')
+    // Fetch as blob to force download
+    fetch(qrUrl)
+      .then(res => res.blob())
+      .then(blob => {
+        const url = URL.createObjectURL(blob)
+        link.href = url
+        link.download = `qr_${tool.name || 'code'}_${size}px.png`
+        link.click()
+        URL.revokeObjectURL(url)
+        setDownloadMsg('다운로드 완료!')
+        setTimeout(() => setDownloadMsg(''), 2000)
+      })
+      .catch(() => {
+        // Fallback: open in new tab
+        window.open(qrUrl, '_blank')
+        setDownloadMsg('새 탭에서 QR 코드를 확인하세요.')
+        setTimeout(() => setDownloadMsg(''), 3000)
+      })
   }
 
   return (
@@ -141,11 +165,19 @@ function QrCodeCard({ tool }) {
       <p>{tool.description}</p>
 
       <div className="gt-qr-preview">
-        <div className="qr-placeholder" style={{ color: fg, backgroundColor: bg }}>
-          <i className="ri-qr-code-line" />
-          <span>QR 코드 미리보기</span>
-          <span className="qr-size-label">{size} x {size}px</span>
-        </div>
+        {trackingUrl ? (
+          <img
+            src={`https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${encodeURIComponent(trackingUrl)}&chco=${fg.replace('#', '')}&chld=M|2`}
+            alt="QR Code"
+            style={{ width: '200px', height: '200px', borderRadius: '0.5rem', background: bg }}
+          />
+        ) : (
+          <div className="qr-placeholder" style={{ color: fg, backgroundColor: bg }}>
+            <i className="ri-qr-code-line" />
+            <span>QR 코드 미리보기</span>
+            <span className="qr-size-label">{size} x {size}px</span>
+          </div>
+        )}
       </div>
 
       <div className="gt-customize-row">
@@ -175,7 +207,7 @@ function QrCodeCard({ tool }) {
         </div>
       )}
 
-      <button className="btn-primary" style={{ width: '100%' }} onClick={handleDownload} title="QR 코드 생성 서비스 연동 필요">
+      <button className="btn-primary" style={{ width: '100%' }} onClick={handleDownload}>
         <i className="ri-download-2-line" /> QR 코드 다운로드
       </button>
       {downloadMsg && (

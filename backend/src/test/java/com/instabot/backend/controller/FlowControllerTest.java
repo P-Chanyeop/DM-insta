@@ -126,7 +126,7 @@ class FlowControllerTest {
     void toggleFlow() throws Exception {
         FlowDto.Response toggled = sampleFlow(1L);
         toggled.setActive(true);
-        given(flowService.toggleFlow(1L)).willReturn(toggled);
+        given(flowService.toggleFlow(USER_ID, 1L)).willReturn(toggled);
 
         mockMvc.perform(patch("/api/flows/1/toggle"))
                 .andExpect(status().isOk())
@@ -138,7 +138,7 @@ class FlowControllerTest {
     @Test
     @DisplayName("DELETE /api/flows/1 - returns 204")
     void deleteFlow() throws Exception {
-        doNothing().when(flowService).deleteFlow(1L);
+        doNothing().when(flowService).deleteFlow(USER_ID, 1L);
 
         mockMvc.perform(delete("/api/flows/1"))
                 .andExpect(status().isNoContent());

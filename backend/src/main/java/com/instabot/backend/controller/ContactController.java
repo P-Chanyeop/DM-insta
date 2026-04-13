@@ -25,11 +25,22 @@ public class ContactController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ContactDto.Response> getContact(@PathVariable Long id) {
-        return ResponseEntity.ok(contactService.getContact(id));
+        return ResponseEntity.ok(contactService.getContact(SecurityUtils.currentUserId(), id));
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<ContactDto.Response> updateContact(@PathVariable Long id, @Valid @RequestBody ContactDto.UpdateRequest request) {
-        return ResponseEntity.ok(contactService.updateContact(id, request));
+        return ResponseEntity.ok(contactService.updateContact(SecurityUtils.currentUserId(), id, request));
+    }
+
+    @PostMapping("/bulk-delete")
+    public ResponseEntity<Void> deleteContacts(@RequestBody java.util.List<Long> ids) {
+        contactService.deleteContacts(SecurityUtils.currentUserId(), ids);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/import")
+    public ResponseEntity<ContactDto.ImportResult> importContacts(@RequestBody java.util.List<ContactDto.ImportRequest> requests) {
+        return ResponseEntity.ok(contactService.importContacts(SecurityUtils.currentUserId(), requests));
     }
 }

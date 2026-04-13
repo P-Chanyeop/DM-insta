@@ -52,16 +52,24 @@ public class IntegrationService {
     }
 
     @Transactional
-    public IntegrationDto.Response toggleIntegration(Long id) {
+    public IntegrationDto.Response toggleIntegration(Long userId, Long id) {
         Integration integ = integrationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("연동을 찾을 수 없습니다."));
+        if (!integ.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("연동을 찾을 수 없습니다.");
+        }
         integ.setActive(!integ.isActive());
         return toResponse(integrationRepository.save(integ));
     }
 
     @Transactional
-    public void deleteIntegration(Long id) {
-        integrationRepository.deleteById(id);
+    public void deleteIntegration(Long userId, Long id) {
+        Integration integ = integrationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("연동을 찾을 수 없습니다."));
+        if (!integ.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("연동을 찾을 수 없습니다.");
+        }
+        integrationRepository.delete(integ);
     }
 
     /**

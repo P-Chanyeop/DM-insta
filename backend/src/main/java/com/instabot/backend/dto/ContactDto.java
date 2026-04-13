@@ -29,4 +29,18 @@ public class ContactDto {
         private String memo;
         private String customFields;
     }
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+    public static class ImportRequest {
+        private String name;
+        private String username;
+        private String memo;
+    }
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    public static class ImportResult {
+        private int imported;
+        private int skipped;
+        private int total;
+    }
 }

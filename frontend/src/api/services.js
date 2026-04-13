@@ -41,6 +41,8 @@ export const contactService = {
   list: (page = 0, size = 20) => api.get(`/contacts?page=${page}&size=${size}`),
   get: (id) => api.get(`/contacts/${id}`),
   update: (id, data) => api.patch(`/contacts/${id}`, data),
+  deleteBulk: (ids) => api.post('/contacts/bulk-delete', ids),
+  import: (contacts) => api.post('/contacts/import', contacts),
 }
 
 export const broadcastService = {

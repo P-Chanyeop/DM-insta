@@ -102,16 +102,24 @@ public class AutomationService {
     }
 
     @Transactional
-    public AutomationDto.Response toggleAutomation(Long id) {
+    public AutomationDto.Response toggleAutomation(Long userId, Long id) {
         Automation automation = automationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("자동화를 찾을 수 없습니다."));
+        if (!automation.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("자동화를 찾을 수 없습니다.");
+        }
         automation.setActive(!automation.isActive());
         return toResponse(automationRepository.save(automation));
     }
 
     @Transactional
-    public void deleteAutomation(Long id) {
-        automationRepository.deleteById(id);
+    public void deleteAutomation(Long userId, Long id) {
+        Automation automation = automationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("자동화를 찾을 수 없습니다."));
+        if (!automation.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("자동화를 찾을 수 없습니다.");
+        }
+        automationRepository.delete(automation);
     }
 
     private AutomationDto.Response toResponse(Automation a) {

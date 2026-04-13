@@ -57,9 +57,13 @@ public class FlowService {
                 .toList();
     }
 
-    public FlowDto.Response getFlow(Long id) {
-        return toResponse(flowRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("플로우를 찾을 수 없습니다.")));
+    public FlowDto.Response getFlow(Long userId, Long id) {
+        Flow flow = flowRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("플로우를 찾을 수 없습니다."));
+        if (!flow.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("플로우를 찾을 수 없습니다.");
+        }
+        return toResponse(flow);
     }
 
     @Transactional
@@ -78,9 +82,12 @@ public class FlowService {
     }
 
     @Transactional
-    public FlowDto.Response updateFlow(Long id, FlowDto.UpdateRequest request) {
+    public FlowDto.Response updateFlow(Long userId, Long id, FlowDto.UpdateRequest request) {
         Flow flow = flowRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("플로우를 찾을 수 없습니다."));
+        if (!flow.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("플로우를 찾을 수 없습니다.");
+        }
 
         if (request.getName() != null) flow.setName(request.getName());
         if (request.getFlowData() != null) flow.setFlowData(request.getFlowData());
@@ -92,14 +99,22 @@ public class FlowService {
     }
 
     @Transactional
-    public void deleteFlow(Long id) {
-        flowRepository.deleteById(id);
+    public void deleteFlow(Long userId, Long id) {
+        Flow flow = flowRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("플로우를 찾을 수 없습니다."));
+        if (!flow.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("플로우를 찾을 수 없습니다.");
+        }
+        flowRepository.delete(flow);
     }
 
     @Transactional
-    public FlowDto.Response toggleFlow(Long id) {
+    public FlowDto.Response toggleFlow(Long userId, Long id) {
         Flow flow = flowRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("플로우를 찾을 수 없습니다."));
+        if (!flow.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("플로우를 찾을 수 없습니다.");
+        }
         flow.setActive(!flow.isActive());
         return toResponse(flowRepository.save(flow));
     }

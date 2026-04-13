@@ -33,12 +33,12 @@ public class AutomationController {
 
     @PatchMapping("/{id}/toggle")
     public ResponseEntity<AutomationDto.Response> toggleAutomation(@PathVariable Long id) {
-        return ResponseEntity.ok(automationService.toggleAutomation(id));
+        return ResponseEntity.ok(automationService.toggleAutomation(SecurityUtils.currentUserId(), id));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAutomation(@PathVariable Long id) {
-        automationService.deleteAutomation(id);
+        automationService.deleteAutomation(SecurityUtils.currentUserId(), id);
         return ResponseEntity.noContent().build();
     }
 }

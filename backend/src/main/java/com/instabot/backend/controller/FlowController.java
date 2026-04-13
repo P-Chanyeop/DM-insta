@@ -24,7 +24,7 @@ public class FlowController {
 
     @GetMapping("/{id}")
     public ResponseEntity<FlowDto.Response> getFlow(@PathVariable Long id) {
-        return ResponseEntity.ok(flowService.getFlow(id));
+        return ResponseEntity.ok(flowService.getFlow(SecurityUtils.currentUserId(), id));
     }
 
     @PostMapping
@@ -34,17 +34,17 @@ public class FlowController {
 
     @PutMapping("/{id}")
     public ResponseEntity<FlowDto.Response> updateFlow(@PathVariable Long id, @RequestBody FlowDto.UpdateRequest request) {
-        return ResponseEntity.ok(flowService.updateFlow(id, request));
+        return ResponseEntity.ok(flowService.updateFlow(SecurityUtils.currentUserId(), id, request));
     }
 
     @PatchMapping("/{id}/toggle")
     public ResponseEntity<FlowDto.Response> toggleFlow(@PathVariable Long id) {
-        return ResponseEntity.ok(flowService.toggleFlow(id));
+        return ResponseEntity.ok(flowService.toggleFlow(SecurityUtils.currentUserId(), id));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteFlow(@PathVariable Long id) {
-        flowService.deleteFlow(id);
+        flowService.deleteFlow(SecurityUtils.currentUserId(), id);
         return ResponseEntity.noContent().build();
     }
 }

@@ -57,14 +57,22 @@ public class GrowthToolService {
     }
 
     @Transactional
-    public void deleteTool(Long id) {
-        growthToolRepository.deleteById(id);
+    public void deleteTool(Long userId, Long id) {
+        GrowthTool tool = growthToolRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("성장 도구를 찾을 수 없습니다."));
+        if (!tool.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("성장 도구를 찾을 수 없습니다.");
+        }
+        growthToolRepository.delete(tool);
     }
 
     @Transactional
-    public GrowthToolDto.Response toggleTool(Long id) {
+    public GrowthToolDto.Response toggleTool(Long userId, Long id) {
         GrowthTool tool = growthToolRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("성장 도구를 찾을 수 없습니다."));
+        if (!tool.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("성장 도구를 찾을 수 없습니다.");
+        }
         tool.setActive(!tool.isActive());
         return toResponse(growthToolRepository.save(tool));
     }

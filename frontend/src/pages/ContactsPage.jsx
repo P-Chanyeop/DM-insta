@@ -153,10 +153,49 @@ export default function ContactsPage() {
     if (file) setImportFile(file)
   }
 
-  const handleImportSubmit = () => {
-    setError('CSV 가져오기 기능은 현재 준비 중입니다.')
-    setShowImport(false)
-    setImportFile(null)
+  const handleImportSubmit = async () => {
+    if (!importFile) return
+    try {
+      const text = await importFile.text()
+      const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+      if (lines.length < 2) {
+        setError('CSV 파일에 데이터가 없습니다. 헤더 행 아래에 데이터를 추가해주세요.')
+        return
+      }
+      // Parse header
+      const headers = lines[0].split(',').map((h) => h.replace(/"/g, '').trim().toLowerCase())
+      const nameIdx = headers.findIndex((h) => h === '이름' || h === 'name')
+      const usernameIdx = headers.findIndex((h) => h === '사용자명' || h === 'username')
+      const memoIdx = headers.findIndex((h) => h === '메모' || h === 'memo')
+
+      if (usernameIdx === -1 && nameIdx === -1) {
+        setError('CSV 파일에 "이름" 또는 "사용자명" 열이 필요합니다.')
+        return
+      }
+
+      const contacts = lines.slice(1).map((line) => {
+        const cols = line.split(',').map((c) => c.replace(/"/g, '').trim())
+        return {
+          name: nameIdx >= 0 ? cols[nameIdx] || '' : '',
+          username: usernameIdx >= 0 ? cols[usernameIdx] || '' : cols[nameIdx] || '',
+          memo: memoIdx >= 0 ? cols[memoIdx] || '' : '',
+        }
+      }).filter((c) => c.username)
+
+      if (contacts.length === 0) {
+        setError('가져올 수 있는 연락처가 없습니다.')
+        return
+      }
+
+      const result = await contactService.import(contacts)
+      setShowImport(false)
+      setImportFile(null)
+      setError('')
+      await loadContacts(0)
+      alert(`가져오기 완료: ${result.imported}명 추가, ${result.skipped}명 중복 스킵`)
+    } catch (err) {
+      setError(err.message || 'CSV 가져오기에 실패했습니다.')
+    }
   }
 
   // --- View detail ---
@@ -188,9 +227,16 @@ export default function ContactsPage() {
   }
 
   // --- Bulk actions ---
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return
-    setError('연락처 삭제 기능은 현재 준비 중입니다.')
+    if (!confirm(`${selectedIds.size}명의 연락처를 삭제하시겠습니까?`)) return
+    try {
+      await contactService.deleteBulk([...selectedIds])
+      setSelectedIds(new Set())
+      await loadContacts(page)
+    } catch (err) {
+      setError(err.message || '연락처 삭제에 실패했습니다.')
+    }
   }
 
   const handleBulkTag = async () => {

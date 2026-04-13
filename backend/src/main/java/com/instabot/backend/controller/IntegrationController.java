@@ -28,12 +28,12 @@ public class IntegrationController {
 
     @PatchMapping("/{id}/toggle")
     public ResponseEntity<IntegrationDto.Response> toggleIntegration(@PathVariable Long id) {
-        return ResponseEntity.ok(integrationService.toggleIntegration(id));
+        return ResponseEntity.ok(integrationService.toggleIntegration(SecurityUtils.currentUserId(), id));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteIntegration(@PathVariable Long id) {
-        integrationService.deleteIntegration(id);
+        integrationService.deleteIntegration(SecurityUtils.currentUserId(), id);
         return ResponseEntity.noContent().build();
     }
 }
