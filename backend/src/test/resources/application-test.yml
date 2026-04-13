@@ -1,0 +1,70 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false;MODE=MYSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  flyway:
+    enabled: false
+
+  mail:
+    host: localhost
+    port: 25
+    username: test@test.com
+    password: test
+
+  cache:
+    type: none
+
+  task:
+    execution:
+      pool:
+        core-size: 1
+        max-size: 1
+
+# JWT
+jwt:
+  secret: test-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
+  expiration: 86400000
+
+# Instagram API (dummy for tests)
+instagram:
+  api:
+    base-url: https://graph.instagram.com
+    app-id: test-app-id
+    app-secret: test-app-secret
+  oauth:
+    redirect-uri: http://localhost:8080/api/auth/instagram/callback
+  webhook:
+    verify-token: test-webhook-verify-token
+
+# Encryption
+encryption:
+  secret: test-encryption-secret-change-in-production
+
+# App
+app:
+  base-url: http://localhost:5173
+
+# CORS
+cors:
+  allowed-origins: http://localhost:5173,http://localhost:3000
+
+# Rate limiting
+rate-limit:
+  enabled: false
+
+logging:
+  level:
+    com.instabot: DEBUG
+    org.springframework.security: DEBUG

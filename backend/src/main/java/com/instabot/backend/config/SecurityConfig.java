@@ -1,5 +1,6 @@
 package com.instabot.backend.config;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,12 +28,17 @@ public class SecurityConfig {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
+    @Autowired(required = false)
+    private RateLimitFilter rateLimitFilter;
+
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
         return new JwtAuthenticationFilter(jwtSecret);
     }
 
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+            name = "rate-limit.enabled", havingValue = "true", matchIfMissing = true)
     public RateLimitFilter rateLimitFilter() {
         return new RateLimitFilter();
     }
@@ -47,9 +53,13 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**", "/api/webhook/**", "/h2-console/**", "/api/public/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()
-            )
-            .addFilterBefore(rateLimitFilter(), UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+            );
+
+        if (rateLimitFilter != null) {
+            http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
+        }
+
+        http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
             .headers(headers -> headers
                 .frameOptions(frame -> frame.sameOrigin())
                 .contentSecurityPolicy(csp ->
