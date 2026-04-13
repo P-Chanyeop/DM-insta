@@ -5,6 +5,7 @@ import com.instabot.backend.config.SecurityUtils;
 import com.instabot.backend.entity.InstagramAccount;
 import com.instabot.backend.entity.User;
 import com.instabot.backend.exception.ResourceNotFoundException;
+import com.instabot.backend.repository.InstagramAccountRepository;
 import com.instabot.backend.repository.UserRepository;
 import com.instabot.backend.service.InstagramApiService;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ import java.util.Map;
 public class InstagramOAuthController {
 
     private final InstagramApiService instagramApiService;
+    private final InstagramAccountRepository instagramAccountRepository;
     private final UserRepository userRepository;
     private final RestTemplate restTemplate;
 
@@ -110,8 +112,9 @@ public class InstagramOAuthController {
         if (account != null) {
             account.setConnected(false);
             account.setAccessToken(null);
-            // save through repository
-            instagramApiService.getConnectedAccount(userId); // trigger re-query
+            account.setTokenExpiresAt(null);
+            instagramAccountRepository.save(account);
+            log.info("Instagram 연결 해제: userId={}, username={}", userId, account.getUsername());
         }
         return ResponseEntity.ok(Map.of("message", "Instagram 연결이 해제되었습니다."));
     }

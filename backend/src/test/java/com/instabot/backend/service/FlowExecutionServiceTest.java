@@ -4,7 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.instabot.backend.repository.ContactRepository;
 import com.instabot.backend.repository.FlowRepository;
-import com.instabot.backend.repository.MessageRepository;
+import com.instabot.backend.repository.PendingFlowActionRepository;
+import com.instabot.backend.repository.ScheduledFollowUpRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,7 +34,10 @@ class FlowExecutionServiceTest {
     private ContactRepository contactRepository;
 
     @Mock
-    private MessageRepository messageRepository;
+    private PendingFlowActionRepository pendingFlowActionRepository;
+
+    @Mock
+    private ScheduledFollowUpRepository scheduledFollowUpRepository;
 
     @InjectMocks
     private FlowExecutionService flowExecutionService;

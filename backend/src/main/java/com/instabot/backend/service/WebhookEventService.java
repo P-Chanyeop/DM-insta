@@ -3,11 +3,13 @@ package com.instabot.backend.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.instabot.backend.entity.*;
+import com.instabot.backend.entity.PendingFlowAction.PendingStep;
 import com.instabot.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 /**
@@ -35,6 +37,7 @@ public class WebhookEventService {
     private final FlowExecutionService flowExecutionService;
     private final ConversationService conversationService;
     private final ContactRepository contactRepository;
+    private final PendingFlowActionRepository pendingFlowActionRepository;
     private final ObjectMapper objectMapper;
 
     // 중복 실행 방지: senderIgId + flowId → 마지막 실행 시간
@@ -100,7 +103,17 @@ public class WebhookEventService {
 
         User user = igAccount.getUser();
 
-        // DM 메시지
+        // ── Postback (버튼 클릭) ──
+        if (event.has("postback")) {
+            String payload = event.path("postback").path("payload").asText("");
+            log.info("Postback 수신: sender={}, payload={}", senderId, payload);
+
+            // FlowExecutionService에서 requirements 진행
+            flowExecutionService.handlePostback(senderId, payload);
+            return; // postback은 여기서 처리 끝
+        }
+
+        // ── DM 메시지 ──
         if (event.has("message")) {
             JsonNode message = event.get("message");
             String text = message.path("text").asText("");
@@ -108,8 +121,9 @@ public class WebhookEventService {
             // 수신 메시지 저장
             conversationService.handleInboundMessage(user, senderId, null, text, Message.MessageType.TEXT);
 
-            // 이메일 추출 시도
+            // 이메일 추출 시도 + AWAITING_EMAIL 상태 처리
             flowExecutionService.extractEmail(text).ifPresent(email -> {
+                // Contact에 이메일 저장
                 contactRepository.findByUserIdAndIgUserId(user.getId(), senderId)
                         .ifPresent(contact -> {
                             String fields = contact.getCustomFields();
@@ -118,21 +132,24 @@ public class WebhookEventService {
                             contactRepository.save(contact);
                             log.info("이메일 수집: contact={}, email={}", contact.getId(), email);
                         });
+
+                // AWAITING_EMAIL 상태인 PendingFlowAction이 있으면 다음 단계 진행
+                flowExecutionService.handleRequirementFulfilled(senderId, PendingStep.AWAITING_EMAIL);
             });
 
-            // DM 키워드 트리거 매칭
-            handleDmKeywordTrigger(igAccount, user, senderId, text);
+            // DM 키워드 트리거 매칭 (이메일이 아닌 일반 메시지에만)
+            if (flowExecutionService.extractEmail(text).isEmpty()) {
+                // 먼저 AWAITING_FOLLOW 상태인지 확인 (팔로우는 DM으로 확인 불가하므로 스킵)
+                // AWAITING_POSTBACK/EMAIL이 아닌 경우에만 새 자동화 트리거
+                boolean hasPendingAction = pendingFlowActionRepository
+                        .findActiveBySenderIgId(senderId, LocalDateTime.now())
+                        .isPresent();
 
-            // 환영 메시지 트리거 (첫 DM인지 확인)
-            handleWelcomeTrigger(igAccount, user, senderId, text);
-        }
-
-        // Postback (버튼 클릭)
-        if (event.has("postback")) {
-            String payload = event.path("postback").path("payload").asText("");
-            log.info("Postback 수신: sender={}, payload={}", senderId, payload);
-            // postback payload에 따라 다음 단계 진행
-            // 예: OPENING_DM_CLICKED → 메인 DM 발송
+                if (!hasPendingAction) {
+                    handleDmKeywordTrigger(igAccount, user, senderId, text);
+                    handleWelcomeTrigger(igAccount, user, senderId, text);
+                }
+            }
         }
     }
 
@@ -149,6 +166,10 @@ public class WebhookEventService {
             case "comments" -> handleCommentTrigger(igAccount, user, value);
             case "story_mentions" -> handleStoryMentionTrigger(igAccount, user, value);
             case "story_replies" -> handleStoryReplyTrigger(igAccount, user, value);
+            case "feed" -> {
+                // 팔로우 이벤트 감지 (Instagram은 직접적인 팔로우 webhook이 없음)
+                // 팔로우는 주로 DM 대화 중 isFollower() 재확인으로 처리
+            }
             default -> log.debug("처리하지 않는 change 필드: {}", field);
         }
     }
