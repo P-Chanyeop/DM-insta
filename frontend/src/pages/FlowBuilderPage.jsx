@@ -54,6 +54,85 @@ export default function FlowBuilderPage() {
 
   const set = (patch) => setConfig(prev => ({ ...prev, ...patch }))
 
+  /**
+   * UI flat config → 백엔드 nested flowData JSON 변환
+   */
+  const configToFlowData = (c) => {
+    const delayUnitMap = { minutes: '분', hours: '시간', days: '일' }
+    return {
+      trigger: {
+        type: c.triggerType,
+        keywords: c.keywords ? c.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
+        excludeKeywords: c.excludeKeywords ? c.excludeKeywords.split(',').map(k => k.trim()).filter(Boolean) : [],
+        matchType: c.keywordMatch || 'CONTAINS',
+        postTarget: c.postTarget || 'any',
+      },
+      commentReply: {
+        enabled: c.publicReplyEnabled || false,
+        replies: c.publicReplies || [],
+      },
+      openingDm: {
+        enabled: c.openingDmEnabled || false,
+        message: c.openingDmText || '',
+        buttonText: c.openingDmButtonText || '',
+      },
+      requirements: {
+        followCheck: {
+          enabled: c.followCheckEnabled || false,
+          message: c.followPromptText || '',
+        },
+        emailCollection: {
+          enabled: c.emailCollectionEnabled || false,
+          message: c.emailPromptText || '',
+        },
+      },
+      mainDm: {
+        message: c.mainDmText || '',
+        links: (c.links || []).filter(l => l.url).map(l => ({ text: l.label || '', url: l.url })),
+      },
+      followUp: {
+        enabled: c.followUpEnabled || false,
+        delay: c.followUpDelay || 30,
+        unit: delayUnitMap[c.followUpDelayUnit] || '분',
+        message: c.followUpText || '',
+      },
+    }
+  }
+
+  /**
+   * 백엔드 nested flowData JSON → UI flat config 역변환
+   */
+  const flowDataToConfig = (fd) => {
+    const unitMap = { '분': 'minutes', '시간': 'hours', '일': 'days' }
+    // nested 구조인지 판별 (trigger 또는 commentReply 키가 있으면 nested)
+    if (!fd.trigger && !fd.commentReply && !fd.openingDm) {
+      return fd // 이미 flat 구조 (레거시 호환)
+    }
+    return {
+      triggerType: fd.trigger?.type || 'comment',
+      postTarget: fd.trigger?.postTarget || 'any',
+      specificPostUrl: '',
+      keywords: (fd.trigger?.keywords || []).join(', '),
+      keywordMatch: fd.trigger?.matchType || 'CONTAINS',
+      excludeKeywords: (fd.trigger?.excludeKeywords || []).join(', '),
+      publicReplyEnabled: fd.commentReply?.enabled || false,
+      publicReplies: fd.commentReply?.replies || [''],
+      openingDmEnabled: fd.openingDm?.enabled || false,
+      openingDmText: fd.openingDm?.message || '',
+      openingDmButtonText: fd.openingDm?.buttonText || '',
+      followCheckEnabled: fd.requirements?.followCheck?.enabled || false,
+      followPromptText: fd.requirements?.followCheck?.message || '',
+      emailCollectionEnabled: fd.requirements?.emailCollection?.enabled || false,
+      emailPromptText: fd.requirements?.emailCollection?.message || '',
+      mainDmText: fd.mainDm?.message || '',
+      links: (fd.mainDm?.links || [{ text: '', url: '' }]).map(l => ({ label: l.text || '', url: l.url || '' })),
+      followUpEnabled: fd.followUp?.enabled || false,
+      followUpDelay: fd.followUp?.delay || 30,
+      followUpDelayUnit: unitMap[fd.followUp?.unit] || 'minutes',
+      followUpText: fd.followUp?.message || '',
+    }
+  }
+
   // 기존 플로우 로드
   useEffect(() => {
     if (!currentFlowId) return
@@ -63,7 +142,10 @@ export default function FlowBuilderPage() {
         setFlowName(f.name)
         setIsLive(f.active || false)
         if (f.flowData) {
-          try { setConfig(prev => ({ ...prev, ...JSON.parse(f.flowData) })) } catch {}
+          try {
+            const parsed = JSON.parse(f.flowData)
+            setConfig(prev => ({ ...prev, ...flowDataToConfig(parsed) }))
+          } catch {}
         }
       } catch (err) { setError(err.message || '불러오기 실패') }
     })()
@@ -76,7 +158,7 @@ export default function FlowBuilderPage() {
       const payload = {
         name: flowName,
         triggerType: config.triggerType.toUpperCase(),
-        flowData: JSON.stringify(config),
+        flowData: JSON.stringify(configToFlowData(config)),
         active: isLive,
         status: isLive ? 'PUBLISHED' : 'DRAFT',
       }
