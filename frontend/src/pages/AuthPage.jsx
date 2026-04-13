@@ -12,9 +12,20 @@ export default function AuthPage() {
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
 
+  // Email verification state
+  const [showVerification, setShowVerification] = useState(false)
+  const [verifyEmail, setVerifyEmail] = useState('')
+  const [verifyCode, setVerifyCode] = useState('')
+  const [verifyLoading, setVerifyLoading] = useState(false)
+  const [verifyMessage, setVerifyMessage] = useState('')
+  const [verifyError, setVerifyError] = useState('')
+
   // Password reset state
   const [showResetForm, setShowResetForm] = useState(false)
+  const [resetStep, setResetStep] = useState(1) // 1: email input, 2: code + new password
   const [resetEmail, setResetEmail] = useState('')
+  const [resetCode, setResetCode] = useState('')
+  const [resetNewPassword, setResetNewPassword] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
   const [resetMessage, setResetMessage] = useState('')
   const [resetError, setResetError] = useState('')
@@ -71,11 +82,24 @@ export default function AuthPage() {
 
     try {
       if (isSignup) {
-        await authService.signup(form)
+        const res = await authService.signup(form)
+        // 회원가입 후 이메일 인증 화면으로
+        setVerifyEmail(form.email)
+        setShowVerification(true)
+        setVerifyMessage('인증 코드가 이메일로 발송되었습니다.')
       } else {
-        await authService.login({ email: form.email, password: form.password })
+        const res = await authService.login({ email: form.email, password: form.password })
+        if (!res.emailVerified) {
+          // 미인증 사용자 → 인증 화면으로
+          setVerifyEmail(form.email)
+          setShowVerification(true)
+          setVerifyMessage('이메일 인증을 완료해주세요.')
+          // 인증 코드 재발송
+          authService.resendVerification({ email: form.email }).catch(() => {})
+        } else {
+          navigate('/app')
+        }
       }
-      navigate('/app')
     } catch (err) {
       setError(err.message || '오류가 발생했습니다. 다시 시도해주세요.')
     } finally {
@@ -83,14 +107,140 @@ export default function AuthPage() {
     }
   }
 
-  const handleResetSubmit = (e) => {
+  const handleVerifySubmit = async (e) => {
+    e.preventDefault()
+    setVerifyError('')
+    setVerifyLoading(true)
+    try {
+      await authService.verifyEmail({ email: verifyEmail, code: verifyCode })
+      navigate('/app')
+    } catch (err) {
+      setVerifyError(err.message || '인증에 실패했습니다.')
+    } finally {
+      setVerifyLoading(false)
+    }
+  }
+
+  const handleResendCode = async () => {
+    try {
+      await authService.resendVerification({ email: verifyEmail })
+      setVerifyMessage('인증 코드가 재발송되었습니다.')
+      setVerifyError('')
+    } catch (err) {
+      setVerifyError(err.message || '재발송에 실패했습니다.')
+    }
+  }
+
+  const handleResetSubmit = async (e) => {
     e.preventDefault()
     setResetError('')
-    setResetMessage('비밀번호 재설정은 로그인 후 설정 페이지에서 가능합니다.')
+    setResetLoading(true)
+    try {
+      if (resetStep === 1) {
+        await authService.forgotPassword({ email: resetEmail })
+        setResetMessage('인증 코드가 이메일로 발송되었습니다.')
+        setResetStep(2)
+      } else {
+        await authService.resetPassword({ email: resetEmail, code: resetCode, newPassword: resetNewPassword })
+        setResetMessage('비밀번호가 변경되었습니다!')
+        setTimeout(() => {
+          setShowResetForm(false)
+          setResetStep(1)
+          setResetEmail('')
+          setResetCode('')
+          setResetNewPassword('')
+          setResetMessage('')
+        }, 2000)
+      }
+    } catch (err) {
+      setResetError(err.message || '요청에 실패했습니다.')
+    } finally {
+      setResetLoading(false)
+    }
   }
 
   const handleInstagramOAuth = () => {
     showToast('설정 > 연동(API)에서 Instagram을 먼저 연결하세요')
+  }
+
+  // Email verification view
+  if (showVerification) {
+    return (
+      <div className="auth-page">
+        <div className="auth-container">
+          <Link to="/" className="auth-logo">
+            <div className="logo-icon"><i className="ri-send-plane-fill" /></div>
+            <span className="logo-text">센드잇</span>
+          </Link>
+
+          <div className="auth-card">
+            <h1 className="auth-title">이메일 인증</h1>
+            <p className="auth-subtitle">
+              <strong>{verifyEmail}</strong>로 발송된<br />6자리 인증 코드를 입력해주세요.
+            </p>
+
+            {verifyError && (
+              <div className="auth-error">
+                <i className="ri-error-warning-line" /> {verifyError}
+              </div>
+            )}
+
+            {verifyMessage && (
+              <div className="auth-error" style={{ background: '#f0fdf4', color: '#16a34a', borderColor: '#bbf7d0' }}>
+                <i className="ri-check-line" /> {verifyMessage}
+              </div>
+            )}
+
+            <form onSubmit={handleVerifySubmit} className="auth-form">
+              <div className="auth-field">
+                <label>인증 코드</label>
+                <div className="auth-input-wrap">
+                  <i className="ri-shield-keyhole-line" />
+                  <input
+                    type="text"
+                    value={verifyCode}
+                    onChange={(e) => { setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setVerifyError('') }}
+                    placeholder="6자리 숫자"
+                    maxLength={6}
+                    autoFocus
+                    style={{ letterSpacing: 8, fontSize: 20, fontWeight: 700, textAlign: 'center' }}
+                  />
+                </div>
+              </div>
+
+              <button type="submit" className="btn-primary lg auth-submit" disabled={verifyLoading || verifyCode.length !== 6}>
+                {verifyLoading ? (
+                  <><i className="ri-loader-4-line spin" /> 확인 중...</>
+                ) : (
+                  <><i className="ri-check-line" /> 인증 완료</>
+                )}
+              </button>
+            </form>
+
+            <div className="auth-switch" style={{ marginTop: 20 }}>
+              <button
+                onClick={handleResendCode}
+                style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: 14, fontWeight: 500 }}
+              >
+                <i className="ri-mail-send-line" /> 인증 코드 재발송
+              </button>
+            </div>
+          </div>
+
+          <div className="auth-footer">
+            <span>&copy; 2026 센드잇</span>
+          </div>
+        </div>
+
+        <div className="auth-decoration">
+          <div className="auth-deco-shape shape-1" />
+          <div className="auth-deco-shape shape-2" />
+          <div className="auth-deco-shape shape-3" />
+        </div>
+
+        {toast && <Toast message={toast} onClose={() => setToast('')} />}
+      </div>
+    )
   }
 
   // Password reset form view
@@ -105,7 +255,11 @@ export default function AuthPage() {
 
           <div className="auth-card">
             <h1 className="auth-title">비밀번호 재설정</h1>
-            <p className="auth-subtitle">가입하신 이메일 주소를 입력하시면 비밀번호 재설정 링크를 보내드립니다.</p>
+            <p className="auth-subtitle">
+              {resetStep === 1
+                ? '가입하신 이메일 주소를 입력하시면 재설정 코드를 보내드립니다.'
+                : '이메일로 발송된 코드와 새 비밀번호를 입력해주세요.'}
+            </p>
 
             {resetError && (
               <div className="auth-error">
@@ -120,33 +274,69 @@ export default function AuthPage() {
             )}
 
             <form onSubmit={handleResetSubmit} className="auth-form">
-              <div className="auth-field">
-                <label>이메일</label>
-                <div className="auth-input-wrap">
-                  <i className="ri-mail-line" />
-                  <input
-                    type="email"
-                    value={resetEmail}
-                    onChange={(e) => { setResetEmail(e.target.value); setResetError('') }}
-                    placeholder="you@example.com"
-                    required
-                    autoFocus
-                  />
+              {resetStep === 1 ? (
+                <div className="auth-field">
+                  <label>이메일</label>
+                  <div className="auth-input-wrap">
+                    <i className="ri-mail-line" />
+                    <input
+                      type="email"
+                      value={resetEmail}
+                      onChange={(e) => { setResetEmail(e.target.value); setResetError('') }}
+                      placeholder="you@example.com"
+                      required
+                      autoFocus
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="auth-field">
+                    <label>인증 코드</label>
+                    <div className="auth-input-wrap">
+                      <i className="ri-shield-keyhole-line" />
+                      <input
+                        type="text"
+                        value={resetCode}
+                        onChange={(e) => { setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setResetError('') }}
+                        placeholder="6자리 숫자"
+                        maxLength={6}
+                        autoFocus
+                        style={{ letterSpacing: 8, fontSize: 20, fontWeight: 700, textAlign: 'center' }}
+                      />
+                    </div>
+                  </div>
+                  <div className="auth-field">
+                    <label>새 비밀번호</label>
+                    <div className="auth-input-wrap">
+                      <i className="ri-lock-line" />
+                      <input
+                        type="password"
+                        value={resetNewPassword}
+                        onChange={(e) => { setResetNewPassword(e.target.value); setResetError('') }}
+                        placeholder="6자 이상 입력해주세요"
+                        minLength={6}
+                        required
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               <button type="submit" className="btn-primary lg auth-submit" disabled={resetLoading}>
                 {resetLoading ? (
-                  <><i className="ri-loader-4-line spin" /> 전송 중...</>
+                  <><i className="ri-loader-4-line spin" /> 처리 중...</>
+                ) : resetStep === 1 ? (
+                  <><i className="ri-mail-send-line" /> 재설정 코드 보내기</>
                 ) : (
-                  <><i className="ri-mail-send-line" /> 재설정 링크 보내기</>
+                  <><i className="ri-check-line" /> 비밀번호 변경</>
                 )}
               </button>
             </form>
 
             <div className="auth-switch" style={{ marginTop: 20 }}>
               <button
-                onClick={() => { setShowResetForm(false); setResetEmail(''); setResetError(''); setResetMessage('') }}
+                onClick={() => { setShowResetForm(false); setResetStep(1); setResetEmail(''); setResetCode(''); setResetNewPassword(''); setResetError(''); setResetMessage('') }}
                 style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: 14, fontWeight: 500 }}
               >
                 <i className="ri-arrow-left-s-line" /> 로그인으로 돌아가기

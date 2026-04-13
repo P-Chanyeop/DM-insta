@@ -23,6 +23,17 @@ public class User {
     @Builder.Default
     private PlanType plan = PlanType.FREE;
 
+    // 이메일 인증
+    @Builder.Default
+    private boolean emailVerified = false;
+
+    private String verificationCode;
+    private LocalDateTime verificationCodeExpiresAt;
+
+    // 비밀번호 리셋
+    private String resetCode;
+    private LocalDateTime resetCodeExpiresAt;
+
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 

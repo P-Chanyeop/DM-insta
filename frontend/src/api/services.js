@@ -4,16 +4,27 @@ export const authService = {
   async signup({ email, password, name }) {
     const res = await api.post('/auth/signup', { email, password, name })
     setToken(res.token)
-    setStoredUser({ email: res.email, name: res.name, plan: res.plan })
+    setStoredUser({ email: res.email, name: res.name, plan: res.plan, emailVerified: res.emailVerified })
     return res
   },
 
   async login({ email, password }) {
     const res = await api.post('/auth/login', { email, password })
     setToken(res.token)
-    setStoredUser({ email: res.email, name: res.name, plan: res.plan })
+    setStoredUser({ email: res.email, name: res.name, plan: res.plan, emailVerified: res.emailVerified })
     return res
   },
+
+  async verifyEmail({ email, code }) {
+    const res = await api.post('/auth/verify-email', { email, code })
+    setToken(res.token)
+    setStoredUser({ email: res.email, name: res.name, plan: res.plan, emailVerified: res.emailVerified })
+    return res
+  },
+
+  resendVerification: ({ email }) => api.post('/auth/resend-verification', { email }),
+  forgotPassword: ({ email }) => api.post('/auth/forgot-password', { email }),
+  resetPassword: ({ email, code, newPassword }) => api.post('/auth/reset-password', { email, code, newPassword }),
 
   logout() {
     setToken(null)
