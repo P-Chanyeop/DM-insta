@@ -79,7 +79,10 @@ export const integrationService = {
 }
 
 export const analyticsService = {
-  get: (period) => api.get(`/dashboard${period ? `?period=${period}` : ''}`),
+  get: (period) => {
+    const days = period === '7d' ? 7 : period === '30d' ? 30 : 90
+    return api.get(`/analytics?days=${days}`)
+  },
 }
 
 export const conversationService = {

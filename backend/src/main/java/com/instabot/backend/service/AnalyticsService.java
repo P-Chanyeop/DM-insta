@@ -11,6 +11,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 분석/통계 서비스
@@ -69,7 +71,7 @@ public class AnalyticsService {
         long totalContacts = contactRepository.countByUserId(userId);
 
         // 기간 내 신규 연락처
-        long newContactsInPeriod = contactRepository.countByUserId(userId); // 기간 필터는 추후 쿼리 추가
+        long newContactsInPeriod = contactRepository.countByUserIdAndSubscribedAtAfter(userId, startDate);
 
         // 플로우 성과
         List<Flow> flows = flowRepository.findByUserIdOrderByCreatedAtDesc(userId);
@@ -86,9 +88,11 @@ public class AnalyticsService {
                 .average()
                 .orElse(0.0);
 
-        // 일별 통계 (최근 N일)
-        List<DailyStats> dailyMessages = generateDailyPlaceholder(days);
-        List<DailyStats> dailyNewContacts = generateDailyPlaceholder(days);
+        // 일별 통계 (최근 N일) - 실제 데이터 조회
+        List<DailyStats> dailyMessages = buildDailyStats(
+                messageRepository.countDailyOutboundByUserId(userId, startDate), days);
+        List<DailyStats> dailyNewContacts = buildDailyStats(
+                contactRepository.countDailyNewByUserId(userId, startDate), days);
 
         // 플로우별 성과
         List<FlowPerformance> flowPerformances = flows.stream()
@@ -114,12 +118,23 @@ public class AnalyticsService {
                 .build();
     }
 
-    private List<DailyStats> generateDailyPlaceholder(int days) {
+    /**
+     * DB 쿼리 결과(날짜별 카운트)를 최근 N일 전체 날짜 리스트로 변환.
+     * 데이터가 없는 날짜는 0으로 채움.
+     */
+    private List<DailyStats> buildDailyStats(List<Object[]> queryResult, int days) {
+        Map<LocalDate, Long> countsByDate = queryResult.stream()
+                .collect(Collectors.toMap(
+                        row -> (LocalDate) row[0],
+                        row -> (Long) row[1]
+                ));
+
         List<DailyStats> stats = new ArrayList<>();
         for (int i = days - 1; i >= 0; i--) {
+            LocalDate date = LocalDate.now().minusDays(i);
             stats.add(DailyStats.builder()
-                    .date(LocalDate.now().minusDays(i).toString())
-                    .count(0)
+                    .date(date.toString())
+                    .count(countsByDate.getOrDefault(date, 0L))
                     .build());
         }
         return stats;

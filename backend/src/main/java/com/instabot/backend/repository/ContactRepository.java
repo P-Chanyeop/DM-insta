@@ -16,4 +16,13 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
 
     @Query("SELECT COUNT(c) FROM Contact c WHERE c.user.id = :userId AND 'VIP' MEMBER OF c.tags")
     long countVipByUserId(Long userId);
+
+    long countByUserIdAndSubscribedAtAfter(Long userId, java.time.LocalDateTime since);
+
+    @Query("SELECT CAST(c.subscribedAt AS LocalDate) AS date, COUNT(c) AS cnt " +
+           "FROM Contact c " +
+           "WHERE c.user.id = :userId AND c.subscribedAt >= :since " +
+           "GROUP BY CAST(c.subscribedAt AS LocalDate) " +
+           "ORDER BY CAST(c.subscribedAt AS LocalDate)")
+    java.util.List<Object[]> countDailyNewByUserId(@org.springframework.data.repository.query.Param("userId") Long userId, @org.springframework.data.repository.query.Param("since") java.time.LocalDateTime since);
 }

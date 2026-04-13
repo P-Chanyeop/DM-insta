@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { analyticsService } from '../api/services'
 
 const PERIODS = [
@@ -7,88 +7,83 @@ const PERIODS = [
   { value: '90d', label: '최근 90일' },
 ]
 
-function generateOverviewData(period) {
-  const multiplier = period === '7d' ? 1 : period === '30d' ? 4 : 12
-  const base = {
-    sent: { value: Math.floor(6500 * multiplier + Math.random() * 1000), change: 12.3, up: true },
-    openRate: { value: +(60 + Math.random() * 15).toFixed(1), change: 5.1, up: true },
-    clickRate: { value: +(18 + Math.random() * 10).toFixed(1), change: 2.4, up: true },
-    conversionRate: { value: +(6 + Math.random() * 5).toFixed(1), change: -0.3, up: false },
-    unsubRate: { value: +(0.8 + Math.random() * 1).toFixed(1), change: -0.5, up: true },
+/** 백엔드 응답 데이터를 프론트엔드 차트 포맷으로 변환 */
+function mapOverviewData(data) {
+  return {
+    sent: { value: data.totalMessages || 0, change: 0, up: true },
+    openRate: { value: data.avgOpenRate || 0, change: 0, up: true },
+    clickRate: { value: data.avgClickRate || 0, change: 0, up: true },
+    conversionRate: { value: 0, change: 0, up: false },
+    unsubRate: { value: 0, change: 0, up: true },
   }
-  return base
 }
 
-function generateTopFlows(period) {
-  const multiplier = period === '7d' ? 1 : period === '30d' ? 4 : 12
-  const flows = [
-    { name: '댓글 → DM 가격표', basePct: 92, baseVal: 580 },
-    { name: '키워드: 예약', basePct: 75, baseVal: 470 },
-    { name: '환영 메시지', basePct: 38, baseVal: 240 },
-    { name: '배송 안내', basePct: 27, baseVal: 170 },
-    { name: '스토리 멘션 감사', basePct: 17, baseVal: 110 },
-  ]
-  return flows.map(f => ({
+function mapTopFlows(flowPerformances) {
+  if (!flowPerformances || flowPerformances.length === 0) return []
+  const sorted = [...flowPerformances].sort((a, b) => (b.sentCount || 0) - (a.sentCount || 0))
+  const top = sorted.slice(0, 5)
+  const maxVal = top[0]?.sentCount || 1
+  return top.map(f => ({
     name: f.name,
-    pct: f.basePct,
-    value: Math.floor(f.baseVal * multiplier + Math.random() * 50 * multiplier),
+    pct: Math.round(((f.sentCount || 0) / maxVal) * 100),
+    value: f.sentCount || 0,
   }))
 }
 
-function generateFunnelData(period) {
-  const multiplier = period === '7d' ? 1 : period === '30d' ? 4 : 12
-  const sent = Math.floor(6500 * multiplier + Math.random() * 500)
-  const opened = Math.floor(sent * (0.6 + Math.random() * 0.1))
-  const clicked = Math.floor(opened * (0.3 + Math.random() * 0.1))
-  const converted = Math.floor(clicked * (0.25 + Math.random() * 0.15))
+function mapFunnelData(data) {
+  const sent = data.totalMessages || 0
+  const openRate = (data.avgOpenRate || 0) / 100
+  const clickRate = (data.avgClickRate || 0) / 100
+  const opened = Math.round(sent * openRate)
+  const clicked = Math.round(sent * clickRate)
+  const converted = 0 // 전환 데이터는 아직 백엔드 미지원
   return [
     { label: '발송', value: sent, pct: 100 },
-    { label: '열림', value: opened, pct: Math.round((opened / sent) * 100) },
-    { label: '클릭', value: clicked, pct: Math.round((clicked / sent) * 100) },
-    { label: '전환', value: converted, pct: Math.round((converted / sent) * 100) },
+    { label: '열림', value: opened, pct: sent > 0 ? Math.round((opened / sent) * 100) : 0 },
+    { label: '클릭', value: clicked, pct: sent > 0 ? Math.round((clicked / sent) * 100) : 0 },
+    { label: '전환', value: converted, pct: sent > 0 ? Math.round((converted / sent) * 100) : 0 },
   ]
 }
 
-function generateTrendData(period) {
-  const days = period === '7d' ? 7 : period === '30d' ? 30 : 90
-  const labels = []
-  const sent = []
-  const opened = []
-  const clicked = []
-  const now = new Date()
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now)
-    d.setDate(d.getDate() - i)
-    labels.push(`${d.getMonth() + 1}/${d.getDate()}`)
-    const s = 500 + Math.floor(Math.random() * 300) + Math.floor(i * 2)
-    sent.push(s)
-    opened.push(Math.floor(s * (0.55 + Math.random() * 0.2)))
-    clicked.push(Math.floor(s * (0.15 + Math.random() * 0.15)))
+function mapTrendData(dailyMessages) {
+  if (!dailyMessages || dailyMessages.length === 0) {
+    return { labels: [], sent: [], opened: [], clicked: [] }
   }
+  const labels = dailyMessages.map(d => {
+    const parts = d.date.split('-')
+    return `${parseInt(parts[1])}/${parseInt(parts[2])}`
+  })
+  const sent = dailyMessages.map(d => d.count)
+  // 열림/클릭은 일별 세부 데이터가 없으므로 빈 배열 반환
+  const opened = dailyMessages.map(() => 0)
+  const clicked = dailyMessages.map(() => 0)
   return { labels, sent, opened, clicked }
 }
 
-function generateEngagementHours() {
+function mapEngagementHours() {
+  // 시간대별 참여율은 아직 백엔드 미지원 - 빈 데이터 반환
   const hours = []
   for (let h = 0; h < 24; h++) {
-    const base = h >= 9 && h <= 21 ? 60 : 15
-    hours.push({ hour: h, value: base + Math.floor(Math.random() * 40) })
+    hours.push({ hour: h, value: 0 })
   }
   return hours
 }
 
-function generateContactGrowth(period) {
-  const days = period === '7d' ? 7 : period === '30d' ? 30 : 90
-  const data = []
-  let total = 8200
-  const now = new Date()
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now)
-    d.setDate(d.getDate() - i)
-    total += Math.floor(Math.random() * 30) + 5
-    data.push({ date: `${d.getMonth() + 1}/${d.getDate()}`, value: total })
-  }
-  return data
+function mapContactGrowth(dailyNewContacts, totalContacts) {
+  if (!dailyNewContacts || dailyNewContacts.length === 0) return []
+  // 마지막 날의 누적 값이 totalContacts. 역산하여 누적 그래프 생성.
+  let cumulative = totalContacts
+  const reversed = [...dailyNewContacts].reverse()
+  const cumulativeData = reversed.map(d => {
+    const val = cumulative
+    cumulative -= d.count
+    return { date: d.date, value: val }
+  }).reverse()
+
+  return cumulativeData.map(d => {
+    const parts = d.date.split('-')
+    return { date: `${parseInt(parts[1])}/${parseInt(parts[2])}`, value: d.value }
+  })
 }
 
 /* ── CSV Export ── */
@@ -327,16 +322,14 @@ export default function AnalyticsPage() {
   const [toastMsg, setToastMsg] = useState('')
   const [toastVisible, setToastVisible] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [apiData, setApiData] = useState(null)
 
-  // Seed-based data generation keyed on period so it regenerates when period changes
-  const [dataSeed, setDataSeed] = useState(0)
-
-  const overview = useMemo(() => generateOverviewData(period), [period, dataSeed])
-  const trendData = useMemo(() => generateTrendData(period), [period, dataSeed])
-  const topFlows = useMemo(() => generateTopFlows(period), [period, dataSeed])
-  const funnel = useMemo(() => generateFunnelData(period), [period, dataSeed])
-  const engagementData = useMemo(() => generateEngagementHours(), [dataSeed])
-  const contactData = useMemo(() => generateContactGrowth(period), [period, dataSeed])
+  const overview = useMemo(() => apiData ? mapOverviewData(apiData) : mapOverviewData({}), [apiData])
+  const trendData = useMemo(() => apiData ? mapTrendData(apiData.dailyMessages) : { labels: [], sent: [], opened: [], clicked: [] }, [apiData])
+  const topFlows = useMemo(() => apiData ? mapTopFlows(apiData.flowPerformances) : [], [apiData])
+  const funnel = useMemo(() => apiData ? mapFunnelData(apiData) : mapFunnelData({}), [apiData])
+  const engagementData = useMemo(() => mapEngagementHours(), [])
+  const contactData = useMemo(() => apiData ? mapContactGrowth(apiData.dailyNewContacts, apiData.totalContacts) : [], [apiData])
 
   const showToast = useCallback((msg) => {
     setToastMsg(msg)
@@ -344,15 +337,15 @@ export default function AnalyticsPage() {
     setTimeout(() => setToastVisible(false), 3000)
   }, [])
 
-  // Try to load from API, fall back to generated data
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
         setLoading(true)
-        await analyticsService.get(period)
+        const data = await analyticsService.get(period)
+        if (!cancelled) setApiData(data)
       } catch {
-        // use generated data (already computed via useMemo)
+        // API 실패 시 빈 데이터 유지
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -366,7 +359,6 @@ export default function AnalyticsPage() {
 
   const handlePeriodChange = (newPeriod) => {
     setPeriod(newPeriod)
-    setDataSeed(prev => prev + 1)
   }
 
   const handleDownloadReport = useCallback(() => {
