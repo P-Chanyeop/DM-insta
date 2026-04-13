@@ -8,6 +8,7 @@ import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.TeamMemberRepository;
 import com.instabot.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,23 +32,27 @@ public class TeamService {
     public Long getTeamOwnerId(Long userId) {
         List<TeamMember> memberships = teamMemberRepository.findByUserId(userId);
         if (memberships.isEmpty()) {
-            // 팀 멤버십이 없으면 본인이 owner (레거시 호환)
-            return userId;
+            throw new BadRequestException("팀에 속해있지 않습니다.");
         }
-        // OWNER 역할이 있으면 해당 팀의 ownerId 반환
-        for (TeamMember m : memberships) {
-            if (m.getRole() == TeamMember.Role.OWNER) {
-                return m.getTeamOwnerId();
-            }
-        }
-        // OWNER가 아니면 첫 번째 멤버십의 teamOwnerId 반환
-        return memberships.get(0).getTeamOwnerId();
+        // TODO: 현재 단일 팀만 지원. 멀티 팀 지원은 향후 작업.
+        // OWNER 역할 우선, 없으면 첫 번째 멤버십
+        return memberships.stream()
+                .filter(m -> m.getRole() == TeamMember.Role.OWNER)
+                .findFirst()
+                .orElse(memberships.get(0))
+                .getTeamOwnerId();
     }
 
     // ─── 팀원 목록 ───
 
     public List<TeamDto.TeamMemberResponse> listMembers(Long currentUserId) {
-        Long teamOwnerId = getTeamOwnerId(currentUserId);
+        Long teamOwnerId;
+        try {
+            teamOwnerId = getTeamOwnerId(currentUserId);
+        } catch (BadRequestException e) {
+            // 팀에 속해있지 않은 사용자는 빈 목록 반환
+            return List.of();
+        }
         List<TeamMember> members = teamMemberRepository.findByTeamOwnerId(teamOwnerId);
 
         return members.stream()
@@ -114,7 +119,11 @@ public class TeamService {
                 .joinedAt(LocalDateTime.now())
                 .build();
 
-        teamMemberRepository.save(newMember);
+        try {
+            teamMemberRepository.save(newMember);
+        } catch (DataIntegrityViolationException e) {
+            throw new BadRequestException("이미 초대된 멤버입니다.");
+        }
 
         return TeamDto.TeamMemberResponse.builder()
                 .id(newMember.getId())
@@ -139,13 +148,8 @@ public class TeamService {
             throw new BadRequestException("역할을 변경할 권한이 없습니다. OWNER만 가능합니다.");
         }
 
-        TeamMember targetMember = teamMemberRepository.findById(memberId)
+        TeamMember targetMember = teamMemberRepository.findByIdAndTeamOwnerId(memberId, teamOwnerId)
                 .orElseThrow(() -> new ResourceNotFoundException("팀원을 찾을 수 없습니다."));
-
-        // 같은 팀인지 확인
-        if (!targetMember.getTeamOwnerId().equals(teamOwnerId)) {
-            throw new BadRequestException("같은 팀의 멤버가 아닙니다.");
-        }
 
         // OWNER 역할은 변경 불가
         if (targetMember.getRole() == TeamMember.Role.OWNER) {
@@ -191,13 +195,8 @@ public class TeamService {
             throw new BadRequestException("팀원을 제거할 권한이 없습니다.");
         }
 
-        TeamMember targetMember = teamMemberRepository.findById(memberId)
+        TeamMember targetMember = teamMemberRepository.findByIdAndTeamOwnerId(memberId, teamOwnerId)
                 .orElseThrow(() -> new ResourceNotFoundException("팀원을 찾을 수 없습니다."));
-
-        // 같은 팀인지 확인
-        if (!targetMember.getTeamOwnerId().equals(teamOwnerId)) {
-            throw new BadRequestException("같은 팀의 멤버가 아닙니다.");
-        }
 
         // OWNER는 제거 불가
         if (targetMember.getRole() == TeamMember.Role.OWNER) {

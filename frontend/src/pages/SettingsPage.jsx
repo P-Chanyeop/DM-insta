@@ -366,16 +366,42 @@ export default function SettingsPage() {
     }
   }, [activeTab, fetchBillingInfo])
 
-  // Handle Stripe checkout success redirect
+  // Handle Stripe checkout success redirect — Fix #10: 폴링으로 webhook 처리 대기
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('session_id')) {
       setActiveTab('billing')
       showToast('결제가 완료되었습니다!', 'success')
-      fetchBillingInfo()
       window.history.replaceState({}, '', window.location.pathname)
+
+      // webhook 처리가 지연될 수 있으므로 폴링
+      let retries = 0
+      const maxRetries = 3
+      const pollInterval = 2000
+
+      const poll = async () => {
+        try {
+          const info = await billingService.getInfo()
+          setBillingInfo(info)
+          if (info.plan) {
+            setCurrentPlan(info.plan.toLowerCase())
+          }
+          if (info.status === 'ACTIVE' || retries >= maxRetries) {
+            return
+          }
+        } catch {
+          // ignore polling errors
+        }
+        retries++
+        if (retries < maxRetries) {
+          setTimeout(poll, pollInterval)
+        }
+      }
+
+      // 즉시 한 번 + 최대 2번 재시도 (2초 간격)
+      setTimeout(poll, pollInterval)
     }
-  }, [showToast, fetchBillingInfo])
+  }, [showToast])
 
   // Profile handlers
   const handleProfileChange = (field, value) => {
@@ -437,6 +463,11 @@ export default function SettingsPage() {
   const handleInvite = async () => {
     if (!inviteEmail.trim()) {
       showToast('이메일을 입력해 주세요.', 'error')
+      return
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(inviteEmail.trim())) {
+      showToast('올바른 이메일 형식을 입력해주세요.', 'error')
       return
     }
     setInviting(true)
@@ -916,7 +947,7 @@ export default function SettingsPage() {
                   onChange={e => setInviteRole(e.target.value)}
                   style={{ width: '100%', height: 40 }}
                 >
-                  <option value="ADMIN">관리자</option>
+                  {myRole === 'OWNER' && <option value="ADMIN">관리자</option>}
                   <option value="MEMBER">멤버</option>
                   <option value="VIEWER">뷰어</option>
                 </select>
@@ -972,7 +1003,7 @@ export default function SettingsPage() {
               const storedUser = getStoredUser()
               const isMe = storedUser && storedUser.email === member.email
               const isOwner = member.role === 'OWNER'
-              const canEdit = canManageTeam && !isOwner && !isMe
+              const canEdit = myRole === 'OWNER' && !isOwner && !isMe
               const canRemove = canManageTeam && !isOwner && !isMe
 
               return (

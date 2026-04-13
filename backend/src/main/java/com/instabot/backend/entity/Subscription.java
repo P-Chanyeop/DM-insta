@@ -38,6 +38,6 @@ public class Subscription {
     private LocalDateTime updatedAt;
 
     public enum SubscriptionStatus {
-        ACTIVE, CANCELED, PAST_DUE, TRIALING
+        ACTIVE, CANCELED, PAST_DUE, TRIALING, INCOMPLETE
     }
 }

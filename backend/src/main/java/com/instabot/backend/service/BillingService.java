@@ -49,6 +49,13 @@ public class BillingService {
             throw new BadRequestException("엔터프라이즈 플랜은 영업팀에 문의해주세요.");
         }
 
+        // Fix #4: 중복 활성 구독 방지
+        subscriptionRepository.findByUserId(userId).ifPresent(sub -> {
+            if (sub.getStatus() == SubscriptionStatus.ACTIVE) {
+                throw new BadRequestException("이미 활성 구독이 있습니다. 구독 관리 포털을 이용해주세요.");
+            }
+        });
+
         String priceId = resolvePriceId(planType);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
@@ -125,7 +132,6 @@ public class BillingService {
                         .currentPeriodEnd(sub.getCurrentPeriodEnd() != null
                                 ? sub.getCurrentPeriodEnd().toString() : null)
                         .cancelAtPeriodEnd(sub.isCancelAtPeriodEnd())
-                        .stripeCustomerId(sub.getStripeCustomerId())
                         .build())
                 .orElse(BillingDto.BillingInfoResponse.builder()
                         .plan(user.getPlan().name())
@@ -179,6 +185,14 @@ public class BillingService {
 
         Long userId = Long.valueOf(userIdStr);
 
+        // Fix #2: 멱등성 — 이미 동일 stripeSubscriptionId로 처리된 경우 스킵
+        if (subscriptionRepository.findByStripeSubscriptionId(stripeSubscriptionId)
+                .filter(s -> s.getStatus() == SubscriptionStatus.ACTIVE)
+                .isPresent()) {
+            log.info("이미 처리된 구독 — 스킵: stripeSubscriptionId={}", stripeSubscriptionId);
+            return;
+        }
+
         try {
             com.stripe.model.Subscription stripeSub =
                     com.stripe.model.Subscription.retrieve(stripeSubscriptionId);
@@ -208,7 +222,9 @@ public class BillingService {
             log.info("구독 생성/업데이트 완료: userId={}, plan={}", userId,
                     user != null ? user.getPlan() : "unknown");
         } catch (StripeException e) {
+            // Fix #1: 예외를 다시 던져 webhook이 non-200 반환하도록 → Stripe 재시도 유도
             log.error("Stripe 구독 조회 실패: {}", e.getMessage(), e);
+            throw new RuntimeException("Stripe subscription retrieval failed", e);
         }
     }
 
@@ -285,6 +301,17 @@ public class BillingService {
                                 .build();
                         Customer customer = Customer.create(params);
                         log.info("Stripe 고객 생성: userId={}, customerId={}", user.getId(), customer.getId());
+
+                        // Fix #3: 생성된 customerId를 즉시 저장
+                        Subscription sub = subscriptionRepository.findByUserId(user.getId())
+                                .orElse(Subscription.builder()
+                                        .userId(user.getId())
+                                        .status(SubscriptionStatus.INCOMPLETE)
+                                        .build());
+                        sub.setStripeCustomerId(customer.getId());
+                        sub.setUpdatedAt(LocalDateTime.now());
+                        subscriptionRepository.save(sub);
+
                         return customer.getId();
                     } catch (StripeException e) {
                         log.error("Stripe 고객 생성 실패: {}", e.getMessage(), e);
@@ -316,12 +343,12 @@ public class BillingService {
             case "canceled" -> SubscriptionStatus.CANCELED;
             case "past_due" -> SubscriptionStatus.PAST_DUE;
             case "trialing" -> SubscriptionStatus.TRIALING;
-            default -> SubscriptionStatus.ACTIVE;
+            default -> SubscriptionStatus.PAST_DUE;
         };
     }
 
     private LocalDateTime toLocalDateTime(Long epochSeconds) {
         if (epochSeconds == null) return null;
-        return LocalDateTime.ofInstant(Instant.ofEpochSecond(epochSeconds), ZoneId.systemDefault());
+        return LocalDateTime.ofInstant(Instant.ofEpochSecond(epochSeconds), ZoneId.of("Asia/Seoul"));
     }
 }
