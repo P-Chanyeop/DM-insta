@@ -19,7 +19,7 @@ export default function FlowBuilderPage() {
   /* ── 자동화 설정 상태 ── */
   const [config, setConfig] = useState({
     // 1. 트리거
-    triggerType: 'comment',       // comment | dm_keyword | story_mention | story_reply | welcome
+    triggerType: 'comment',       // comment | keyword | story_mention | story_reply | welcome
     postTarget: 'any',            // specific | any | next
     specificPostUrl: '',
     keywords: '',
@@ -223,7 +223,7 @@ export default function FlowBuilderPage() {
             <div className="fb-flow-steps">
               <div className="fb-flow-step">
                 <div className="fb-flow-dot" style={{ background: '#EF4444' }} />
-                <span>사용자가 {config.triggerType === 'comment' ? '게시물에 키워드 댓글 작성' : config.triggerType === 'dm_keyword' ? 'DM으로 키워드 전송' : config.triggerType === 'story_mention' ? '스토리에 계정 멘션' : config.triggerType === 'story_reply' ? '스토리에 답장' : '처음 DM 전송'}</span>
+                <span>사용자가 {config.triggerType === 'comment' ? '게시물에 키워드 댓글 작성' : config.triggerType === 'keyword' ? 'DM으로 키워드 전송' : config.triggerType === 'story_mention' ? '스토리에 계정 멘션' : config.triggerType === 'story_reply' ? '스토리에 답장' : '처음 DM 전송'}</span>
               </div>
               {config.triggerType === 'comment' && config.publicReplyEnabled && (
                 <div className="fb-flow-step">
@@ -276,7 +276,7 @@ export default function FlowBuilderPage() {
               <div className="fb-trigger-cards">
                 {[
                   { value: 'comment', icon: 'ri-chat-3-line', label: '게시물/릴스 댓글', color: '#EF4444' },
-                  { value: 'dm_keyword', icon: 'ri-chat-1-line', label: 'DM 키워드', color: '#F59E0B' },
+                  { value: 'keyword', icon: 'ri-chat-1-line', label: 'DM 키워드', color: '#F59E0B' },
                   { value: 'story_mention', icon: 'ri-camera-line', label: '스토리 멘션', color: '#8B5CF6' },
                   { value: 'story_reply', icon: 'ri-reply-line', label: '스토리 답장', color: '#EC4899' },
                   { value: 'welcome', icon: 'ri-hand-heart-line', label: '환영 메시지', color: '#10B981' },
