@@ -97,6 +97,13 @@ export const userService = {
   changePassword: (data) => api.put('/users/me/password', data),
 }
 
+export const teamService = {
+  listMembers: () => api.get('/team/members'),
+  inviteMember: (data) => api.post('/team/members', data),
+  updateRole: (memberId, data) => api.patch(`/team/members/${memberId}/role`, data),
+  removeMember: (memberId) => api.delete(`/team/members/${memberId}`),
+}
+
 export const analyticsService = {
   get: (period) => {
     const days = period === '7d' ? 7 : period === '30d' ? 30 : 90

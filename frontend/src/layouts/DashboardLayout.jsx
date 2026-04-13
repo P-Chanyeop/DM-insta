@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { getStoredUser } from '../api/client'
 
 const NAV_SECTIONS = [
   {
@@ -99,6 +100,10 @@ export default function DashboardLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const pageTitle = PAGE_TITLES[location.pathname] || '대시보드'
+
+  const storedUser = useMemo(() => getStoredUser(), [])
+  const userName = storedUser?.name || '사용자'
+  const userInitial = userName[0] || '?'
 
   const notifRef = useRef(null)
   const helpRef = useRef(null)
@@ -415,8 +420,8 @@ export default function DashboardLayout() {
             </div>
 
             <div className="user-menu">
-              <div className="user-avatar">관</div>
-              <span>관리자</span>
+              <div className="user-avatar">{userInitial}</div>
+              <span>{userName}</span>
             </div>
           </div>
         </header>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api, getStoredUser, setStoredUser } from '../api/client'
-import { integrationService, userService } from '../api/services'
+import { integrationService, userService, teamService } from '../api/services'
 
 const TABS = [
   { key: 'account', icon: 'ri-instagram-line', label: '계정 연결' },
@@ -203,7 +203,16 @@ export default function SettingsPage() {
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordSaving, setPasswordSaving] = useState(false)
 
-  // Team state (feature pending)
+  // Team state
+  const [teamMembers, setTeamMembers] = useState([])
+  const [teamLoading, setTeamLoading] = useState(false)
+  const [teamError, setTeamError] = useState(null)
+  const [showInviteForm, setShowInviteForm] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState('MEMBER')
+  const [inviting, setInviting] = useState(false)
+  const [myRole, setMyRole] = useState(null)
+  const [roleUpdating, setRoleUpdating] = useState(null)
 
   // Notification state - loaded from localStorage
   const [notifications, setNotifications] = useState(loadNotifications)
@@ -267,6 +276,30 @@ export default function SettingsPage() {
     })()
     return () => { mounted = false }
   }, [])
+
+  // Load team members
+  const fetchTeamMembers = useCallback(async () => {
+    setTeamLoading(true)
+    setTeamError(null)
+    try {
+      const members = await teamService.listMembers()
+      setTeamMembers(members || [])
+      // Determine current user's role
+      const storedUser = getStoredUser()
+      if (storedUser) {
+        const me = (members || []).find(m => m.email === storedUser.email)
+        if (me) setMyRole(me.role)
+      }
+    } catch (err) {
+      setTeamError(err.message || '팀 멤버를 불러오는데 실패했습니다.')
+    } finally {
+      setTeamLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchTeamMembers()
+  }, [fetchTeamMembers])
 
   // Instagram 계정 정보 로드 + OAuth 콜백 처리
   const fetchInstagramAccount = useCallback(async () => {
@@ -362,13 +395,59 @@ export default function SettingsPage() {
     }
   }
 
-  // Team handlers (feature not yet implemented - show placeholder)
-  const handleInvite = () => {
-    showToast('팀 멤버 기능은 준비 중입니다.', 'info')
+  // Team handlers
+  const canManageTeam = myRole === 'OWNER' || myRole === 'ADMIN'
+
+  const handleInvite = async () => {
+    if (!inviteEmail.trim()) {
+      showToast('이메일을 입력해 주세요.', 'error')
+      return
+    }
+    setInviting(true)
+    try {
+      await teamService.inviteMember({ email: inviteEmail.trim(), role: inviteRole })
+      showToast(`${inviteEmail.trim()} 님을 초대했습니다.`)
+      setInviteEmail('')
+      setInviteRole('MEMBER')
+      setShowInviteForm(false)
+      fetchTeamMembers()
+    } catch (err) {
+      showToast(err.message || '초대에 실패했습니다.', 'error')
+    } finally {
+      setInviting(false)
+    }
   }
 
-  const handleRemoveMember = () => {
-    showToast('팀 멤버 기능은 준비 중입니다.', 'info')
+  const handleRoleChange = async (memberId, newRole) => {
+    setRoleUpdating(memberId)
+    try {
+      await teamService.updateRole(memberId, { role: newRole })
+      showToast('역할이 변경되었습니다.')
+      fetchTeamMembers()
+    } catch (err) {
+      showToast(err.message || '역할 변경에 실패했습니다.', 'error')
+    } finally {
+      setRoleUpdating(null)
+    }
+  }
+
+  const handleRemoveMember = (member) => {
+    showConfirm({
+      title: '팀 멤버 제거',
+      message: `${member.name || member.email} 님을 팀에서 제거하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
+      confirmLabel: '제거',
+      danger: true,
+      onConfirm: async () => {
+        closeConfirm()
+        try {
+          await teamService.removeMember(member.id)
+          showToast(`${member.name || member.email} 님이 제거되었습니다.`)
+          fetchTeamMembers()
+        } catch (err) {
+          showToast(err.message || '멤버 제거에 실패했습니다.', 'error')
+        }
+      },
+    })
   }
 
   // Notification handler
@@ -694,21 +773,222 @@ export default function SettingsPage() {
     </>
   )
 
+  const ROLE_LABELS = { OWNER: '소유자', ADMIN: '관리자', MEMBER: '멤버', VIEWER: '뷰어' }
+  const ROLE_COLORS = {
+    OWNER: { bg: '#F3E8FF', color: '#7C3AED', border: '#DDD6FE' },
+    ADMIN: { bg: '#DBEAFE', color: '#2563EB', border: '#BFDBFE' },
+    MEMBER: { bg: '#D1FAE5', color: '#059669', border: '#A7F3D0' },
+    VIEWER: { bg: '#F3F4F6', color: '#6B7280', border: '#E5E7EB' },
+  }
+
+  const renderRoleBadge = (role) => {
+    const c = ROLE_COLORS[role] || ROLE_COLORS.VIEWER
+    return (
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', padding: '2px 10px',
+        borderRadius: 12, fontSize: 12, fontWeight: 600,
+        background: c.bg, color: c.color, border: `1px solid ${c.border}`,
+      }}>
+        {ROLE_LABELS[role] || role}
+      </span>
+    )
+  }
+
   const renderTeamTab = () => (
     <>
-      <div className="settings-section">
-        <div className="settings-section-header">
-          <h3>팀 멤버</h3>
-        </div>
-        <div className="settings-empty-state">
-          <div className="settings-empty-icon">
-            <i className="ri-team-line" />
+      {/* Current user role */}
+      {myRole && (
+        <div className="settings-section" style={{ paddingBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <i className="ri-shield-user-line" style={{ fontSize: 18, color: '#7C3AED' }} />
+            <span style={{ fontSize: 14, color: '#64748B' }}>내 역할:</span>
+            {renderRoleBadge(myRole)}
           </div>
-          <p>팀 멤버 기능은 준비 중입니다.</p>
-          <p className="settings-empty-desc">
-            곧 팀 멤버를 초대하고 역할을 관리할 수 있게 됩니다.
-          </p>
         </div>
+      )}
+
+      <div className="settings-section">
+        <div className="settings-section-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h3 style={{ margin: 0 }}>팀 멤버 {!teamLoading && `(${teamMembers.length})`}</h3>
+          {canManageTeam && (
+            <button
+              className="btn-primary small"
+              onClick={() => setShowInviteForm(prev => !prev)}
+            >
+              <i className={showInviteForm ? 'ri-close-line' : 'ri-user-add-line'} />{' '}
+              {showInviteForm ? '닫기' : '팀원 초대'}
+            </button>
+          )}
+        </div>
+
+        {/* Invite form */}
+        {showInviteForm && canManageTeam && (
+          <div style={{
+            background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10,
+            padding: 16, marginBottom: 16,
+          }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B', marginBottom: 4, display: 'block' }}>
+                  이메일
+                </label>
+                <input
+                  type="email"
+                  className="setting-input"
+                  placeholder="초대할 이메일 주소"
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleInvite() }}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ minWidth: 120 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B', marginBottom: 4, display: 'block' }}>
+                  역할
+                </label>
+                <select
+                  className="setting-input"
+                  value={inviteRole}
+                  onChange={e => setInviteRole(e.target.value)}
+                  style={{ width: '100%', height: 40 }}
+                >
+                  <option value="ADMIN">관리자</option>
+                  <option value="MEMBER">멤버</option>
+                  <option value="VIEWER">뷰어</option>
+                </select>
+              </div>
+              <button
+                className="btn-primary small"
+                onClick={handleInvite}
+                disabled={inviting}
+                style={{ height: 40 }}
+              >
+                {inviting ? <><i className="ri-loader-4-line spin" /> 초대 중...</> : '초대'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Loading state */}
+        {teamLoading && (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#94A3B8' }}>
+            <i className="ri-loader-4-line spin" style={{ fontSize: 24, display: 'block', marginBottom: 8 }} />
+            팀 멤버를 불러오는 중...
+          </div>
+        )}
+
+        {/* Error state */}
+        {teamError && !teamLoading && (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#EF4444' }}>
+            <i className="ri-error-warning-line" style={{ fontSize: 24, display: 'block', marginBottom: 8 }} />
+            <p style={{ margin: '0 0 12px', fontSize: 14 }}>{teamError}</p>
+            <button className="btn-secondary small" onClick={fetchTeamMembers}>
+              <i className="ri-refresh-line" /> 다시 시도
+            </button>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!teamLoading && !teamError && teamMembers.length === 0 && (
+          <div className="settings-empty-state">
+            <div className="settings-empty-icon">
+              <i className="ri-team-line" />
+            </div>
+            <p>팀 멤버가 없습니다.</p>
+            <p className="settings-empty-desc">
+              팀원을 초대하여 함께 작업을 시작하세요.
+            </p>
+          </div>
+        )}
+
+        {/* Member list */}
+        {!teamLoading && !teamError && teamMembers.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {teamMembers.map((member) => {
+              const storedUser = getStoredUser()
+              const isMe = storedUser && storedUser.email === member.email
+              const isOwner = member.role === 'OWNER'
+              const canEdit = canManageTeam && !isOwner && !isMe
+              const canRemove = canManageTeam && !isOwner && !isMe
+
+              return (
+                <div
+                  key={member.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 0',
+                    borderBottom: '1px solid #F1F5F9',
+                  }}
+                >
+                  {/* Avatar */}
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    background: isOwner ? 'linear-gradient(135deg, #7C3AED, #A78BFA)' : '#E2E8F0',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: isOwner ? '#fff' : '#64748B', fontWeight: 700, fontSize: 14,
+                    flexShrink: 0,
+                  }}>
+                    {(member.name || member.email || '?')[0].toUpperCase()}
+                  </div>
+
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>
+                        {member.name || '(이름 없음)'}
+                      </span>
+                      {isMe && (
+                        <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500 }}>(나)</span>
+                      )}
+                      {renderRoleBadge(member.role)}
+                    </div>
+                    <div style={{ fontSize: 13, color: '#94A3B8', marginTop: 2 }}>
+                      {member.email}
+                      {member.joinedAt && (
+                        <span style={{ marginLeft: 8 }}>
+                          · {new Date(member.joinedAt).toLocaleDateString('ko-KR')} 가입
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    {canEdit && (
+                      <select
+                        className="setting-input"
+                        value={member.role}
+                        onChange={e => handleRoleChange(member.id, e.target.value)}
+                        disabled={roleUpdating === member.id}
+                        style={{ fontSize: 12, padding: '4px 8px', height: 30, minWidth: 80 }}
+                      >
+                        <option value="ADMIN">관리자</option>
+                        <option value="MEMBER">멤버</option>
+                        <option value="VIEWER">뷰어</option>
+                      </select>
+                    )}
+                    {canRemove && (
+                      <button
+                        onClick={() => handleRemoveMember(member)}
+                        title="멤버 제거"
+                        style={{
+                          background: 'none', border: '1px solid #FCA5A5', borderRadius: 6,
+                          color: '#EF4444', cursor: 'pointer', padding: '4px 8px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 14,
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+                      >
+                        <i className="ri-close-line" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </>
   )

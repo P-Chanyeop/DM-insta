@@ -1,10 +1,12 @@
 package com.instabot.backend.service;
 
 import com.instabot.backend.dto.AuthDto;
+import com.instabot.backend.entity.TeamMember;
 import com.instabot.backend.entity.User;
 import com.instabot.backend.exception.BadRequestException;
 import com.instabot.backend.exception.DuplicateEmailException;
 import com.instabot.backend.exception.ResourceNotFoundException;
+import com.instabot.backend.repository.TeamMemberRepository;
 import com.instabot.backend.repository.UserRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -25,6 +27,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final TeamMemberRepository teamMemberRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
@@ -56,6 +59,15 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+
+        // 팀 멤버십 자동 생성 (OWNER)
+        TeamMember ownerMember = TeamMember.builder()
+                .teamOwnerId(user.getId())
+                .userId(user.getId())
+                .role(TeamMember.Role.OWNER)
+                .joinedAt(LocalDateTime.now())
+                .build();
+        teamMemberRepository.save(ownerMember);
 
         // 인증 메일 발송 (비동기)
         emailService.sendVerificationEmail(user.getEmail(), verificationCode);
