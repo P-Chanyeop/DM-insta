@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api, getStoredUser, setStoredUser } from '../api/client'
-import { integrationService, userService, teamService } from '../api/services'
+import { integrationService, userService, teamService, billingService } from '../api/services'
 
 const TABS = [
   { key: 'account', icon: 'ri-instagram-line', label: '계정 연결' },
@@ -226,6 +226,9 @@ export default function SettingsPage() {
   // Billing state
   const [currentPlan, setCurrentPlan] = useState('free')
   const [planUpgrading, setPlanUpgrading] = useState(null)
+  const [billingInfo, setBillingInfo] = useState(null)
+  const [billingLoading, setBillingLoading] = useState(false)
+  const [portalLoading, setPortalLoading] = useState(false)
 
   // Load user profile from backend
   useEffect(() => {
@@ -340,6 +343,39 @@ export default function SettingsPage() {
   useEffect(() => {
     saveNotifications(notifications)
   }, [notifications])
+
+  // Fetch billing info when billing tab is active
+  const fetchBillingInfo = useCallback(async () => {
+    setBillingLoading(true)
+    try {
+      const info = await billingService.getInfo()
+      setBillingInfo(info)
+      if (info.plan) {
+        setCurrentPlan(info.plan.toLowerCase())
+      }
+    } catch {
+      // silently fail — user stays on free plan display
+    } finally {
+      setBillingLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'billing') {
+      fetchBillingInfo()
+    }
+  }, [activeTab, fetchBillingInfo])
+
+  // Handle Stripe checkout success redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('session_id')) {
+      setActiveTab('billing')
+      showToast('결제가 완료되었습니다!', 'success')
+      fetchBillingInfo()
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [showToast, fetchBillingInfo])
 
   // Profile handlers
   const handleProfileChange = (field, value) => {
@@ -557,14 +593,42 @@ export default function SettingsPage() {
     }
   }
 
-  // Plan upgrade
-  const handlePlanAction = (plan) => {
-    if (plan.current) return
-    if (plan.id === 'enterprise') {
-      showToast('Enterprise 플랜 문의가 접수되었습니다. 영업팀에서 연락드리겠습니다.', 'info')
+  // Plan upgrade via Stripe Checkout
+  const handlePlanAction = async (planId) => {
+    if (planId === 'enterprise') {
+      window.location.href = 'mailto:sales@sendit.co.kr?subject=Enterprise 플랜 문의'
       return
     }
-    showToast('결제 시스템은 준비 중입니다. 곧 업그레이드가 가능해집니다.', 'info')
+    setPlanUpgrading(planId)
+    try {
+      const { checkoutUrl } = await billingService.createCheckout({ planType: planId.toUpperCase() })
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl
+      } else {
+        showToast('결제 페이지를 불러올 수 없습니다.', 'error')
+      }
+    } catch (err) {
+      showToast(err.message || '결제 처리 중 오류가 발생했습니다.', 'error')
+    } finally {
+      setPlanUpgrading(null)
+    }
+  }
+
+  // Open Stripe Customer Portal
+  const handleManageSubscription = async () => {
+    setPortalLoading(true)
+    try {
+      const { portalUrl } = await billingService.createPortal()
+      if (portalUrl) {
+        window.location.href = portalUrl
+      } else {
+        showToast('구독 관리 페이지를 불러올 수 없습니다.', 'error')
+      }
+    } catch (err) {
+      showToast(err.message || '구독 관리 페이지를 열 수 없습니다.', 'error')
+    } finally {
+      setPortalLoading(false)
+    }
   }
 
   // Tab content renderers
@@ -1097,68 +1161,193 @@ export default function SettingsPage() {
   )
 
   const renderBillingTab = () => {
-    const activePlan = PLANS.map(p => ({
-      ...p,
-      current: p.id === currentPlan,
-      cta: p.id === currentPlan ? '현재 플랜' : p.cta,
-    }))
+    const isSubscribed = billingInfo && billingInfo.plan && billingInfo.plan.toLowerCase() !== 'free'
+    const isCancelPending = billingInfo?.cancelAtPeriodEnd
+
+    const getPlanButton = (plan) => {
+      const isCurrent = plan.id === currentPlan
+      if (plan.id === 'enterprise') {
+        return (
+          <button className="btn-primary" onClick={() => handlePlanAction('enterprise')}>
+            <i className="ri-mail-send-line" /> 문의하기
+          </button>
+        )
+      }
+      if (isCurrent) {
+        return (
+          <button className="btn-secondary" disabled style={{ opacity: 0.6, cursor: 'not-allowed' }}>
+            현재 플랜
+          </button>
+        )
+      }
+      if (plan.id === 'free') {
+        // If user is on a paid plan, don't show downgrade button — use portal
+        if (isSubscribed) return null
+        return (
+          <button className="btn-secondary" disabled style={{ opacity: 0.6, cursor: 'not-allowed' }}>
+            현재 플랜
+          </button>
+        )
+      }
+      // PRO upgrade button (only show if on FREE)
+      if (currentPlan === 'free' || !isSubscribed) {
+        return (
+          <button
+            className="btn-primary"
+            disabled={planUpgrading === plan.id}
+            onClick={() => handlePlanAction(plan.id)}
+          >
+            {planUpgrading === plan.id ? (
+              <><i className="ri-loader-4-line spin" /> 처리 중...</>
+            ) : (
+              <><i className="ri-arrow-up-line" /> 업그레이드</>
+            )}
+          </button>
+        )
+      }
+      return null
+    }
 
     return (
       <>
+        {/* Subscription status card */}
+        <div className="settings-section">
+          <h3>구독 현황</h3>
+          {billingLoading ? (
+            <div style={{ padding: '24px 0', textAlign: 'center', color: '#94A3B8' }}>
+              <i className="ri-loader-4-line spin" style={{ fontSize: 20 }} /> 로딩 중...
+            </div>
+          ) : isSubscribed ? (
+            <div style={{
+              background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12,
+              padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexWrap: 'wrap', gap: 16,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: 12,
+                  background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <i className="ri-vip-crown-2-line" style={{ color: '#fff', fontSize: 22 }} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <strong style={{ fontSize: 16 }}>{billingInfo.plan} 플랜</strong>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', padding: '2px 10px',
+                      borderRadius: 12, fontSize: 12, fontWeight: 600,
+                      background: isCancelPending ? '#FEF3C7' : '#D1FAE5',
+                      color: isCancelPending ? '#D97706' : '#059669',
+                      border: `1px solid ${isCancelPending ? '#FDE68A' : '#A7F3D0'}`,
+                    }}>
+                      {isCancelPending ? '취소 예정' : '활성'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13, color: '#64748B' }}>
+                    {billingInfo.currentPeriodEnd && (
+                      <>
+                        {isCancelPending ? '만료일' : '다음 결제일'}:{' '}
+                        <strong>{new Date(billingInfo.currentPeriodEnd).toLocaleDateString('ko-KR')}</strong>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                className="btn-secondary"
+                onClick={handleManageSubscription}
+                disabled={portalLoading}
+              >
+                {portalLoading ? (
+                  <><i className="ri-loader-4-line spin" /> 로딩 중...</>
+                ) : (
+                  <><i className="ri-settings-3-line" /> 구독 관리</>
+                )}
+              </button>
+            </div>
+          ) : (
+            <div style={{
+              background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12,
+              padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <i className="ri-information-line" style={{ fontSize: 20, color: '#94A3B8' }} />
+              <span style={{ fontSize: 14, color: '#64748B' }}>
+                현재 무료 플랜입니다. 아래에서 업그레이드할 수 있습니다.
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Plan cards */}
         <div className="settings-section">
           <h3>요금제</h3>
-          <p className="settings-section-desc">
-            현재 플랜: <strong>{activePlan.find(p => p.current)?.name || 'Free'}</strong>
-          </p>
           <div className="settings-plans-grid">
-            {activePlan.map((plan) => (
-              <div
-                className={`settings-plan-card${plan.current ? ' current' : ''}${plan.popular ? ' popular' : ''}`}
-                key={plan.id}
-              >
-                {plan.popular && <div className="settings-plan-badge">인기</div>}
-                <h4>{plan.name}</h4>
-                <div className="settings-plan-price">
-                  <span className="settings-plan-amount">{plan.price}</span>
-                  <span className="settings-plan-period">{plan.period}</span>
-                </div>
-                <ul className="settings-plan-features">
-                  {plan.features.map((f) => (
-                    <li key={f}>
-                      <i className="ri-check-line" /> {f}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className={plan.current ? 'btn-secondary' : 'btn-primary'}
-                  disabled={plan.current || planUpgrading === plan.id}
-                  onClick={() => handlePlanAction(plan)}
+            {PLANS.map((plan) => {
+              const isCurrent = plan.id === currentPlan
+              return (
+                <div
+                  className={`settings-plan-card${isCurrent ? ' current' : ''}${plan.popular ? ' popular' : ''}`}
+                  key={plan.id}
+                  style={isCurrent ? { borderColor: '#6366F1', borderWidth: 2 } : undefined}
                 >
-                  {planUpgrading === plan.id ? (
-                    <><i className="ri-loader-4-line spin" /> 처리 중...</>
-                  ) : (
-                    plan.cta
+                  {plan.popular && <div className="settings-plan-badge">인기</div>}
+                  {isCurrent && (
+                    <div style={{
+                      position: 'absolute', top: 12, right: 12,
+                      background: '#6366F1', color: '#fff', fontSize: 11, fontWeight: 700,
+                      padding: '2px 8px', borderRadius: 6,
+                    }}>
+                      현재
+                    </div>
                   )}
-                </button>
-              </div>
-            ))}
+                  <h4>{plan.name}</h4>
+                  <div className="settings-plan-price">
+                    <span className="settings-plan-amount">{plan.price}</span>
+                    <span className="settings-plan-period">{plan.period}</span>
+                  </div>
+                  <ul className="settings-plan-features">
+                    {plan.features.map((f) => (
+                      <li key={f}>
+                        <i className="ri-check-line" /> {f}
+                      </li>
+                    ))}
+                  </ul>
+                  {getPlanButton(plan)}
+                </div>
+              )
+            })}
           </div>
         </div>
 
+        {/* Billing history / portal link */}
         <div className="settings-section">
           <h3>결제 내역</h3>
-          {currentPlan === 'free' ? (
-            <div className="settings-billing-empty">
-              <i className="ri-file-list-3-line" />
-              <p>결제 내역이 없습니다.</p>
+          {isSubscribed ? (
+            <div style={{
+              background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12,
+              padding: '20px 24px', textAlign: 'center',
+            }}>
+              <i className="ri-file-list-3-line" style={{ fontSize: 28, color: '#94A3B8', marginBottom: 8, display: 'block' }} />
+              <p style={{ color: '#64748B', fontSize: 14, margin: '0 0 12px' }}>
+                결제 내역 및 인보이스는 Stripe 고객 포털에서 확인할 수 있습니다.
+              </p>
+              <button
+                className="btn-secondary small"
+                onClick={handleManageSubscription}
+                disabled={portalLoading}
+              >
+                {portalLoading ? (
+                  <><i className="ri-loader-4-line spin" /> 로딩 중...</>
+                ) : (
+                  <><i className="ri-external-link-line" /> 결제 내역 보기</>
+                )}
+              </button>
             </div>
           ) : (
             <div className="settings-billing-empty">
               <i className="ri-file-list-3-line" />
               <p>결제 내역이 없습니다.</p>
-              <p style={{ color: '#94A3B8', fontSize: 13, marginTop: 4 }}>
-                다음 결제일에 첫 번째 결제 내역이 생성됩니다.
-              </p>
             </div>
           )}
         </div>

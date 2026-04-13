@@ -111,6 +111,12 @@ export const analyticsService = {
   },
 }
 
+export const billingService = {
+  getInfo: () => api.get('/billing/info'),
+  createCheckout: (data) => api.post('/billing/checkout', data),
+  createPortal: () => api.post('/billing/portal'),
+}
+
 export const conversationService = {
   list: (status) => api.get(`/conversations${status ? `?status=${status}` : ''}`),
   get: (id) => api.get(`/conversations/${id}`),
