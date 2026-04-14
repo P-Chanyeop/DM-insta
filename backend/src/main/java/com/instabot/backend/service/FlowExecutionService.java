@@ -390,9 +390,23 @@ public class FlowExecutionService {
         int idx = new Random().nextInt(replies.size());
         String reply = replaceVariables(replies.get(idx).asText(), contact, triggerKeyword);
 
+        // 답글 딜레이 (봇 의심 방지)
+        int replyDelayMax = commentReplyNode.path("replyDelay").asInt(0);
+        if (replyDelayMax > 0) {
+            int minDelay = Math.max(1, replyDelayMax / 3);
+            int actualDelay = minDelay + new Random().nextInt(replyDelayMax - minDelay + 1);
+            try {
+                log.debug("댓글 답장 딜레이: {}초", actualDelay);
+                Thread.sleep(actualDelay * 1000L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+
         try {
             instagramApiService.replyToComment(commentId, reply, accessToken);
-            log.debug("댓글 답장 완료: commentId={}", commentId);
+            log.debug("댓글 답장 완료: commentId={}, variant={}/{}", commentId, idx + 1, replies.size());
         } catch (Exception e) {
             log.error("댓글 답장 실패: {}", e.getMessage());
         }

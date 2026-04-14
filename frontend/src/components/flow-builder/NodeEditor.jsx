@@ -130,6 +130,7 @@ function TriggerEditor({ data, update }) {
 /* ── 댓글 답장 편집기 ── */
 function CommentReplyEditor({ data, update }) {
   const replies = data.replies || ['']
+  const replyDelay = data.replyDelay ?? 0 // 0 = 즉시, 그 외 = 최대 초
 
   const insertVar = (i, token) => {
     const arr = [...replies]
@@ -138,35 +139,56 @@ function CommentReplyEditor({ data, update }) {
   }
 
   return (
-    <div className="ne-field">
-      <label>답장 메시지 (최대 3개, 랜덤 발송)</label>
-      {replies.map((reply, i) => (
-        <div key={i} className="ne-field-row">
-          <span className="ne-field-num">{i + 1}</span>
-          <input className="ne-input" value={reply}
-            placeholder="예: {이름}님 감사합니다! DM 확인해주세요"
-            onChange={e => {
-              const arr = [...replies]
-              arr[i] = e.target.value
-              update({ replies: arr })
-            }} />
-          <button className="ne-var-quick-btn" title="변수 삽입" onClick={() => insertVar(i, '{이름}')}>
-            <i className="ri-braces-line" />
-          </button>
-          {replies.length > 1 && (
-            <button className="ne-remove-btn" onClick={() => update({ replies: replies.filter((_, j) => j !== i) })}>
-              <i className="ri-close-line" />
+    <>
+      <div className="ne-field">
+        <label>답장 메시지 (최대 5개, 랜덤 발송)</label>
+        {replies.map((reply, i) => (
+          <div key={i} className="ne-field-row">
+            <span className="ne-field-num">{i + 1}</span>
+            <input className="ne-input" value={reply}
+              placeholder="예: @{이름} DM 보내드렸어요! 확인해주세요 ✨"
+              onChange={e => {
+                const arr = [...replies]
+                arr[i] = e.target.value
+                update({ replies: arr })
+              }} />
+            <button className="ne-var-quick-btn" title="변수 삽입" onClick={() => insertVar(i, '{이름}')}>
+              <i className="ri-braces-line" />
             </button>
-          )}
+            {replies.length > 1 && (
+              <button className="ne-remove-btn" onClick={() => update({ replies: replies.filter((_, j) => j !== i) })}>
+                <i className="ri-close-line" />
+              </button>
+            )}
+          </div>
+        ))}
+        {replies.length < 5 && (
+          <button className="ne-add-btn" onClick={() => update({ replies: [...replies, ''] })}>
+            + 답장 추가
+          </button>
+        )}
+        <div className="ne-hint">
+          <i className="ri-magic-line" style={{ marginRight: 4 }} />
+          3개 이상 등록하면 스팸 플래그를 방지하고 자연스러운 답글을 제공합니다
         </div>
-      ))}
-      {replies.length < 3 && (
-        <button className="ne-add-btn" onClick={() => update({ replies: [...replies, ''] })}>
-          + 답장 추가
-        </button>
-      )}
-      <div className="ne-hint">여러 개 등록하면 랜덤으로 하나가 선택됩니다 · 변수: {'{이름}'}, {'{username}'}, {'{키워드}'}</div>
-    </div>
+        <div className="ne-hint">변수: {'{이름}'}, {'{username}'}, {'{키워드}'}</div>
+      </div>
+
+      <div className="ne-field">
+        <label>답장 딜레이</label>
+        <div className="ne-field-row" style={{ alignItems: 'center', gap: 8 }}>
+          <select className="ne-select" value={replyDelay}
+            onChange={e => update({ replyDelay: Number(e.target.value) })} style={{ flex: 1 }}>
+            <option value={0}>즉시 답장</option>
+            <option value={5}>1~5초 랜덤</option>
+            <option value={15}>5~15초 랜덤</option>
+            <option value={30}>10~30초 랜덤</option>
+            <option value={60}>30~60초 랜덤</option>
+          </select>
+        </div>
+        <div className="ne-hint">딜레이를 추가하면 봇 의심을 방지하고 더 자연스럽게 답글이 달립니다</div>
+      </div>
+    </>
   )
 }
 

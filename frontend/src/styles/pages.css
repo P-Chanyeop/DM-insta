@@ -1415,6 +1415,13 @@ label.ne-radio {
 }
 .fb-comment-item strong { font-size: 12px; color: var(--gray-800); }
 .fb-comment-item p { font-size: 12px; color: var(--gray-600); margin: 2px 0 0; }
+.fb-comment-meta {
+  display: flex; gap: 12px; padding: 8px 14px;
+  border-top: 1px solid var(--gray-100);
+  font-size: 11px; color: var(--gray-400);
+}
+.fb-comment-meta span { display: flex; align-items: center; gap: 3px; }
+.fb-comment-meta i { font-size: 12px; }
 
 /* ===== Responsive overrides ===== */
 @media (max-width: 1200px) {

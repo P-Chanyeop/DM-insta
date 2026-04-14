@@ -55,7 +55,7 @@ export function flowDataToGraph(fd) {
       id,
       type: 'commentReply',
       position: { x: X_CENTER, y },
-      data: { replies: fd.commentReply.replies || [''] },
+      data: { replies: fd.commentReply.replies || [''], replyDelay: fd.commentReply.replyDelay ?? 0 },
     })
     edges.push(makeEdge(prevNodeId, id))
     prevNodeId = id
@@ -269,6 +269,7 @@ export function graphToFlowData(nodes, edges) {
     commentReply: {
       enabled: !!commentReplyNode,
       replies: commentReplyNode?.data.replies || [],
+      replyDelay: commentReplyNode?.data.replyDelay ?? 0,
     },
     openingDm: {
       enabled: !!openingNode,

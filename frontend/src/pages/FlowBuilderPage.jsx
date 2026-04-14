@@ -210,6 +210,30 @@ export default function FlowBuilderPage() {
     event.dataTransfer.effectAllowed = 'move'
   }
 
+  // 팔레트 클릭으로 노드 추가
+  const onPaletteClick = useCallback(
+    (nodeType, nodeData) => {
+      // 마지막 노드의 아래쪽에 배치
+      const lastNode = nodes.length > 0
+        ? nodes.reduce((a, b) => (a.position.y > b.position.y ? a : b))
+        : null
+      const position = lastNode
+        ? { x: lastNode.position.x, y: lastNode.position.y + 180 }
+        : { x: 300, y: 100 }
+
+      const newNode = {
+        id: generateNodeId(nodeType),
+        type: nodeType,
+        position,
+        data: { ...nodeData },
+      }
+
+      setNodes((nds) => [...nds, newNode])
+      setPaletteOpen(false)
+    },
+    [nodes, setNodes]
+  )
+
   return (
     <div className="flow-builder-page">
       {/* ── 헤더 ── */}
@@ -285,6 +309,7 @@ export default function FlowBuilderPage() {
                 className={`fb-palette-item${item.comingSoon ? ' coming-soon' : ''}`}
                 draggable={!item.comingSoon}
                 onDragStart={item.comingSoon ? undefined : (e) => onDragStart(e, item.type, item.defaultData)}
+                onClick={item.comingSoon ? undefined : () => onPaletteClick(item.type, item.defaultData)}
               >
                 <div
                   className="fb-palette-icon"
@@ -646,9 +671,15 @@ function PhonePreview({ nodes }) {
               <div className="fb-comment-avatar brand">B</div>
               <div>
                 <strong>@my_brand</strong>
-                <p>{commentReplyNode.data.replies[0]}</p>
+                <p>{preview(commentReplyNode.data.replies[0])}</p>
               </div>
             </div>
+          </div>
+          <div className="fb-comment-meta">
+            <span><i className="ri-shuffle-line" /> {commentReplyNode.data.replies.filter(r => r.trim()).length}개 변형 랜덤</span>
+            {commentReplyNode.data.replyDelay > 0 && (
+              <span><i className="ri-timer-line" /> 딜레이 적용</span>
+            )}
           </div>
         </div>
       )}
