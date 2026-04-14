@@ -19,6 +19,7 @@ public class SequenceService {
 
     private final SequenceRepository sequenceRepository;
     private final UserRepository userRepository;
+    private final QuotaService quotaService;
 
     public List<SequenceDto.Response> getSequences(Long userId) {
         return sequenceRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
@@ -70,6 +71,9 @@ public class SequenceService {
     public SequenceDto.Response createSequence(Long userId, SequenceDto.CreateRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+
+        // FREE 플랜은 시퀀스 사용 불가
+        quotaService.checkSequenceAccess(user);
 
         Sequence seq = Sequence.builder()
                 .user(user)

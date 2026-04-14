@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -69,15 +71,18 @@ public class FlowExecutionService {
             String accessToken = instagramApiService.getDecryptedToken(igAccount);
             String botIgId = igAccount.getIgUserId();
 
+            // 변수 치환을 위한 Contact 조회
+            Contact contact = findContact(igAccount.getUser().getId(), senderIgId);
+
             // 1. 공개 댓글 답장
             if (commentId != null && flowData.has("commentReply")) {
-                executeCommentReply(flowData.get("commentReply"), commentId, accessToken);
+                executeCommentReply(flowData.get("commentReply"), commentId, accessToken, contact, triggerText);
             }
 
             // 2. 오프닝 DM 발송
             boolean hasOpeningDm = false;
             if (flowData.has("openingDm")) {
-                hasOpeningDm = executeOpeningDm(flowData.get("openingDm"), botIgId, senderIgId, accessToken);
+                hasOpeningDm = executeOpeningDm(flowData.get("openingDm"), botIgId, senderIgId, accessToken, contact, triggerText);
             }
 
             // 3. requirements나 mainDm이 있는지 확인
@@ -88,15 +93,15 @@ public class FlowExecutionService {
                 // 오프닝DM에 버튼이 있으면 → postback 대기 상태로 저장
                 String buttonText = flowData.path("openingDm").path("buttonText").asText("");
                 if (!buttonText.isBlank()) {
-                    savePendingAction(flow, igAccount, senderIgId, commentId, PendingStep.AWAITING_POSTBACK);
+                    savePendingAction(flow, igAccount, senderIgId, commentId, PendingStep.AWAITING_POSTBACK, triggerText);
                     log.info("postback 대기 상태 저장: flowId={}, sender={}", flow.getId(), senderIgId);
                 } else {
                     // 버튼 없는 오프닝DM → requirements부터 바로 진행
-                    proceedToRequirements(flow, igAccount, senderIgId, flowData);
+                    proceedToRequirements(flow, igAccount, senderIgId, flowData, triggerText);
                 }
             } else if (!hasOpeningDm && hasMainDm) {
                 // 오프닝DM 없고 메인DM만 있는 경우 → 바로 발송
-                sendMainDmAndFollowUp(flow, igAccount, senderIgId, flowData);
+                sendMainDmAndFollowUp(flow, igAccount, senderIgId, flowData, triggerText);
             }
 
             // 발송 카운트 증가
@@ -148,11 +153,12 @@ public class FlowExecutionService {
             JsonNode flowData = objectMapper.readTree(flow.getFlowData());
             log.info("오프닝DM 버튼 클릭 → requirements 진행: flowId={}, sender={}", flow.getId(), senderIgId);
 
-            // 기존 AWAITING_POSTBACK 완료
+            // 기존 AWAITING_POSTBACK 완료, triggerKeyword 복원
+            String triggerKeyword = pending.getTriggerKeyword();
             pending.setPendingStep(PendingStep.COMPLETED);
             pendingFlowActionRepository.save(pending);
 
-            proceedToRequirements(flow, igAccount, senderIgId, flowData);
+            proceedToRequirements(flow, igAccount, senderIgId, flowData, triggerKeyword);
 
         } catch (Exception e) {
             log.error("오프닝DM postback 처리 실패: flowId={}, error={}", flow.getId(), e.getMessage(), e);
@@ -186,10 +192,11 @@ public class FlowExecutionService {
             if (isFollower) {
                 // ✅ 팔로우 확인됨 → 다음 단계 진행
                 log.info("팔로우 확인 완료: flowId={}, sender={}", flow.getId(), senderIgId);
+                String triggerKeyword = pending.getTriggerKeyword();
                 pending.setPendingStep(PendingStep.COMPLETED);
                 pendingFlowActionRepository.save(pending);
 
-                proceedToRequirementsAfterFollow(flow, igAccount, senderIgId, flowData);
+                proceedToRequirementsAfterFollow(flow, igAccount, senderIgId, flowData, triggerKeyword);
             } else {
                 // ❌ 아직 팔로우 안 됨 → 재확인 메시지 + 버튼 다시 발송
                 log.info("팔로우 미확인 → 재확인 버튼 발송: flowId={}, sender={}", flow.getId(), senderIgId);
@@ -209,10 +216,13 @@ public class FlowExecutionService {
      * requirements 순차 확인 후 다음 단계로 진행
      */
     private void proceedToRequirements(Flow flow, InstagramAccount igAccount,
-                                        String senderIgId, JsonNode flowData) {
+                                        String senderIgId, JsonNode flowData, String triggerKeyword) {
         String accessToken = instagramApiService.getDecryptedToken(igAccount);
         String botIgId = igAccount.getIgUserId();
         JsonNode requirements = flowData.get("requirements");
+
+        // 변수 치환을 위한 Contact 조회
+        Contact contact = findContact(igAccount.getUser().getId(), senderIgId);
 
         // 1. 팔로우 확인
         if (requirements != null) {
@@ -220,12 +230,10 @@ public class FlowExecutionService {
             if (followCheck != null && followCheck.path("enabled").asBoolean(false)) {
                 boolean isFollower = instagramApiService.isFollower(botIgId, senderIgId, accessToken);
                 if (!isFollower) {
-                    // 팔로우 안내 메시지 + "✅ 팔로우 했어요" 재확인 버튼 발송
-                    sendFollowRequestMessage(followCheck, botIgId, senderIgId, accessToken, igAccount, flow);
-                    // AWAITING_FOLLOW 상태로 저장 → 버튼 클릭 시 handleFollowCheckPostback() 호출됨
-                    savePendingAction(flow, igAccount, senderIgId, null, PendingStep.AWAITING_FOLLOW);
+                    sendFollowRequestMessage(followCheck, botIgId, senderIgId, accessToken, igAccount, flow, contact);
+                    savePendingAction(flow, igAccount, senderIgId, null, PendingStep.AWAITING_FOLLOW, triggerKeyword);
                     log.info("팔로우 대기 상태 저장: flowId={}, sender={}", flow.getId(), senderIgId);
-                    return; // 팔로우 확인 버튼 클릭할 때까지 여기서 중단
+                    return;
                 }
             }
         }
@@ -234,10 +242,10 @@ public class FlowExecutionService {
         if (requirements != null) {
             JsonNode emailCollection = requirements.get("emailCollection");
             if (emailCollection != null && emailCollection.path("enabled").asBoolean(false)) {
-                // 이미 이메일이 있는지 확인
                 boolean hasEmail = contactHasEmail(igAccount.getUser().getId(), senderIgId);
                 if (!hasEmail) {
-                    String emailMsg = emailCollection.path("message").asText("이메일 주소를 입력해주세요!");
+                    String emailMsg = replaceVariables(
+                            emailCollection.path("message").asText("이메일 주소를 입력해주세요!"), contact, triggerKeyword);
                     try {
                         instagramApiService.sendTextMessage(botIgId, senderIgId, emailMsg, accessToken);
                         conversationService.saveOutboundMessage(
@@ -245,16 +253,15 @@ public class FlowExecutionService {
                     } catch (Exception e) {
                         log.error("이메일 요청 메시지 발송 실패: {}", e.getMessage());
                     }
-                    // AWAITING_EMAIL 상태로 저장
-                    savePendingAction(flow, igAccount, senderIgId, null, PendingStep.AWAITING_EMAIL);
+                    savePendingAction(flow, igAccount, senderIgId, null, PendingStep.AWAITING_EMAIL, triggerKeyword);
                     log.info("이메일 대기 상태 저장: flowId={}, sender={}", flow.getId(), senderIgId);
-                    return; // 이메일 받을 때까지 여기서 중단
+                    return;
                 }
             }
         }
 
         // 3. 모든 requirements 충족 → 메인DM + 팔로업 발송
-        sendMainDmAndFollowUp(flow, igAccount, senderIgId, flowData);
+        sendMainDmAndFollowUp(flow, igAccount, senderIgId, flowData, triggerKeyword);
     }
 
     /**
@@ -277,6 +284,7 @@ public class FlowExecutionService {
 
         try {
             JsonNode flowData = objectMapper.readTree(flow.getFlowData());
+            String triggerKeyword = pending.getTriggerKeyword();
             log.info("requirement 충족 → 다음 단계 진행: flowId={}, step={}", flow.getId(), fulfilledStep);
 
             // 현재 pending 완료 처리
@@ -286,10 +294,10 @@ public class FlowExecutionService {
             // 다음 requirements부터 이어서 진행
             if (fulfilledStep == PendingStep.AWAITING_FOLLOW) {
                 // 팔로우 완료 → 이메일 수집부터 이어서
-                proceedToRequirementsAfterFollow(flow, igAccount, senderIgId, flowData);
+                proceedToRequirementsAfterFollow(flow, igAccount, senderIgId, flowData, triggerKeyword);
             } else if (fulfilledStep == PendingStep.AWAITING_EMAIL) {
                 // 이메일 완료 → 메인DM 발송
-                sendMainDmAndFollowUp(flow, igAccount, senderIgId, flowData);
+                sendMainDmAndFollowUp(flow, igAccount, senderIgId, flowData, triggerKeyword);
             }
 
         } catch (Exception e) {
@@ -301,10 +309,14 @@ public class FlowExecutionService {
      * 팔로우 완료 후 → 이메일 수집 확인 → 메인DM
      */
     private void proceedToRequirementsAfterFollow(Flow flow, InstagramAccount igAccount,
-                                                    String senderIgId, JsonNode flowData) {
+                                                    String senderIgId, JsonNode flowData,
+                                                    String triggerKeyword) {
         String accessToken = instagramApiService.getDecryptedToken(igAccount);
         String botIgId = igAccount.getIgUserId();
         JsonNode requirements = flowData.get("requirements");
+
+        // 변수 치환을 위한 Contact 조회
+        Contact contact = findContact(igAccount.getUser().getId(), senderIgId);
 
         // 이메일 수집 확인
         if (requirements != null) {
@@ -312,7 +324,8 @@ public class FlowExecutionService {
             if (emailCollection != null && emailCollection.path("enabled").asBoolean(false)) {
                 boolean hasEmail = contactHasEmail(igAccount.getUser().getId(), senderIgId);
                 if (!hasEmail) {
-                    String emailMsg = emailCollection.path("message").asText("이메일 주소를 입력해주세요!");
+                    String emailMsg = replaceVariables(
+                            emailCollection.path("message").asText("이메일 주소를 입력해주세요!"), contact, triggerKeyword);
                     try {
                         instagramApiService.sendTextMessage(botIgId, senderIgId, emailMsg, accessToken);
                         conversationService.saveOutboundMessage(
@@ -320,14 +333,14 @@ public class FlowExecutionService {
                     } catch (Exception e) {
                         log.error("이메일 요청 메시지 발송 실패: {}", e.getMessage());
                     }
-                    savePendingAction(flow, igAccount, senderIgId, null, PendingStep.AWAITING_EMAIL);
+                    savePendingAction(flow, igAccount, senderIgId, null, PendingStep.AWAITING_EMAIL, triggerKeyword);
                     return;
                 }
             }
         }
 
         // 모든 requirements 충족
-        sendMainDmAndFollowUp(flow, igAccount, senderIgId, flowData);
+        sendMainDmAndFollowUp(flow, igAccount, senderIgId, flowData, triggerKeyword);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -338,20 +351,24 @@ public class FlowExecutionService {
      * 모든 requirements 충족 후 메인DM 발송 + 팔로업 스케줄링
      */
     private void sendMainDmAndFollowUp(Flow flow, InstagramAccount igAccount,
-                                         String senderIgId, JsonNode flowData) {
+                                         String senderIgId, JsonNode flowData,
+                                         String triggerKeyword) {
         String accessToken = instagramApiService.getDecryptedToken(igAccount);
         String botIgId = igAccount.getIgUserId();
 
+        // 변수 치환을 위한 Contact 조회
+        Contact contact = findContact(igAccount.getUser().getId(), senderIgId);
+
         // 메인 DM 발송
         if (flowData.has("mainDm")) {
-            executeMainDm(flowData.get("mainDm"), botIgId, senderIgId, accessToken);
+            executeMainDm(flowData.get("mainDm"), botIgId, senderIgId, accessToken, contact, triggerKeyword);
+            String processedMessage = replaceVariables(
+                    flowData.get("mainDm").path("message").asText(""), contact, triggerKeyword);
             conversationService.saveOutboundMessage(
-                    igAccount.getUser(), senderIgId,
-                    flowData.get("mainDm").path("message").asText(""),
-                    true, flow.getName());
+                    igAccount.getUser(), senderIgId, processedMessage, true, flow.getName());
         }
 
-        // 팔로업 메시지 스케줄링 (DB에 영구 저장)
+        // 팔로업 메시지 스케줄링 (DB에 영구 저장, 변수는 발송 시점에 치환)
         if (flowData.has("followUp")) {
             scheduleFollowUp(flowData.get("followUp"), igAccount, senderIgId);
         }
@@ -363,14 +380,15 @@ public class FlowExecutionService {
     // 개별 단계 실행
     // ═══════════════════════════════════════════════════════════
 
-    private void executeCommentReply(JsonNode commentReplyNode, String commentId, String accessToken) {
+    private void executeCommentReply(JsonNode commentReplyNode, String commentId, String accessToken,
+                                      Contact contact, String triggerKeyword) {
         if (!commentReplyNode.path("enabled").asBoolean(false)) return;
 
         JsonNode replies = commentReplyNode.get("replies");
         if (replies == null || !replies.isArray() || replies.isEmpty()) return;
 
         int idx = new Random().nextInt(replies.size());
-        String reply = replies.get(idx).asText();
+        String reply = replaceVariables(replies.get(idx).asText(), contact, triggerKeyword);
 
         try {
             instagramApiService.replyToComment(commentId, reply, accessToken);
@@ -384,10 +402,10 @@ public class FlowExecutionService {
      * @return 오프닝DM이 실제로 발송되었으면 true
      */
     private boolean executeOpeningDm(JsonNode openingDmNode, String botIgId, String recipientId,
-                                      String accessToken) {
+                                      String accessToken, Contact contact, String triggerKeyword) {
         if (!openingDmNode.path("enabled").asBoolean(false)) return false;
 
-        String message = openingDmNode.path("message").asText("");
+        String message = replaceVariables(openingDmNode.path("message").asText(""), contact, triggerKeyword);
         String buttonText = openingDmNode.path("buttonText").asText("");
 
         if (message.isBlank()) return false;
@@ -410,8 +428,8 @@ public class FlowExecutionService {
     }
 
     private void executeMainDm(JsonNode mainDmNode, String botIgId, String recipientId,
-                                String accessToken) {
-        String message = mainDmNode.path("message").asText("");
+                                String accessToken, Contact contact, String triggerKeyword) {
+        String message = replaceVariables(mainDmNode.path("message").asText(""), contact, triggerKeyword);
         if (message.isBlank()) return;
 
         JsonNode links = mainDmNode.get("links");
@@ -480,8 +498,10 @@ public class FlowExecutionService {
      * 첫 팔로우 요청: 안내 메시지 + "✅ 팔로우 했어요" 버튼
      */
     private void sendFollowRequestMessage(JsonNode followCheck, String botIgId, String senderIgId,
-                                            String accessToken, InstagramAccount igAccount, Flow flow) {
-        String followMsg = followCheck.path("message").asText("링크를 받으시려면 먼저 팔로우를 해주세요!");
+                                            String accessToken, InstagramAccount igAccount, Flow flow,
+                                            Contact contact) {
+        String followMsg = replaceVariables(
+                followCheck.path("message").asText("링크를 받으시려면 먼저 팔로우를 해주세요!"), contact, null);
         try {
             List<Map<String, String>> quickReplies = List.of(
                     Map.of("title", "✅ 팔로우 했어요", "payload", "FOLLOW_CHECK")
@@ -533,15 +553,87 @@ public class FlowExecutionService {
     @Transactional
     private void savePendingAction(Flow flow, InstagramAccount igAccount,
                                     String senderIgId, String commentId, PendingStep step) {
+        savePendingAction(flow, igAccount, senderIgId, commentId, step, null);
+    }
+
+    @Transactional
+    private void savePendingAction(Flow flow, InstagramAccount igAccount,
+                                    String senderIgId, String commentId, PendingStep step,
+                                    String triggerKeyword) {
         PendingFlowAction action = PendingFlowAction.builder()
                 .flow(flow)
                 .instagramAccount(igAccount)
                 .senderIgId(senderIgId)
                 .commentId(commentId)
+                .triggerKeyword(triggerKeyword)
                 .pendingStep(step)
                 .expiresAt(LocalDateTime.now().plusHours(24))
                 .build();
         pendingFlowActionRepository.save(action);
+    }
+
+    // ─── 메시지 변수 치환 ───
+
+    private static final Pattern VARIABLE_PATTERN = Pattern.compile(
+            "\\{(이름|name|username|키워드|keyword|날짜|date|custom\\.[\\w]+)\\}");
+
+    private static final DateTimeFormatter KOREAN_DATE_FORMAT =
+            DateTimeFormatter.ofPattern("M월 d일");
+
+    /**
+     * 메시지 템플릿의 변수를 실제 값으로 치환
+     * 지원 변수: {이름}/{name}, {username}, {키워드}/{keyword}, {날짜}/{date}, {custom.필드명}
+     */
+    private String replaceVariables(String template, Contact contact, String triggerKeyword) {
+        if (template == null || template.isBlank()) return template;
+
+        Matcher matcher = VARIABLE_PATTERN.matcher(template);
+        StringBuilder result = new StringBuilder();
+
+        while (matcher.find()) {
+            String varName = matcher.group(1);
+            String replacement = switch (varName) {
+                case "이름", "name" -> contact != null && contact.getName() != null
+                        ? contact.getName() : "고객";
+                case "username" -> contact != null && contact.getUsername() != null
+                        ? "@" + contact.getUsername() : "";
+                case "키워드", "keyword" -> triggerKeyword != null ? triggerKeyword : "";
+                case "날짜", "date" -> LocalDateTime.now().format(KOREAN_DATE_FORMAT);
+                default -> {
+                    // {custom.필드명} 처리
+                    if (varName.startsWith("custom.") && contact != null) {
+                        yield getCustomFieldValue(contact, varName.substring(7));
+                    }
+                    yield matcher.group(0); // 매칭 안 되면 원본 유지
+                }
+            };
+            matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(result);
+
+        return result.toString();
+    }
+
+    /**
+     * Contact의 customFields JSON에서 특정 필드 값을 추출
+     */
+    private String getCustomFieldValue(Contact contact, String fieldName) {
+        String customFields = contact.getCustomFields();
+        if (customFields == null || customFields.isBlank()) return "";
+        try {
+            JsonNode fields = objectMapper.readTree(customFields);
+            return fields.path(fieldName).asText("");
+        } catch (Exception e) {
+            log.debug("커스텀 필드 파싱 실패: {}", e.getMessage());
+            return "";
+        }
+    }
+
+    /**
+     * senderIgId로 Contact를 조회 (변수 치환용)
+     */
+    private Contact findContact(Long userId, String senderIgId) {
+        return contactRepository.findByUserIdAndIgUserId(userId, senderIgId).orElse(null);
     }
 
     // ─── 트리거 매칭 ───

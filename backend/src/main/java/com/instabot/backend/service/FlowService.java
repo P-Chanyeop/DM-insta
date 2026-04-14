@@ -20,6 +20,7 @@ public class FlowService {
 
     private final FlowRepository flowRepository;
     private final UserRepository userRepository;
+    private final QuotaService quotaService;
 
     // Map Korean display labels and common aliases to canonical enum values
     private static final Map<String, Flow.TriggerType> TRIGGER_LABELS = Map.ofEntries(
@@ -70,6 +71,9 @@ public class FlowService {
     public FlowDto.Response createFlow(Long userId, FlowDto.CreateRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+
+        // 플랜별 플로우 할당량 검증
+        quotaService.checkFlowQuota(user);
 
         Flow flow = Flow.builder()
                 .user(user)

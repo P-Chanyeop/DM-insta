@@ -5,6 +5,7 @@ import { useToast } from '../components/Toast'
 import { usePlan } from '../components/PlanContext'
 import { QuotaBar } from '../components/UpgradeModal'
 import { useConfirm } from '../components/ConfirmDialog'
+import EmptyState from '../components/EmptyState'
 import { contactService } from '../api/services'
 
 const GRADIENTS = [
@@ -452,7 +453,14 @@ export default function ContactsPage() {
           <tbody>
             {loading && <><SkeletonRow cols={8} /><SkeletonRow cols={8} /><SkeletonRow cols={8} /></>}
             {!loading && filtered.length === 0 && (
-              <tr><td colSpan={8} className="empty-state">연락처가 없습니다.</td></tr>
+              <tr><td colSpan={8} style={{ padding: 0, border: 'none' }}>
+                <EmptyState
+                  icon="ri-contacts-line"
+                  title="연락처가 없습니다"
+                  description="Instagram DM을 통해 대화가 시작되면 연락처가 자동으로 추가됩니다."
+                  compact
+                />
+              </td></tr>
             )}
             {filtered.map((c, idx) => (
               <tr key={c.id} className={selectedIds.has(c.id) ? 'selected-row' : ''}>

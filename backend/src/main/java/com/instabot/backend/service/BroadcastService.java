@@ -19,6 +19,7 @@ public class BroadcastService {
     private final BroadcastRepository broadcastRepository;
     private final UserRepository userRepository;
     private final BroadcastExecutionService broadcastExecutionService;
+    private final QuotaService quotaService;
 
     public List<BroadcastDto.Response> getBroadcasts(Long userId) {
         return broadcastRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
@@ -30,6 +31,9 @@ public class BroadcastService {
     public BroadcastDto.Response createBroadcast(Long userId, BroadcastDto.CreateRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+
+        // FREE 플랜은 브로드캐스트 사용 불가
+        quotaService.checkBroadcastAccess(user);
 
         Broadcast broadcast = Broadcast.builder()
                 .user(user)

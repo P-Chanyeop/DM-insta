@@ -21,6 +21,7 @@ public class AutomationService {
     private final AutomationRepository automationRepository;
     private final UserRepository userRepository;
     private final FlowRepository flowRepository;
+    private final QuotaService quotaService;
 
     private static final Map<String, Automation.AutomationType> TYPE_LABELS = Map.ofEntries(
             Map.entry("DM_KEYWORD", Automation.AutomationType.DM_KEYWORD),
@@ -84,6 +85,9 @@ public class AutomationService {
     public AutomationDto.Response createAutomation(Long userId, AutomationDto.CreateRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+
+        // 플랜별 자동화 할당량 검증
+        quotaService.checkAutomationQuota(user);
 
         Automation automation = Automation.builder()
                 .user(user)

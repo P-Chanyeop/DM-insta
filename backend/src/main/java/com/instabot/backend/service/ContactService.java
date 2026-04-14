@@ -20,6 +20,7 @@ public class ContactService {
 
     private final ContactRepository contactRepository;
     private final UserRepository userRepository;
+    private final QuotaService quotaService;
 
     public Page<ContactDto.Response> getContacts(Long userId, Pageable pageable) {
         return contactRepository.findByUserId(userId, pageable).map(this::toResponse);
@@ -63,6 +64,9 @@ public class ContactService {
     public ContactDto.ImportResult importContacts(Long userId, List<ContactDto.ImportRequest> requests) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+
+        // 플랜별 연락처 할당량 검증
+        quotaService.checkContactQuota(user, requests.size());
 
         int imported = 0;
         int skipped = 0;

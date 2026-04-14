@@ -7,5 +7,6 @@ import java.util.List;
 public interface AutomationRepository extends JpaRepository<Automation, Long> {
     List<Automation> findByUserIdOrderByCreatedAtDesc(Long userId);
     List<Automation> findByUserIdAndType(Long userId, Automation.AutomationType type);
+    long countByUserId(Long userId);
     List<Automation> findByUserIdAndActiveTrue(Long userId);
 }

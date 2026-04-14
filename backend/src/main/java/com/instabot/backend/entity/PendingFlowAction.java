@@ -43,6 +43,9 @@ public class PendingFlowAction {
     /** 댓글 트리거인 경우 원본 댓글 ID */
     private String commentId;
 
+    /** 트리거한 키워드 (메시지 변수 {키워드} 치환용) */
+    private String triggerKeyword;
+
     /** 현재 대기 중인 단계 */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

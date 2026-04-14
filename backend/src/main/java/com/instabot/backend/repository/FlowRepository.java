@@ -7,5 +7,6 @@ import java.util.List;
 public interface FlowRepository extends JpaRepository<Flow, Long> {
     List<Flow> findByUserIdOrderByCreatedAtDesc(Long userId);
     List<Flow> findByUserIdAndActiveTrue(Long userId);
+    long countByUserId(Long userId);
     long countByUserIdAndActiveTrue(Long userId);
 }
