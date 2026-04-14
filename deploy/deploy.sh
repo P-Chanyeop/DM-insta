@@ -91,6 +91,11 @@ cmd_build() {
     # Frontend (Vite)
     log "프론트엔드 빌드 중..."
     cd frontend
+
+    # 프로덕션 빌드: Nginx가 /api 프록시하므로 상대경로 사용
+    export VITE_API_BASE_URL="/api"
+    export VITE_WS_BASE_URL="/ws"
+
     npm ci
     npm run build
     cd ..

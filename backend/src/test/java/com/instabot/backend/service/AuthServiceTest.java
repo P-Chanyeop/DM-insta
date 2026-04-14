@@ -3,6 +3,7 @@ package com.instabot.backend.service;
 import com.instabot.backend.dto.AuthDto;
 import com.instabot.backend.entity.User;
 import com.instabot.backend.exception.DuplicateEmailException;
+import com.instabot.backend.repository.TeamMemberRepository;
 import com.instabot.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,13 @@ class AuthServiceTest {
     private UserRepository userRepository;
 
     @Mock
+    private TeamMemberRepository teamMemberRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private EmailService emailService;
 
     @InjectMocks
     private AuthService authService;

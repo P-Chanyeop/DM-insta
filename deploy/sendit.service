@@ -9,12 +9,12 @@ User=sendit
 Group=sendit
 WorkingDirectory=/opt/sendit
 
-# JAR 실행
-ExecStart=/usr/bin/java -jar \
+# JAR 실행 (JVM 옵션은 반드시 -jar 앞에)
+ExecStart=/usr/bin/java \
   -Xms256m -Xmx512m \
   -Dspring.profiles.active=prod \
   -Dserver.port=8080 \
-  /opt/sendit/backend.jar
+  -jar /opt/sendit/backend.jar
 
 # 환경 변수 파일
 EnvironmentFile=/opt/sendit/.env
