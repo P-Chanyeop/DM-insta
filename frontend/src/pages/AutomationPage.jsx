@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import EmptyState from '../components/EmptyState'
 import { SkeletonRow } from '../components/PageLoader'
+import { useToast } from '../components/Toast'
 import { automationService, flowService } from '../api/services'
 
 function formatNumber(value) {
@@ -8,6 +9,7 @@ function formatNumber(value) {
 }
 
 export default function AutomationPage() {
+  const toast = useToast()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [automations, setAutomations] = useState([])
@@ -46,7 +48,7 @@ export default function AutomationPage() {
   const handleCreate = async (e) => {
     e.preventDefault()
     if (!form.name || !form.keyword) {
-      setError('이름과 키워드를 입력해주세요.')
+      toast.warning('이름과 키워드를 입력해주세요.')
       return
     }
     try {
@@ -56,9 +58,10 @@ export default function AutomationPage() {
       })
       setForm({ name: '', type: 'DM_KEYWORD', keyword: '', matchType: 'CONTAINS', flowId: '' })
       setShowForm(false)
+      toast.success('트리거가 생성되었습니다.')
       await loadData()
     } catch (err) {
-      setError(err.message || '생성에 실패했습니다.')
+      toast.error(err.message || '생성에 실패했습니다.')
     }
   }
 
@@ -67,7 +70,7 @@ export default function AutomationPage() {
       await automationService.toggle(id)
       await loadData()
     } catch (err) {
-      setError(err.message || '상태 변경에 실패했습니다.')
+      toast.error(err.message || '상태 변경에 실패했습니다.')
     }
   }
 
@@ -75,9 +78,10 @@ export default function AutomationPage() {
     if (!confirm('이 자동화를 삭제하시겠습니까?')) return
     try {
       await automationService.delete(id)
+      toast.success('트리거가 삭제되었습니다.')
       await loadData()
     } catch (err) {
-      setError(err.message || '삭제에 실패했습니다.')
+      toast.error(err.message || '삭제에 실패했습니다.')
     }
   }
 

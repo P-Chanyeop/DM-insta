@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import PageLoader, { SkeletonCard } from '../components/PageLoader'
+import { useToast } from '../components/Toast'
 import { flowService } from '../api/services'
 
 // Canonical enum values match backend Flow.TriggerType
@@ -39,6 +40,7 @@ function formatRelative(dateString) {
 
 export default function FlowsPage() {
   const navigate = useNavigate()
+  const toast = useToast()
   const [activeTab, setActiveTab] = useState('전체')
   const [search, setSearch] = useState('')
   const [triggerFilter, setTriggerFilter] = useState('전체')
@@ -115,7 +117,7 @@ export default function FlowsPage() {
       await flowService.toggle(id)
       await loadFlows()
     } catch (err) {
-      setError(err.message || '상태 변경에 실패했습니다.')
+      toast.error(err.message || '상태 변경에 실패했습니다.')
     }
   }
 
@@ -123,9 +125,10 @@ export default function FlowsPage() {
     if (!confirm('이 플로우를 삭제하시겠습니까?')) return
     try {
       await flowService.delete(id)
+      toast.success('플로우가 삭제되었습니다.')
       await loadFlows()
     } catch (err) {
-      setError(err.message || '삭제에 실패했습니다.')
+      toast.error(err.message || '삭제에 실패했습니다.')
     }
   }
 
@@ -136,9 +139,10 @@ export default function FlowsPage() {
         triggerType: flow.triggerType || 'KEYWORD',
         flowData: flow.flowData || '{}',
       })
+      toast.success('플로우가 복제되었습니다.')
       await loadFlows()
     } catch (err) {
-      setError(err.message || '플로우 복제에 실패했습니다.')
+      toast.error(err.message || '플로우 복제에 실패했습니다.')
     }
   }
 

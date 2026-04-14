@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import PageLoader from '../components/PageLoader'
 import EmptyState from '../components/EmptyState'
+import { useToast } from '../components/Toast'
 import { analyticsService } from '../api/services'
 
 const PERIODS = [
@@ -318,31 +319,14 @@ function FunnelChart({ data }) {
   )
 }
 
-/* ── Toast ── */
-function Toast({ message, visible }) {
-  if (!visible) return null
-  return (
-    <div className="analytics-toast" style={{
-      position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
-      background: '#1E293B', color: '#fff', padding: '12px 20px',
-      borderRadius: 8, fontSize: 14, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-      display: 'flex', alignItems: 'center', gap: 8, animation: 'fadeIn 0.3s ease',
-    }}>
-      <i className="ri-check-line" style={{ color: '#10B981' }} />
-      {message}
-    </div>
-  )
-}
-
 /* ── Main Page ── */
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState('7d')
   const [loading, setLoading] = useState(true)
   const [visibleLines, setVisibleLines] = useState({ sent: true, opened: true, clicked: true })
-  const [toastMsg, setToastMsg] = useState('')
-  const [toastVisible, setToastVisible] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [apiData, setApiData] = useState(null)
+  const toast = useToast()
 
   const overview = useMemo(() => apiData ? mapOverviewData(apiData) : mapOverviewData({}), [apiData])
   const trendData = useMemo(() => apiData ? mapTrendData(apiData.dailyMessages) : { labels: [], sent: [], opened: [], clicked: [] }, [apiData])
@@ -350,12 +334,6 @@ export default function AnalyticsPage() {
   const funnel = useMemo(() => apiData ? mapFunnelData(apiData) : mapFunnelData({}), [apiData])
   const engagementData = useMemo(() => mapEngagementHours(), [])
   const contactData = useMemo(() => apiData ? mapContactGrowth(apiData.dailyNewContacts, apiData.totalContacts) : [], [apiData])
-
-  const showToast = useCallback((msg) => {
-    setToastMsg(msg)
-    setToastVisible(true)
-    setTimeout(() => setToastVisible(false), 3000)
-  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -406,14 +384,14 @@ export default function AnalyticsPage() {
         link.click()
         document.body.removeChild(link)
         URL.revokeObjectURL(url)
-        showToast('리포트가 다운로드되었습니다')
+        toast.success('리포트가 다운로드되었습니다')
       } catch {
-        showToast('리포트 생성에 실패했습니다')
+        toast.error('리포트 생성에 실패했습니다')
       } finally {
         setDownloading(false)
       }
     }, 500)
-  }, [period, overview, trendData, topFlows, funnel, engagementData, contactData, showToast])
+  }, [period, overview, trendData, topFlows, funnel, engagementData, contactData, toast])
 
   const overviewCards = [
     { key: 'sent', label: '총 발송', value: overview.sent.value.toLocaleString(), change: overview.sent.change, up: overview.sent.up, icon: 'ri-send-plane-line' },
@@ -425,8 +403,6 @@ export default function AnalyticsPage() {
 
   return (
     <>
-      <Toast message={toastMsg} visible={toastVisible} />
-
       <div className="page-header">
         <div>
           <h2>분석 & 통계</h2>

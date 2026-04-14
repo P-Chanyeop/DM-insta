@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SkeletonRow } from '../components/PageLoader'
+import { useToast } from '../components/Toast'
 import { contactService } from '../api/services'
 
 const GRADIENTS = [
@@ -36,6 +37,7 @@ function formatRelative(value) {
 export default function ContactsPage() {
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
+  const toast = useToast()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -160,7 +162,7 @@ export default function ContactsPage() {
       const text = await importFile.text()
       const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
       if (lines.length < 2) {
-        setError('CSV 파일에 데이터가 없습니다. 헤더 행 아래에 데이터를 추가해주세요.')
+        toast.warning('CSV 파일에 데이터가 없습니다. 헤더 행 아래에 데이터를 추가해주세요.')
         return
       }
       // Parse header
@@ -170,7 +172,7 @@ export default function ContactsPage() {
       const memoIdx = headers.findIndex((h) => h === '메모' || h === 'memo')
 
       if (usernameIdx === -1 && nameIdx === -1) {
-        setError('CSV 파일에 "이름" 또는 "사용자명" 열이 필요합니다.')
+        toast.warning('CSV 파일에 "이름" 또는 "사용자명" 열이 필요합니다.')
         return
       }
 
@@ -184,7 +186,7 @@ export default function ContactsPage() {
       }).filter((c) => c.username)
 
       if (contacts.length === 0) {
-        setError('가져올 수 있는 연락처가 없습니다.')
+        toast.warning('가져올 수 있는 연락처가 없습니다.')
         return
       }
 
@@ -193,9 +195,9 @@ export default function ContactsPage() {
       setImportFile(null)
       setError('')
       await loadContacts(0)
-      alert(`가져오기 완료: ${result.imported}명 추가, ${result.skipped}명 중복 스킵`)
+      toast.success(`가져오기 완료: ${result.imported}명 추가, ${result.skipped}명 중복 스킵`)
     } catch (err) {
-      setError(err.message || 'CSV 가져오기에 실패했습니다.')
+      toast.error(err.message || 'CSV 가져오기에 실패했습니다.')
     }
   }
 
@@ -234,9 +236,10 @@ export default function ContactsPage() {
     try {
       await contactService.deleteBulk([...selectedIds])
       setSelectedIds(new Set())
+      toast.success(`${selectedIds.size}명의 연락처가 삭제되었습니다.`)
       await loadContacts(page)
     } catch (err) {
-      setError(err.message || '연락처 삭제에 실패했습니다.')
+      toast.error(err.message || '연락처 삭제에 실패했습니다.')
     }
   }
 
@@ -252,9 +255,10 @@ export default function ContactsPage() {
         }
       }
       setSelectedIds(new Set())
+      toast.success('태그가 추가되었습니다.')
       await loadContacts(page)
     } catch (err) {
-      setError('태그 추가에 실패했습니다.')
+      toast.error('태그 추가에 실패했습니다.')
     }
   }
 

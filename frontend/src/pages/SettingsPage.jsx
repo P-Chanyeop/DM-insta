@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api, getStoredUser, setStoredUser } from '../api/client'
 import { integrationService, userService, teamService, billingService } from '../api/services'
+import { useToast } from '../components/Toast'
 
 const TABS = [
   { key: 'account', icon: 'ri-instagram-line', label: '계정 연결' },
@@ -91,33 +92,7 @@ const PLANS = [
   },
 ]
 
-/* ── Toast component ── */
-function Toast({ message, visible, type = 'success' }) {
-  if (!visible) return null
-  const iconMap = {
-    success: 'ri-check-line',
-    error: 'ri-error-warning-line',
-    info: 'ri-information-line',
-    warning: 'ri-alert-line',
-  }
-  const colorMap = {
-    success: '#10B981',
-    error: '#EF4444',
-    info: '#3B82F6',
-    warning: '#F59E0B',
-  }
-  return (
-    <div style={{
-      position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
-      background: '#1E293B', color: '#fff', padding: '12px 20px',
-      borderRadius: 8, fontSize: 14, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-      display: 'flex', alignItems: 'center', gap: 8, animation: 'fadeIn 0.3s ease',
-    }}>
-      <i className={iconMap[type]} style={{ color: colorMap[type] }} />
-      {message}
-    </div>
-  )
-}
+/* Toast is now provided globally via ToastProvider */
 
 /* ── Confirm Dialog ── */
 function ConfirmDialog({ open, title, message, confirmLabel, cancelLabel, onConfirm, onCancel, danger }) {
@@ -164,13 +139,10 @@ function saveNotifications(notifications) {
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('account')
 
-  // Toast state
-  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' })
-
+  const toast = useToast()
   const showToast = useCallback((message, type = 'success') => {
-    setToast({ visible: true, message, type })
-    setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000)
-  }, [])
+    toast(message, type)
+  }, [toast])
 
   // Confirm dialog state
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null, danger: false, confirmLabel: '', cancelLabel: '' })
@@ -1410,7 +1382,6 @@ export default function SettingsPage() {
 
   return (
     <>
-      <Toast message={toast.message} visible={toast.visible} type={toast.type} />
       <ConfirmDialog
         open={confirm.open}
         title={confirm.title}

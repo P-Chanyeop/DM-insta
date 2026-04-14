@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import EmptyState from '../components/EmptyState'
 import PageLoader from '../components/PageLoader'
+import { useToast } from '../components/Toast'
 import { sequenceService } from '../api/services'
 
 export default function SequencesPage() {
+  const toast = useToast()
   const [sequences, setSequences] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -43,8 +45,9 @@ export default function SequencesPage() {
       setSequences((prev) => [...prev, newSeq])
       setFormData({ name: '', description: '' })
       setShowForm(false)
+      toast.success('시퀀스가 생성되었습니다.')
     } catch (err) {
-      setCreateError(err.message || '시퀀스 생성에 실패했습니다. 다시 시도해주세요.')
+      toast.error(err.message || '시퀀스 생성에 실패했습니다.')
     } finally {
       setCreating(false)
     }
@@ -57,6 +60,7 @@ export default function SequencesPage() {
       await sequenceService.toggle(id)
     } catch {
       setSequences(prev)
+      toast.error('상태 변경에 실패했습니다.')
     }
   }
 
@@ -66,8 +70,10 @@ export default function SequencesPage() {
     setSequences((s) => s.filter((seq) => seq.id !== id))
     try {
       await sequenceService.delete(id)
+      toast.success('시퀀스가 삭제되었습니다.')
     } catch {
       setSequences(prev)
+      toast.error('삭제에 실패했습니다.')
     }
   }
 

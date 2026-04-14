@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import EmptyState from '../components/EmptyState'
 import PageLoader from '../components/PageLoader'
+import { useToast } from '../components/Toast'
 import { broadcastService } from '../api/services'
 
 function formatNumber(value) {
@@ -24,6 +25,7 @@ function statusLabel(status) {
 }
 
 export default function BroadcastPage() {
+  const toast = useToast()
   const [modal, setModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -61,7 +63,7 @@ export default function BroadcastPage() {
 
   const handleCreate = async () => {
     if (!form.name || !form.messageContent) {
-      setError('이름과 메시지를 입력해주세요.')
+      toast.warning('이름과 메시지를 입력해주세요.')
       return
     }
     try {
@@ -74,9 +76,10 @@ export default function BroadcastPage() {
       await broadcastService.create(payload)
       setForm({ name: '', messageContent: '', segment: 'ALL', scheduleType: 'immediate', scheduledAt: '' })
       setModal(false)
+      toast.success('브로드캐스트가 생성되었습니다.')
       await loadBroadcasts()
     } catch (err) {
-      setError(err.message || '생성에 실패했습니다.')
+      toast.error(err.message || '생성에 실패했습니다.')
     }
   }
 
@@ -84,9 +87,10 @@ export default function BroadcastPage() {
     if (!confirm('이 브로드캐스트를 취소하시겠습니까?')) return
     try {
       await broadcastService.cancel(id)
+      toast.success('브로드캐스트가 취소되었습니다.')
       await loadBroadcasts()
     } catch (err) {
-      setError(err.message || '취소에 실패했습니다.')
+      toast.error(err.message || '취소에 실패했습니다.')
     }
   }
 

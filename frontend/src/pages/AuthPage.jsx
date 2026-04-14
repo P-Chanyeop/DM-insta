@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { authService } from '../api/services'
+import { useToast } from '../components/Toast'
 
 export default function AuthPage() {
   const navigate = useNavigate()
@@ -33,13 +34,8 @@ export default function AuthPage() {
   // Terms / Privacy modal state
   const [modalType, setModalType] = useState(null) // 'terms' | 'privacy' | null
 
-  // Toast state
-  const [toast, setToast] = useState('')
-
-  const showToast = (msg) => {
-    setToast(msg)
-    setTimeout(() => setToast(''), 4000)
-  }
+  const toast = useToast()
+  const showToast = (msg) => toast.info(msg)
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
@@ -238,7 +234,7 @@ export default function AuthPage() {
           <div className="auth-deco-shape shape-3" />
         </div>
 
-        {toast && <Toast message={toast} onClose={() => setToast('')} />}
+        {/* Toast is now global via ToastProvider */}
       </div>
     )
   }
@@ -360,7 +356,7 @@ export default function AuthPage() {
         </div>
 
         {/* Toast */}
-        {toast && <Toast message={toast} onClose={() => setToast('')} />}
+        {/* Toast is now global via ToastProvider */}
 
         {/* Modal */}
         {modalType && <LegalModal type={modalType} onClose={() => setModalType(null)} />}
@@ -495,29 +491,8 @@ export default function AuthPage() {
         <div className="auth-deco-shape shape-3" />
       </div>
 
-      {/* Toast */}
-      {toast && <Toast message={toast} onClose={() => setToast('')} />}
-
       {/* Legal Modal */}
       {modalType && <LegalModal type={modalType} onClose={() => setModalType(null)} />}
-    </div>
-  )
-}
-
-function Toast({ message, onClose }) {
-  return (
-    <div style={{
-      position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
-      background: '#1e1b4b', color: '#fff', padding: '12px 24px', borderRadius: 12,
-      fontSize: 14, fontWeight: 500, boxShadow: '0 8px 32px rgba(0,0,0,.2)',
-      zIndex: 10000, display: 'flex', alignItems: 'center', gap: 10, maxWidth: '90vw',
-      animation: 'fadeInUp 0.3s ease'
-    }}>
-      <i className="ri-information-line" style={{ fontSize: 18, color: '#a78bfa' }} />
-      <span>{message}</span>
-      <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#a78bfa', cursor: 'pointer', fontSize: 16, padding: '0 0 0 8px' }}>
-        <i className="ri-close-line" />
-      </button>
     </div>
   )
 }
