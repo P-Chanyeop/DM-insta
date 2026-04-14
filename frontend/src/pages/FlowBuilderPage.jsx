@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   ReactFlow,
@@ -22,6 +22,7 @@ import {
   NODE_PALETTE,
   generateNodeId,
 } from '../components/flow-builder/flowSerializer'
+import OnboardingTour from '../components/OnboardingTour'
 
 /* ──────────────────────────────────────────────────────
  *  ManyChat-style 비주얼 플로우 빌더
@@ -35,6 +36,7 @@ export default function FlowBuilderPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const reactFlowWrapper = useRef(null)
+  const tourRef = useRef(null)
   const [reactFlowInstance, setReactFlowInstance] = useState(null)
 
   const [currentFlowId, setCurrentFlowId] = useState(location.state?.flowId || null)
@@ -54,6 +56,9 @@ export default function FlowBuilderPage() {
 
   // 노드 팔레트 열림 상태
   const [paletteOpen, setPaletteOpen] = useState(false)
+
+  // DM 미리보기 패널 열림 상태
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   // 기존 플로우 로드
   useEffect(() => {
@@ -226,6 +231,20 @@ export default function FlowBuilderPage() {
             <span className="fb-toggle-slider" />
           </label>
           <button
+            className="fb-preview-toggle-btn"
+            onClick={() => tourRef.current?.restart()}
+            title="사용법 가이드"
+          >
+            <i className="ri-question-line" />
+          </button>
+          <button
+            className={`fb-preview-toggle-btn ${previewOpen ? 'active' : ''}`}
+            onClick={() => setPreviewOpen(!previewOpen)}
+            title="DM 미리보기"
+          >
+            <i className="ri-smartphone-line" />
+          </button>
+          <button
             className="btn-primary small"
             onClick={handleSave}
             disabled={saving}
@@ -359,7 +378,211 @@ export default function FlowBuilderPage() {
             )}
           </div>
         )}
+
+        {/* DM 미리보기 패널 (우측) */}
+        {previewOpen && (
+          <PhonePreview nodes={nodes} />
+        )}
       </div>
+
+      <OnboardingTour ref={tourRef} />
+    </div>
+  )
+}
+
+/* ── 인스타그램 DM 폰 프리뷰 (다크모드) ── */
+function PhonePreview({ nodes }) {
+  const msgs = []
+
+  // 노드 데이터에서 메시지 목록 생성
+  const triggerNode = nodes.find(n => n.type === 'trigger')
+  const commentReplyNode = nodes.find(n => n.type === 'commentReply')
+  const openingNode = nodes.find(n => n.type === 'message' && n.data.role === 'opening')
+  const followCheckNode = nodes.find(n => n.type === 'condition' && n.data.conditionType === 'followCheck')
+  const emailCheckNode = nodes.find(n => n.type === 'condition' && n.data.conditionType === 'emailCheck')
+  const mainNode = nodes.find(n => n.type === 'message' && n.data.role === 'main')
+  const delayNode = nodes.find(n => n.type === 'delay')
+  const followUpNode = nodes.find(n => n.type === 'message' && n.data.role === 'followup')
+
+  // 오프닝 DM
+  if (openingNode) {
+    msgs.push({
+      type: 'bot-bubble',
+      text: openingNode.data.message || '오프닝 메시지',
+      buttons: openingNode.data.buttonText ? [{ label: openingNode.data.buttonText }] : [],
+      step: '오프닝 DM',
+    })
+    if (openingNode.data.buttonText) {
+      msgs.push({ type: 'user-action', text: `"${openingNode.data.buttonText}" 버튼 탭` })
+    }
+  }
+
+  // 팔로우 체크
+  if (followCheckNode) {
+    msgs.push({
+      type: 'bot-bubble',
+      text: followCheckNode.data.message || '팔로우 후 다시 시도해 주세요',
+      buttons: [{ label: '팔로우 하기' }],
+      step: '팔로우 확인',
+    })
+    msgs.push({ type: 'user-action', text: '팔로우 완료' })
+  }
+
+  // 이메일 수집
+  if (emailCheckNode) {
+    msgs.push({ type: 'bot-bubble', text: emailCheckNode.data.message || '이메일을 입력해 주세요', buttons: [], step: '이메일 수집' })
+    msgs.push({ type: 'user-text', text: 'example@email.com' })
+  }
+
+  // 메인 DM + 링크
+  if (mainNode) {
+    const linkBtns = (mainNode.data.links || []).filter(l => l.label || l.url).map(l => ({ label: l.label || '링크', url: l.url }))
+    msgs.push({ type: 'bot-bubble', text: mainNode.data.message || '메인 메시지', buttons: linkBtns, step: '메인 DM' })
+  }
+
+  // 팔로업
+  if (followUpNode) {
+    const d = delayNode?.data
+    const unitLabel = d?.unit === 'hours' ? '시간' : d?.unit === 'days' ? '일' : '분'
+    msgs.push({ type: 'delay', value: d?.delay || 30, unit: d?.unit || 'minutes' })
+    msgs.push({ type: 'bot-bubble', text: followUpNode.data.message || '팔로업 메시지', buttons: [], step: '팔로업' })
+  }
+
+  const triggerKeyword = triggerNode?.data.keywords || '키워드'
+  const triggerType = triggerNode?.data.triggerType || 'comment'
+
+  return (
+    <div className="ig-preview-wrap">
+      <div className="ig-phone">
+        <div className="ig-phone-notch" />
+        <div className="ig-screen">
+          {/* 헤더 */}
+          <div className="ig-header">
+            <i className="ri-arrow-left-s-line" />
+            <div className="ig-header-avatar">
+              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop stop-color='%23FCAF45'/%3E%3Cstop offset='.5' stop-color='%23FD1D1D'/%3E%3Cstop offset='1' stop-color='%23833AB4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='16' fill='url(%23g)'/%3E%3Ctext x='16' y='21' text-anchor='middle' fill='white' font-size='14' font-weight='bold' font-family='sans-serif'%3EB%3C/text%3E%3C/svg%3E" alt="" />
+            </div>
+            <div className="ig-header-info">
+              <strong>my_brand</strong>
+              <span>Business chat</span>
+            </div>
+            <div className="ig-header-actions">
+              <i className="ri-phone-line" />
+              <i className="ri-vidicon-line" />
+            </div>
+          </div>
+
+          {/* 대화 영역 */}
+          <div className="ig-chat">
+            <div className="ig-chat-notice">
+              <i className="ri-store-2-line" /> Business chat
+            </div>
+            <div className="ig-timestamp">오늘</div>
+
+            {/* 유저 시작 메시지 */}
+            <div className="ig-msg-row sent">
+              <div className="ig-bubble-sent">
+                {triggerType === 'comment' ? (triggerKeyword || '키워드') : '안녕하세요'}
+              </div>
+            </div>
+
+            {/* 댓글 답장 (댓글 트리거일 때) */}
+            {commentReplyNode && triggerType === 'comment' && (
+              <div className="ig-step-label"><i className="ri-arrow-right-s-fill" /> 공개 댓글 답장</div>
+            )}
+
+            {msgs.length === 0 && (
+              <div className="ig-empty-hint">
+                <p>노드를 추가하면 미리보기가 표시됩니다</p>
+              </div>
+            )}
+
+            {msgs.map((msg, i) => {
+              if (msg.type === 'bot-bubble') {
+                const showAvatar = i === 0 || msgs[i-1]?.type === 'user-text' || msgs[i-1]?.type === 'user-action' || msgs[i-1]?.type === 'delay'
+                return (
+                  <div key={i}>
+                    {msg.step && <div className="ig-step-label"><i className="ri-arrow-right-s-fill" /> {msg.step}</div>}
+                    <div className="ig-msg-row received">
+                      {showAvatar ? <div className="ig-avatar-small">B</div> : <div className="ig-avatar-spacer" />}
+                      <div className={`ig-bubble-received${msg.buttons?.length ? ' has-buttons' : ''}`}>
+                        <div className="ig-bubble-text">{msg.text}</div>
+                        {msg.buttons?.length > 0 && (
+                          <div className="ig-bubble-buttons">
+                            {msg.buttons.map((btn, j) => (
+                              <div key={j} className="ig-bubble-btn">
+                                {btn.url && <i className="ri-external-link-line" />}
+                                {btn.label}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+              if (msg.type === 'user-action') {
+                return (
+                  <div key={i} className="ig-user-action">
+                    <i className="ri-cursor-line" /> {msg.text}
+                  </div>
+                )
+              }
+              if (msg.type === 'user-text') {
+                return (
+                  <div key={i} className="ig-msg-row sent">
+                    <div className="ig-bubble-sent">{msg.text}</div>
+                  </div>
+                )
+              }
+              if (msg.type === 'delay') {
+                const unitLabel = msg.unit === 'minutes' ? '분' : msg.unit === 'hours' ? '시간' : '일'
+                return (
+                  <div key={i} className="ig-delay-badge">
+                    <i className="ri-time-line" /> {msg.value}{unitLabel} 후
+                  </div>
+                )
+              }
+              return null
+            })}
+          </div>
+
+          {/* 하단 입력 */}
+          <div className="ig-input-bar">
+            <div className="ig-input-camera"><i className="ri-camera-line" /></div>
+            <div className="ig-input-field">Message...</div>
+            <div className="ig-input-icons">
+              <i className="ri-mic-line" />
+              <i className="ri-image-line" />
+              <i className="ri-sticker-line" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 공개 댓글 프리뷰 */}
+      {commentReplyNode && triggerType === 'comment' && commentReplyNode.data.replies?.[0] && (
+        <div className="fb-comment-preview">
+          <h4><i className="ri-chat-3-line" /> 공개 댓글 답장 미리보기</h4>
+          <div className="fb-comment-preview-body">
+            <div className="fb-comment-item">
+              <div className="fb-comment-avatar">U</div>
+              <div>
+                <strong>@user</strong>
+                <p>{triggerKeyword || '키워드'}</p>
+              </div>
+            </div>
+            <div className="fb-comment-item reply">
+              <div className="fb-comment-avatar brand">B</div>
+              <div>
+                <strong>@my_brand</strong>
+                <p>{commentReplyNode.data.replies[0]}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
