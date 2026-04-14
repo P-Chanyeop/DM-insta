@@ -1211,6 +1211,38 @@ label.ne-radio {
 }
 .ne-add-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-50); }
 
+/* A/B 테스트 노드 바 */
+.flow-node-abtest-bars {
+  display: flex; gap: 3px; border-radius: 6px; overflow: hidden; font-size: 11px; font-weight: 700;
+}
+.flow-node-abtest-bar {
+  padding: 6px 4px; text-align: center; color: white; min-width: 0;
+}
+.flow-node-abtest-bar.a { background: #F97316; }
+.flow-node-abtest-bar.b { background: #3B82F6; }
+
+/* 캐러셀 편집기 카드 블록 */
+.ne-card-block {
+  border: 1px solid var(--gray-200); border-radius: 10px; padding: 12px;
+  margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;
+  background: var(--gray-50);
+}
+.ne-card-block-header {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; font-weight: 700; color: var(--gray-600);
+}
+
+/* A/B 테스트 편집기 슬라이더 */
+.ne-abtest-slider { padding: 4px 0; }
+.ne-abtest-slider input[type="range"] {
+  width: 100%; accent-color: #F97316; height: 6px; cursor: pointer;
+}
+.ne-abtest-labels {
+  display: flex; justify-content: space-between; margin-top: 6px; font-size: 13px; font-weight: 700;
+}
+.ne-abtest-a { color: #F97316; }
+.ne-abtest-b { color: #3B82F6; }
+
 /* 헤더 아이콘 버튼 공통 */
 .fb-guide-btn,
 .fb-preview-toggle-btn {
@@ -1309,6 +1341,34 @@ label.ne-radio {
   padding: 10px; font-size: 10px; color: #666; font-weight: 600;
 }
 .ig-delay-badge i { font-size: 12px; }
+
+/* 시스템 노트 (액션, 웹훅, A/B 테스트) */
+.ig-system-note {
+  margin: 6px 16px; padding: 8px 12px; background: rgba(255,255,255,0.06);
+  border: 1px dashed rgba(255,255,255,0.15); border-radius: 8px;
+  font-size: 10px; color: #999; text-align: center; line-height: 1.4;
+}
+
+/* 캐러셀 미리보기 */
+.ig-carousel-preview {
+  display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 4px 44px;
+  scrollbar-width: none;
+}
+.ig-carousel-preview::-webkit-scrollbar { display: none; }
+.ig-carousel-card {
+  flex: 0 0 150px; background: #262626; border-radius: 10px; overflow: hidden;
+}
+.ig-carousel-img {
+  height: 90px; background: #363636; display: flex; align-items: center; justify-content: center;
+  color: #666; font-size: 24px;
+}
+.ig-carousel-title { padding: 8px 10px 2px; font-size: 12px; font-weight: 600; color: #fff; }
+.ig-carousel-subtitle { padding: 0 10px 4px; font-size: 10px; color: #999; }
+.ig-carousel-btn {
+  margin: 4px 8px 8px; padding: 6px; background: #0095F6; border-radius: 6px;
+  text-align: center; font-size: 11px; font-weight: 600; color: #fff;
+}
+
 .ig-empty-hint { text-align: center; color: #666; padding: 30px 16px; }
 .ig-empty-hint p { font-size: 12px; line-height: 1.5; margin: 0; }
 .ig-input-bar {

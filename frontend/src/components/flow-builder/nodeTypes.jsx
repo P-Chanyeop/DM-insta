@@ -13,6 +13,9 @@ const nodeColors = {
   condition: '#8B5CF6',
   action: '#10B981',
   delay: '#F59E0B',
+  webhook: '#6366F1',
+  carousel: '#EC4899',
+  abtest: '#F97316',
 }
 
 /* ── 트리거 노드 ── */
@@ -193,6 +196,145 @@ export const DelayNode = memo(({ data, selected }) => {
 })
 DelayNode.displayName = 'DelayNode'
 
+/* ── 액션 노드 (태그, 변수, 노트 등) ── */
+export const ActionNode = memo(({ data, selected }) => {
+  const actionLabels = {
+    addTag: '태그 추가',
+    removeTag: '태그 제거',
+    setVariable: '변수 설정',
+    addNote: '노트 추가',
+    subscribe: '구독 처리',
+    unsubscribe: '구독 해제',
+  }
+  const actionIcons = {
+    addTag: 'ri-price-tag-3-line',
+    removeTag: 'ri-price-tag-3-line',
+    setVariable: 'ri-braces-line',
+    addNote: 'ri-sticky-note-line',
+    subscribe: 'ri-user-add-line',
+    unsubscribe: 'ri-user-unfollow-line',
+  }
+
+  return (
+    <div className={`flow-node action-node ${selected ? 'selected' : ''}`}>
+      <Handle type="target" position={Position.Top} className="flow-handle" />
+      <div className="flow-node-header" style={{ background: nodeColors.action }}>
+        <i className={actionIcons[data.actionType] || 'ri-lightning-line'} />
+        <span>액션</span>
+      </div>
+      <div className="flow-node-body">
+        <div className="flow-node-label">{actionLabels[data.actionType] || '액션 선택'}</div>
+        {data.value && (
+          <div className="flow-node-detail">
+            <i className="ri-arrow-right-s-line" /> {data.value}
+          </div>
+        )}
+      </div>
+      <Handle type="source" position={Position.Bottom} className="flow-handle" />
+    </div>
+  )
+})
+ActionNode.displayName = 'ActionNode'
+
+/* ── 웹훅 노드 (외부 API 호출) ── */
+export const WebhookNode = memo(({ data, selected }) => (
+  <div className={`flow-node webhook-node ${selected ? 'selected' : ''}`}>
+    <Handle type="target" position={Position.Top} className="flow-handle" />
+    <div className="flow-node-header" style={{ background: nodeColors.webhook }}>
+      <i className="ri-webhook-line" />
+      <span>웹훅</span>
+    </div>
+    <div className="flow-node-body">
+      <div className="flow-node-label">{data.method || 'POST'} 요청</div>
+      {data.url ? (
+        <div className="flow-node-detail">
+          <i className="ri-link" /> {data.url.length > 35 ? data.url.slice(0, 35) + '...' : data.url}
+        </div>
+      ) : (
+        <div className="flow-node-placeholder">URL을 설정하세요</div>
+      )}
+    </div>
+    <Handle type="source" position={Position.Bottom} className="flow-handle" />
+  </div>
+))
+WebhookNode.displayName = 'WebhookNode'
+
+/* ── 캐러셀 노드 (이미지 카드 슬라이더) ── */
+export const CarouselNode = memo(({ data, selected }) => {
+  const cards = data.cards || []
+  return (
+    <div className={`flow-node carousel-node ${selected ? 'selected' : ''}`}>
+      <Handle type="target" position={Position.Top} className="flow-handle" />
+      <div className="flow-node-header" style={{ background: nodeColors.carousel }}>
+        <i className="ri-gallery-line" />
+        <span>캐러셀</span>
+      </div>
+      <div className="flow-node-body">
+        {cards.length > 0 ? (
+          <>
+            <div className="flow-node-preview">"{cards[0].title || '제목 없음'}"</div>
+            {cards.length > 1 && (
+              <div className="flow-node-detail">
+                <i className="ri-stack-line" /> 총 {cards.length}장의 카드
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flow-node-placeholder">카드를 추가하세요</div>
+        )}
+      </div>
+      <Handle type="source" position={Position.Bottom} className="flow-handle" />
+    </div>
+  )
+})
+CarouselNode.displayName = 'CarouselNode'
+
+/* ── A/B 테스트 노드 (트래픽 분기) ── */
+export const ABTestNode = memo(({ data, selected }) => {
+  const variantA = data.variantA ?? 50
+  const variantB = 100 - variantA
+
+  return (
+    <div className={`flow-node abtest-node ${selected ? 'selected' : ''}`}>
+      <Handle type="target" position={Position.Top} className="flow-handle" />
+      <div className="flow-node-header" style={{ background: nodeColors.abtest }}>
+        <i className="ri-split-cells-horizontal" />
+        <span>A/B 테스트</span>
+      </div>
+      <div className="flow-node-body">
+        <div className="flow-node-abtest-bars">
+          <div className="flow-node-abtest-bar a" style={{ flex: variantA }}>A {variantA}%</div>
+          <div className="flow-node-abtest-bar b" style={{ flex: variantB }}>B {variantB}%</div>
+        </div>
+        {data.testName && (
+          <div className="flow-node-detail" style={{ marginTop: 4 }}>
+            <i className="ri-test-tube-line" /> {data.testName}
+          </div>
+        )}
+      </div>
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="a"
+        className="flow-handle flow-handle-pass"
+        style={{ left: '35%' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="b"
+        className="flow-handle flow-handle-fail"
+        style={{ left: '65%' }}
+      />
+      <div className="flow-node-handle-labels">
+        <span className="pass-label">A</span>
+        <span className="fail-label">B</span>
+      </div>
+    </div>
+  )
+})
+ABTestNode.displayName = 'ABTestNode'
+
 /* ── 노드 타입 등록 맵 ── */
 export const nodeTypeMap = {
   trigger: TriggerNode,
@@ -200,4 +342,8 @@ export const nodeTypeMap = {
   message: MessageNode,
   condition: ConditionNode,
   delay: DelayNode,
+  action: ActionNode,
+  webhook: WebhookNode,
+  carousel: CarouselNode,
+  abtest: ABTestNode,
 }

@@ -130,7 +130,80 @@ export function flowDataToGraph(fd) {
   prevNodeId = mainId
   y += Y_SPACING
 
-  // 7. 팔로업
+  // 7. 액션 노드들
+  if (fd.actions?.length > 0) {
+    fd.actions.forEach((act, i) => {
+      const id = `action-${i + 1}`
+      nodes.push({
+        id,
+        type: 'action',
+        position: { x: X_CENTER, y },
+        data: {
+          actionType: act.actionType || 'addTag',
+          value: act.value || '',
+        },
+      })
+      edges.push(makeEdge(prevNodeId, id))
+      prevNodeId = id
+      y += Y_SPACING
+    })
+  }
+
+  // 8. 웹훅 노드들
+  if (fd.webhooks?.length > 0) {
+    fd.webhooks.forEach((wh, i) => {
+      const id = `webhook-${i + 1}`
+      nodes.push({
+        id,
+        type: 'webhook',
+        position: { x: X_CENTER, y },
+        data: {
+          method: wh.method || 'POST',
+          url: wh.url || '',
+          headers: wh.headers || '{}',
+          body: wh.body || '',
+        },
+      })
+      edges.push(makeEdge(prevNodeId, id))
+      prevNodeId = id
+      y += Y_SPACING
+    })
+  }
+
+  // 9. 캐러셀 노드
+  if (fd.carousel?.enabled) {
+    const id = 'carousel-1'
+    nodes.push({
+      id,
+      type: 'carousel',
+      position: { x: X_CENTER, y },
+      data: {
+        cards: fd.carousel.cards || [],
+      },
+    })
+    edges.push(makeEdge(prevNodeId, id))
+    prevNodeId = id
+    y += Y_SPACING
+  }
+
+  // 10. A/B 테스트 노드
+  if (fd.abtest?.enabled) {
+    const id = 'abtest-1'
+    nodes.push({
+      id,
+      type: 'abtest',
+      position: { x: X_CENTER, y },
+      data: {
+        testName: fd.abtest.testName || '',
+        variantA: fd.abtest.variantA ?? 50,
+      },
+    })
+    edges.push(makeEdge(prevNodeId, id))
+    prevNodeId = id
+    y += Y_SPACING
+  }
+
+  // 11. 팔로업
   if (fd.followUp?.enabled) {
     const unitMap = { '분': 'minutes', '시간': 'hours', '일': 'days' }
     const delayId = 'delay-1'
@@ -178,6 +251,10 @@ export function graphToFlowData(nodes, edges) {
   const mainNode = nodes.find(n => n.type === 'message' && n.data.role === 'main')
   const delayNode = nodes.find(n => n.type === 'delay')
   const followUpNode = nodes.find(n => n.type === 'message' && n.data.role === 'followup')
+  const actionNodes = nodes.filter(n => n.type === 'action')
+  const webhookNodes = nodes.filter(n => n.type === 'webhook')
+  const carouselNode = nodes.find(n => n.type === 'carousel')
+  const abtestNode = nodes.find(n => n.type === 'abtest')
 
   const td = triggerNode?.data || {}
 
@@ -211,6 +288,25 @@ export function graphToFlowData(nodes, edges) {
     mainDm: {
       message: mainNode?.data.message || '',
       links: (mainNode?.data.links || []).filter(l => l.url).map(l => ({ text: l.label || '', url: l.url })),
+    },
+    actions: actionNodes.map(n => ({
+      actionType: n.data.actionType || 'addTag',
+      value: n.data.value || '',
+    })),
+    webhooks: webhookNodes.map(n => ({
+      method: n.data.method || 'POST',
+      url: n.data.url || '',
+      headers: n.data.headers || '{}',
+      body: n.data.body || '',
+    })),
+    carousel: {
+      enabled: !!carouselNode,
+      cards: carouselNode?.data.cards || [],
+    },
+    abtest: {
+      enabled: !!abtestNode,
+      testName: abtestNode?.data.testName || '',
+      variantA: abtestNode?.data.variantA ?? 50,
     },
     followUp: {
       enabled: !!followUpNode,
@@ -285,6 +381,14 @@ export const NODE_PALETTE = [
     defaultData: { delay: 30, unit: 'minutes' } },
   { type: 'message', label: '팔로업 DM', icon: 'ri-time-line', color: '#F59E0B',
     defaultData: { role: 'followup', message: '' } },
+  { type: 'action', label: '액션', icon: 'ri-lightning-line', color: '#10B981',
+    defaultData: { actionType: 'addTag', value: '' } },
+  { type: 'webhook', label: '웹훅', icon: 'ri-webhook-line', color: '#6366F1',
+    defaultData: { method: 'POST', url: '', headers: '{}', body: '' } },
+  { type: 'carousel', label: '캐러셀', icon: 'ri-gallery-line', color: '#EC4899',
+    defaultData: { cards: [{ title: '', subtitle: '', imageUrl: '', buttonText: '', buttonUrl: '' }] } },
+  { type: 'abtest', label: 'A/B 테스트', icon: 'ri-split-cells-horizontal', color: '#F97316',
+    defaultData: { testName: '', variantA: 50 } },
   { type: '_payment', label: '결제 연동', icon: 'ri-bank-card-line', color: '#10B981',
     comingSoon: true },
   { type: '_ai', label: 'AI 자동 응답', icon: 'ri-robot-line', color: '#06B6D4',

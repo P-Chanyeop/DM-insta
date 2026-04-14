@@ -26,6 +26,10 @@ export default function NodeEditor({ node, onUpdate, onClose }) {
         {node.type === 'message' && <MessageEditor data={data} update={update} />}
         {node.type === 'condition' && <ConditionEditor data={data} update={update} />}
         {node.type === 'delay' && <DelayEditor data={data} update={update} />}
+        {node.type === 'action' && <ActionEditor data={data} update={update} />}
+        {node.type === 'webhook' && <WebhookEditor data={data} update={update} />}
+        {node.type === 'carousel' && <CarouselEditor data={data} update={update} />}
+        {node.type === 'abtest' && <ABTestEditor data={data} update={update} />}
       </div>
     </div>
   )
@@ -38,6 +42,10 @@ function getNodeTitle(node) {
     message: node.data.role === 'opening' ? '오프닝 DM 설정' : node.data.role === 'main' ? '메인 DM 설정' : '팔로업 DM 설정',
     condition: node.data.conditionType === 'followCheck' ? '팔로우 확인 설정' : '이메일 수집 설정',
     delay: '대기 시간 설정',
+    action: '액션 설정',
+    webhook: '웹훅 설정',
+    carousel: '캐러셀 설정',
+    abtest: 'A/B 테스트 설정',
   }
   return titles[node.type] || '설정'
 }
@@ -278,5 +286,176 @@ function DelayEditor({ data, update }) {
         <span className="ne-hint" style={{ margin: 0 }}>후 다음 단계 실행</span>
       </div>
     </div>
+  )
+}
+
+/* ── 액션 편집기 ── */
+function ActionEditor({ data, update }) {
+  return (
+    <>
+      <div className="ne-field">
+        <label>액션 유형</label>
+        <div className="ne-trigger-cards">
+          {[
+            { value: 'addTag', icon: 'ri-price-tag-3-line', label: '태그 추가', color: '#10B981' },
+            { value: 'removeTag', icon: 'ri-price-tag-3-line', label: '태그 제거', color: '#EF4444' },
+            { value: 'setVariable', icon: 'ri-braces-line', label: '변수 설정', color: '#8B5CF6' },
+            { value: 'addNote', icon: 'ri-sticky-note-line', label: '노트 추가', color: '#F59E0B' },
+            { value: 'subscribe', icon: 'ri-user-add-line', label: '구독 처리', color: '#3B82F6' },
+            { value: 'unsubscribe', icon: 'ri-user-unfollow-line', label: '구독 해제', color: '#6B7280' },
+          ].map(a => (
+            <button
+              key={a.value}
+              className={`ne-trigger-card ${data.actionType === a.value ? 'active' : ''}`}
+              onClick={() => update({ actionType: a.value })}
+            >
+              <i className={a.icon} style={{ color: a.color }} />
+              <span>{a.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="ne-field">
+        <label>
+          {data.actionType === 'addTag' || data.actionType === 'removeTag' ? '태그명' :
+           data.actionType === 'setVariable' ? '변수명 = 값 (예: vip=true)' :
+           data.actionType === 'addNote' ? '노트 내용' : '설명 (선택)'}
+        </label>
+        <input className="ne-input"
+          value={data.value || ''}
+          onChange={e => update({ value: e.target.value })}
+          placeholder={
+            data.actionType === 'addTag' ? '예: VIP, 관심고객' :
+            data.actionType === 'removeTag' ? '예: 신규' :
+            data.actionType === 'setVariable' ? '예: score=100' :
+            data.actionType === 'addNote' ? '예: 상담 요청 고객' : ''
+          }
+        />
+      </div>
+    </>
+  )
+}
+
+/* ── 웹훅 편집기 ── */
+function WebhookEditor({ data, update }) {
+  return (
+    <>
+      <div className="ne-field">
+        <label>HTTP 메서드</label>
+        <select className="ne-select" value={data.method || 'POST'}
+          onChange={e => update({ method: e.target.value })}>
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+          <option value="PATCH">PATCH</option>
+          <option value="DELETE">DELETE</option>
+        </select>
+      </div>
+      <div className="ne-field">
+        <label>URL</label>
+        <input className="ne-input" value={data.url || ''}
+          onChange={e => update({ url: e.target.value })}
+          placeholder="https://api.example.com/webhook" />
+      </div>
+      <div className="ne-field">
+        <label>헤더 (JSON)</label>
+        <textarea className="ne-textarea" rows={3}
+          value={data.headers || '{}'}
+          onChange={e => update({ headers: e.target.value })}
+          placeholder='{"Authorization": "Bearer xxx"}' />
+        <div className="ne-hint">JSON 형식으로 입력하세요</div>
+      </div>
+      <div className="ne-field">
+        <label>요청 본문</label>
+        <textarea className="ne-textarea" rows={4}
+          value={data.body || ''}
+          onChange={e => update({ body: e.target.value })}
+          placeholder={'{"user": "{username}", "email": "{이메일}"}'} />
+        <div className="ne-hint">변수를 사용할 수 있습니다: {'{이름}'}, {'{username}'}, {'{이메일}'}</div>
+      </div>
+    </>
+  )
+}
+
+/* ── 캐러셀 편집기 ── */
+function CarouselEditor({ data, update }) {
+  const cards = data.cards || [{ title: '', subtitle: '', imageUrl: '', buttonText: '', buttonUrl: '' }]
+
+  const updateCard = (i, patch) => {
+    const arr = [...cards]
+    arr[i] = { ...arr[i], ...patch }
+    update({ cards: arr })
+  }
+
+  return (
+    <div className="ne-field">
+      <label>카드 목록 (최대 10장, 좌우 스와이프)</label>
+      {cards.map((card, i) => (
+        <div key={i} className="ne-card-block">
+          <div className="ne-card-block-header">
+            <span>카드 {i + 1}</span>
+            {cards.length > 1 && (
+              <button className="ne-remove-btn" onClick={() => update({ cards: cards.filter((_, j) => j !== i) })}>
+                <i className="ri-close-line" />
+              </button>
+            )}
+          </div>
+          <input className="ne-input" placeholder="제목"
+            value={card.title || ''} onChange={e => updateCard(i, { title: e.target.value })} />
+          <input className="ne-input" placeholder="부제목 (선택)"
+            value={card.subtitle || ''} onChange={e => updateCard(i, { subtitle: e.target.value })} />
+          <input className="ne-input" placeholder="이미지 URL"
+            value={card.imageUrl || ''} onChange={e => updateCard(i, { imageUrl: e.target.value })} />
+          <div className="ne-link-row">
+            <input className="ne-input" placeholder="버튼 텍스트"
+              value={card.buttonText || ''} onChange={e => updateCard(i, { buttonText: e.target.value })}
+              style={{ flex: '0 0 120px' }} />
+            <input className="ne-input" placeholder="버튼 URL"
+              value={card.buttonUrl || ''} onChange={e => updateCard(i, { buttonUrl: e.target.value })} />
+          </div>
+        </div>
+      ))}
+      {cards.length < 10 && (
+        <button className="ne-add-btn" onClick={() => update({
+          cards: [...cards, { title: '', subtitle: '', imageUrl: '', buttonText: '', buttonUrl: '' }]
+        })}>
+          + 카드 추가
+        </button>
+      )}
+    </div>
+  )
+}
+
+/* ── A/B 테스트 편집기 ── */
+function ABTestEditor({ data, update }) {
+  const variantA = data.variantA ?? 50
+  const variantB = 100 - variantA
+
+  return (
+    <>
+      <div className="ne-field">
+        <label>테스트 이름</label>
+        <input className="ne-input" value={data.testName || ''}
+          onChange={e => update({ testName: e.target.value })}
+          placeholder="예: 오프닝 메시지 비교" />
+      </div>
+      <div className="ne-field">
+        <label>트래픽 배분</label>
+        <div className="ne-abtest-slider">
+          <input type="range" min={10} max={90} step={5}
+            value={variantA}
+            onChange={e => update({ variantA: Number(e.target.value) })} />
+          <div className="ne-abtest-labels">
+            <span className="ne-abtest-a">A: {variantA}%</span>
+            <span className="ne-abtest-b">B: {variantB}%</span>
+          </div>
+        </div>
+        <div className="ne-hint">A와 B 경로로 트래픽을 분배합니다. 각 경로에 다른 메시지 노드를 연결하세요.</div>
+      </div>
+      <div className="ne-info-box">
+        <i className="ri-information-line" />
+        <span>A/B 테스트 노드의 두 출력 핸들(A, B)에 각각 다른 노드를 연결하면 트래픽이 설정 비율로 분기됩니다.</span>
+      </div>
+    </>
   )
 }

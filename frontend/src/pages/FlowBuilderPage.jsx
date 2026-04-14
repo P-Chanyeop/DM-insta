@@ -451,6 +451,33 @@ function PhonePreview({ nodes }) {
     msgs.push({ type: 'bot-bubble', text: preview(mainNode.data.message) || '메인 메시지', hasVars: hasVariables(mainNode.data.message), buttons: linkBtns, step: '메인 DM' })
   }
 
+  // 액션 노드들
+  const actionNodes = nodes.filter(n => n.type === 'action')
+  actionNodes.forEach(an => {
+    const labels = { addTag: '태그 추가', removeTag: '태그 제거', setVariable: '변수 설정', addNote: '노트 추가', subscribe: '구독 처리', unsubscribe: '구독 해제' }
+    msgs.push({ type: 'system-note', text: `⚡ ${labels[an.data.actionType] || '액션'}: ${an.data.value || '(미설정)'}`, step: '액션' })
+  })
+
+  // 웹훅 노드들
+  const webhookNodes = nodes.filter(n => n.type === 'webhook')
+  webhookNodes.forEach(wh => {
+    msgs.push({ type: 'system-note', text: `🔗 웹훅 ${wh.data.method || 'POST'}: ${wh.data.url || '(URL 미설정)'}`, step: '웹훅' })
+  })
+
+  // 캐러셀 노드
+  const carouselNode = nodes.find(n => n.type === 'carousel')
+  if (carouselNode) {
+    const cards = carouselNode.data.cards || []
+    msgs.push({ type: 'carousel', cards: cards.map(c => ({ title: c.title || '제목 없음', subtitle: c.subtitle || '', buttonText: c.buttonText || '보기' })), step: '캐러셀' })
+  }
+
+  // A/B 테스트 노드
+  const abtestNode = nodes.find(n => n.type === 'abtest')
+  if (abtestNode) {
+    const pct = abtestNode.data.variantA ?? 50
+    msgs.push({ type: 'system-note', text: `🔀 A/B 테스트 (A:${pct}% / B:${100 - pct}%) — ${abtestNode.data.testName || '테스트'}`, step: 'A/B 테스트' })
+  }
+
   // 팔로업
   if (followUpNode) {
     const d = delayNode?.data
@@ -551,6 +578,31 @@ function PhonePreview({ nodes }) {
                 return (
                   <div key={i} className="ig-delay-badge">
                     <i className="ri-time-line" /> {msg.value}{unitLabel} 후
+                  </div>
+                )
+              }
+              if (msg.type === 'system-note') {
+                return (
+                  <div key={i}>
+                    {msg.step && <div className="ig-step-label"><i className="ri-arrow-right-s-fill" /> {msg.step}</div>}
+                    <div className="ig-system-note">{msg.text}</div>
+                  </div>
+                )
+              }
+              if (msg.type === 'carousel') {
+                return (
+                  <div key={i}>
+                    {msg.step && <div className="ig-step-label"><i className="ri-arrow-right-s-fill" /> {msg.step}</div>}
+                    <div className="ig-carousel-preview">
+                      {msg.cards.map((card, j) => (
+                        <div key={j} className="ig-carousel-card">
+                          <div className="ig-carousel-img"><i className="ri-image-line" /></div>
+                          <div className="ig-carousel-title">{card.title}</div>
+                          {card.subtitle && <div className="ig-carousel-subtitle">{card.subtitle}</div>}
+                          <div className="ig-carousel-btn">{card.buttonText}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )
               }
