@@ -1,0 +1,41 @@
+[Unit]
+Description=SendIt Backend (Spring Boot)
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=sendit
+Group=sendit
+WorkingDirectory=/opt/sendit
+
+# JAR 실행
+ExecStart=/usr/bin/java -jar \
+  -Xms256m -Xmx512m \
+  -Dspring.profiles.active=prod \
+  -Dserver.port=8080 \
+  /opt/sendit/backend.jar
+
+# 환경 변수 파일
+EnvironmentFile=/opt/sendit/.env
+
+# 재시작 정책
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+# 로그
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sendit
+
+# 보안 강화
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/sendit/logs
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

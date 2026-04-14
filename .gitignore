@@ -13,5 +13,34 @@ AvaloniaApplication1/AvaloniaApplication1/bin/Release/net8.0/win-x86/app.publish
 # Backend build artifacts
 backend/build/
 backend/.gradle/
+
+# Backend logs
+backend/logs/
+*.log
+
+# Frontend
 frontend/node_modules/
+frontend/dist/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Docker data volumes
+mysql-data/
+docker-data/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
 
