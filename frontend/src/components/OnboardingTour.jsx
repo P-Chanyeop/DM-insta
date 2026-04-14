@@ -212,6 +212,9 @@ const OnboardingTour = forwardRef(function OnboardingTour(props, ref) {
       {phase === 'welcome' && (
         <div className="onboarding-welcome">
           <div className="onboarding-welcome-card">
+            <button className="onboarding-close-btn" onClick={handleSkip} title="닫기">
+              <i className="ri-close-line" />
+            </button>
             <div className="onboarding-welcome-icon">
               <i className="ri-magic-line" />
             </div>
@@ -221,9 +224,6 @@ const OnboardingTour = forwardRef(function OnboardingTour(props, ref) {
               간단한 가이드로 각 기능을 설명해 드릴게요.
             </p>
             <div className="onboarding-welcome-actions">
-              <button className="onboarding-btn-skip" onClick={handleSkip}>
-                건너뛰기
-              </button>
               <button className="onboarding-btn-next" onClick={handleStart}>
                 시작하기 <i className="ri-arrow-right-line" style={{ marginLeft: 4 }} />
               </button>
@@ -234,7 +234,7 @@ const OnboardingTour = forwardRef(function OnboardingTour(props, ref) {
 
       {phase === 'touring' && spotlightRect && (
         <>
-          <div className="onboarding-backdrop" onClick={handleSkip} />
+          <div className="onboarding-backdrop" />
           <div
             className="onboarding-spotlight"
             style={{
@@ -249,6 +249,9 @@ const OnboardingTour = forwardRef(function OnboardingTour(props, ref) {
             data-placement={placement}
             style={tooltipStyle}
           >
+            <button className="onboarding-close-btn" onClick={handleSkip} title="닫기">
+              <i className="ri-close-line" />
+            </button>
             <div className="onboarding-dots">
               {visibleSteps.map((_, i) => (
                 <div
@@ -265,9 +268,6 @@ const OnboardingTour = forwardRef(function OnboardingTour(props, ref) {
             <div className="onboarding-footer">
               <span className="onboarding-indicator">{step + 1} / {visibleSteps.length}</span>
               <div className="onboarding-actions">
-                <button className="onboarding-btn-skip" onClick={handleSkip}>
-                  건너뛰기
-                </button>
                 {step > 0 && (
                   <button className="onboarding-btn-prev" onClick={handlePrev}>
                     이전

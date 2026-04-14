@@ -201,6 +201,7 @@
 }
 
 .onboarding-welcome-card {
+  position: relative;
   background: #fff;
   border-radius: 20px;
   padding: 40px;
@@ -240,4 +241,27 @@
   display: flex;
   gap: 12px;
   justify-content: center;
+}
+
+/* Close (X) button */
+.onboarding-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #9CA3AF;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.onboarding-close-btn:hover {
+  background: #F3F4F6;
+  color: #374151;
 }
