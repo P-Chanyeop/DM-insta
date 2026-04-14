@@ -275,9 +275,9 @@ export default function FlowBuilderPage() {
             {NODE_PALETTE.map((item, i) => (
               <div
                 key={i}
-                className="fb-palette-item"
-                draggable
-                onDragStart={(e) => onDragStart(e, item.type, item.defaultData)}
+                className={`fb-palette-item${item.comingSoon ? ' coming-soon' : ''}`}
+                draggable={!item.comingSoon}
+                onDragStart={item.comingSoon ? undefined : (e) => onDragStart(e, item.type, item.defaultData)}
               >
                 <div
                   className="fb-palette-icon"
@@ -286,6 +286,7 @@ export default function FlowBuilderPage() {
                   <i className={item.icon} />
                 </div>
                 <span>{item.label}</span>
+                {item.comingSoon && <span className="coming-soon-badge">준비중</span>}
               </div>
             ))}
           </div>

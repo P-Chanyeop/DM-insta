@@ -31,9 +31,12 @@ const INTEGRATION_DEFS = [
   { id: 'instagram', name: 'Instagram Graph API', icon: 'ri-instagram-line', color: '#E1306C', description: 'Instagram 메시지, 댓글, 스토리 자동화' },
   { id: 'shopify', name: 'Shopify', icon: 'ri-shopping-bag-line', color: '#96BF48', description: '주문 이벤트 기반 자동 DM 발송' },
   { id: 'google-sheets', name: 'Google Sheets', icon: 'ri-file-excel-line', color: '#0F9D58', description: '연락처 및 데이터 자동 동기화' },
-  { id: 'stripe', name: 'Stripe', icon: 'ri-bank-card-line', color: '#635BFF', description: '결제 이벤트 기반 자동화 트리거' },
-  { id: 'klaviyo', name: 'Klaviyo', icon: 'ri-mail-send-line', color: '#000000', description: '이메일 마케팅 연동 및 세그먼트 동기화' },
-  { id: 'openai', name: 'OpenAI / ChatGPT', icon: 'ri-robot-line', color: '#10A37F', description: 'AI 기반 자동 응답 생성' },
+  { id: 'kakaopay', name: '카카오페이', icon: 'ri-kakao-talk-fill', color: '#FEE500', description: 'DM 내 카카오페이 결제 링크 자동 발송', comingSoon: true },
+  { id: 'naverpay', name: '네이버페이', icon: 'ri-shopping-cart-line', color: '#03C75A', description: '스마트스토어 연동 결제 자동화', comingSoon: true },
+  { id: 'tosspay', name: '토스페이', icon: 'ri-bank-card-line', color: '#0064FF', description: '토스 결제/송금 링크 자동 발송', comingSoon: true },
+  { id: 'stripe', name: 'Stripe', icon: 'ri-bank-card-line', color: '#635BFF', description: '결제 이벤트 기반 자동화 트리거', comingSoon: true },
+  { id: 'klaviyo', name: 'Klaviyo', icon: 'ri-mail-send-line', color: '#000000', description: '이메일 마케팅 연동 및 세그먼트 동기화', comingSoon: true },
+  { id: 'openai', name: 'OpenAI / ChatGPT', icon: 'ri-robot-line', color: '#10A37F', description: 'AI 기반 자동 응답 생성', comingSoon: true },
   { id: 'webhook', name: 'Webhook', icon: 'ri-link', color: '#6366F1', description: '외부 시스템과 커스텀 연동' },
 ]
 
@@ -1123,21 +1126,24 @@ export default function SettingsPage() {
 
           return (
             <div
-              className={`settings-integration-card${isConnected ? ' connected' : ''}`}
+              className={`settings-integration-card${isConnected ? ' connected' : ''}${def.comingSoon ? ' coming-soon' : ''}`}
               key={def.id}
             >
               <div className="settings-integration-header">
-                <div className="settings-integration-icon" style={{ background: def.color }}>
+                <div className="settings-integration-icon" style={{ background: def.comingSoon ? '#D1D5DB' : def.color }}>
                   <i className={def.icon} style={{ color: 'white', fontSize: 20 }} />
                 </div>
                 <div className="settings-integration-title">
                   <strong>{def.name}</strong>
-                  {isConnected && (
+                  {def.comingSoon ? (
+                    <span className="settings-integration-status coming-soon">
+                      준비중
+                    </span>
+                  ) : isConnected ? (
                     <span className="settings-integration-status connected">
                       <i className="ri-checkbox-circle-fill" /> 연결됨
                     </span>
-                  )}
-                  {!isConnected && (
+                  ) : (
                     <span className="settings-integration-status disconnected">
                       미연결
                     </span>
@@ -1145,7 +1151,12 @@ export default function SettingsPage() {
                 </div>
               </div>
               <p className="settings-integration-desc">{def.description}</p>
-              {!isConnected && (
+              {def.comingSoon && (
+                <div className="settings-integration-coming-soon">
+                  <i className="ri-time-line" /> 곧 출시 예정입니다
+                </div>
+              )}
+              {!def.comingSoon && !isConnected && (
                 <div className="settings-integration-key">
                   <div className="settings-key-input-wrapper">
                     <input
@@ -1165,6 +1176,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
               )}
+              {!def.comingSoon && (
               <div className="settings-integration-actions">
                 {isConnected ? (
                   <button
@@ -1184,6 +1196,7 @@ export default function SettingsPage() {
                   </button>
                 )}
               </div>
+              )}
             </div>
           )
         })}

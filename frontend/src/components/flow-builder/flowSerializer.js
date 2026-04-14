@@ -285,6 +285,10 @@ export const NODE_PALETTE = [
     defaultData: { delay: 30, unit: 'minutes' } },
   { type: 'message', label: '팔로업 DM', icon: 'ri-time-line', color: '#F59E0B',
     defaultData: { role: 'followup', message: '' } },
+  { type: '_payment', label: '결제 연동', icon: 'ri-bank-card-line', color: '#10B981',
+    comingSoon: true },
+  { type: '_ai', label: 'AI 자동 응답', icon: 'ri-robot-line', color: '#06B6D4',
+    comingSoon: true },
 ]
 
 /* ── 유틸리티 ── */
