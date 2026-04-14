@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import EmptyState from '../components/EmptyState'
+import { SkeletonRow } from '../components/PageLoader'
 import { automationService, flowService } from '../api/services'
 
 function formatNumber(value) {
@@ -162,7 +164,7 @@ export default function AutomationPage() {
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={7}>로딩 중...</td></tr>}
+              {loading && <><SkeletonRow cols={7} /><SkeletonRow cols={7} /></>}
               {!loading && dmKeywordTriggers.length === 0 && (
                 <tr><td colSpan={7} className="empty-state">등록된 DM 키워드 트리거가 없습니다.</td></tr>
               )}
@@ -202,7 +204,7 @@ export default function AutomationPage() {
         </div>
         <div className="comment-trigger-cards">
           {!loading && commentTriggers.length === 0 && (
-            <div className="empty-state">등록된 댓글 트리거가 없습니다.</div>
+            <EmptyState compact icon="ri-chat-smile-3-line" title="등록된 댓글 트리거가 없습니다" description="댓글 키워드 감지 자동화를 추가해 보세요" />
           )}
           {commentTriggers.map((c) => (
             <div className="comment-trigger-card" key={c.id}>
@@ -251,7 +253,7 @@ export default function AutomationPage() {
         </div>
         <div className="story-triggers">
           {!loading && storyTriggers.length === 0 && (
-            <div className="empty-state">등록된 스토리 트리거가 없습니다.</div>
+            <EmptyState compact icon="ri-camera-lens-line" title="등록된 스토리 트리거가 없습니다" description="스토리 멘션/답장 자동화를 추가해 보세요" />
           )}
           {storyTriggers.map((s) => (
             <div className="story-trigger-item" key={s.id}>

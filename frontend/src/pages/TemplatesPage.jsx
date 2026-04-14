@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import EmptyState from '../components/EmptyState'
+import PageLoader from '../components/PageLoader'
 import { templateService } from '../api/services'
 
 const CATEGORIES = ['전체', '쇼핑몰', '예약/서비스', '이벤트', '리드수집', '고객지원']
@@ -101,14 +103,9 @@ export default function TemplatesPage() {
           </button>
         </div>
       ) : loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
-          <i className="ri-loader-4-line" style={{ fontSize: 24 }} /> 템플릿을 불러오는 중...
-        </div>
+        <PageLoader text="템플릿을 불러오는 중..." />
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#888' }}>
-          <i className="ri-file-search-line" style={{ fontSize: 48, display: 'block', marginBottom: 12 }} />
-          <p>조건에 맞는 템플릿이 없습니다.</p>
-        </div>
+        <EmptyState icon="ri-file-search-line" title="조건에 맞는 템플릿이 없습니다" description="다른 카테고리를 선택하거나 검색어를 변경해 보세요" />
       ) : (
         <div className="templates-app-grid">
           {filtered.map((t) => (

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import EmptyState from '../components/EmptyState'
+import PageLoader from '../components/PageLoader'
 import { broadcastService } from '../api/services'
 
 function formatNumber(value) {
@@ -119,14 +121,9 @@ export default function BroadcastPage() {
       </div>
 
       <div className="broadcast-list">
-        {loading && <div className="empty-state">로딩 중...</div>}
+        {loading && <PageLoader text="브로드캐스트를 불러오는 중..." />}
         {!loading && filtered.length === 0 && (
-          <div className="empty-state">
-            <p>브로드캐스트가 없습니다.</p>
-            <button className="btn-primary" onClick={() => setModal(true)}>
-              <i className="ri-add-line" /> 첫 브로드캐스트 만들기
-            </button>
-          </div>
+          <EmptyState icon="ri-broadcast-line" title="브로드캐스트가 없습니다" description="대량 DM을 보내려면 첫 브로드캐스트를 만들어 보세요" actionLabel="브로드캐스트 만들기" onAction={() => setModal(true)} />
         )}
         {filtered.map((b) => {
           const s = statusLabel(b.status)

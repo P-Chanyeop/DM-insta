@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import EmptyState from '../components/EmptyState'
+import PageLoader, { SkeletonCard } from '../components/PageLoader'
 import { dashboardService, flowService } from '../api/services'
 
 const RINGS_DEFAULT = [
@@ -135,14 +137,9 @@ export default function DashboardPage() {
           </div>
           <div className="chart-container">
             {loading ? (
-              <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
-                <i className="ri-loader-4-line" /> 데이터를 불러오는 중...
-              </div>
+              <PageLoader compact text="데이터를 불러오는 중..." />
             ) : !dashboard ? (
-              <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
-                <i className="ri-bar-chart-box-line" style={{ fontSize: 32, display: 'block', marginBottom: 8 }} />
-                <p>데이터가 없습니다.</p>
-              </div>
+              <EmptyState compact icon="ri-bar-chart-box-line" title="데이터가 없습니다" description="자동화를 시작하면 성과가 여기에 표시됩니다" />
             ) : (
               <div className="css-chart">
                 <div className="chart-bars">
@@ -173,12 +170,9 @@ export default function DashboardPage() {
             <Link to="/app/flows" className="dash-card-link">전체 보기</Link>
           </div>
           <div className="automation-list">
-            {loading && <div className="empty-state">로딩 중...</div>}
+            {loading && <PageLoader compact text="플로우를 불러오는 중..." />}
             {!loading && activeFlows.length === 0 && (
-              <div className="empty-state">
-                <p>활성 플로우가 없습니다.</p>
-                <Link to="/app/flows" className="dash-card-link">첫 플로우 만들기 →</Link>
-              </div>
+              <EmptyState compact icon="ri-flow-chart" title="활성 플로우가 없습니다" description="첫 자동화 플로우를 만들어 보세요" actionLabel="플로우 만들기" onAction={() => window.location.href = '/app/flows'} />
             )}
             {activeFlows.map((f) => (
               <div className="automation-item" key={f.id}>

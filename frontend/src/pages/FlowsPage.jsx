@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import EmptyState from '../components/EmptyState'
+import PageLoader, { SkeletonCard } from '../components/PageLoader'
 import { flowService } from '../api/services'
 
 // Canonical enum values match backend Flow.TriggerType
@@ -208,7 +210,15 @@ export default function FlowsPage() {
       </div>
 
       <div className="flow-cards-grid">
-        {loading && <div className="empty-state">로딩 중...</div>}
+        {loading && <><SkeletonCard /><SkeletonCard /><SkeletonCard /></>}
+
+        {!loading && visibleFlows.length === 0 && flows.length > 0 && (
+          <EmptyState
+            icon="ri-search-line"
+            title="조건에 맞는 플로우가 없습니다"
+            description="필터를 변경하거나 새 자동화를 만들어 보세요"
+          />
+        )}
 
         {!loading && visibleFlows.map((f) => {
           const meta = metaFor(f.triggerType)

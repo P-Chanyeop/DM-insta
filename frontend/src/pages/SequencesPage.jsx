@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import EmptyState from '../components/EmptyState'
+import PageLoader from '../components/PageLoader'
 import { sequenceService } from '../api/services'
 
 export default function SequencesPage() {
@@ -127,9 +129,7 @@ export default function SequencesPage() {
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>
-          <i className="ri-loader-4-line" style={{ fontSize: 24 }} /> 시퀀스를 불러오는 중...
-        </div>
+        <PageLoader text="시퀀스를 불러오는 중..." />
       ) : error ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#888' }}>
           <i className="ri-error-warning-line" style={{ fontSize: 48, display: 'block', marginBottom: 12, color: '#ff4d6a' }} />
@@ -139,10 +139,7 @@ export default function SequencesPage() {
           </button>
         </div>
       ) : sequences.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#888' }}>
-          <i className="ri-inbox-line" style={{ fontSize: 48, display: 'block', marginBottom: 12 }} />
-          <p>아직 시퀀스가 없습니다. 첫 시퀀스를 만들어보세요!</p>
-        </div>
+        <EmptyState icon="ri-list-ordered-2" title="아직 시퀀스가 없습니다" description="단계별 자동 메시지를 설정하여 고객과 지속적으로 소통하세요" actionLabel="시퀀스 만들기" onAction={() => {}} />
       ) : (
         sequences.map((seq) => (
           <div className="sequence-card" key={seq.id}>

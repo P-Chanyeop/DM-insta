@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import EmptyState from '../components/EmptyState'
+import PageLoader from '../components/PageLoader'
 import { conversationService } from '../api/services'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
@@ -633,15 +635,22 @@ export default function LiveChatPage() {
           )}
         </div>
         <div className="chat-list">
-          {loading && (
-            <div style={{ padding: '24px 16px', textAlign: 'center', color: '#999', fontSize: '14px' }}>
-              대화 목록을 불러오는 중...
-            </div>
+          {loading && <PageLoader compact text="대화 목록을 불러오는 중..." />}
+          {!loading && filteredChats.length === 0 && chats.length === 0 && (
+            <EmptyState
+              compact
+              icon="ri-chat-3-line"
+              title="대화가 없습니다"
+              description="Instagram DM이 수신되면 여기에 표시됩니다"
+            />
           )}
-          {!loading && filteredChats.length === 0 && (
-            <div style={{ padding: '24px 16px', textAlign: 'center', color: '#999', fontSize: '14px' }}>
-              검색 결과가 없습니다.
-            </div>
+          {!loading && filteredChats.length === 0 && chats.length > 0 && (
+            <EmptyState
+              compact
+              icon="ri-search-line"
+              title="검색 결과가 없습니다"
+              description="다른 키워드로 검색해 보세요"
+            />
           )}
           {filteredChats.map((c) => (
             <div
@@ -671,7 +680,16 @@ export default function LiveChatPage() {
 
       {/* Chat Main */}
       <div className="chat-main">
-        <div className="chat-main-header">
+        {!selectedChat && (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <EmptyState
+              icon="ri-message-3-line"
+              title="대화를 선택하세요"
+              description="왼쪽 목록에서 대화를 선택하면 메시지가 표시됩니다"
+            />
+          </div>
+        )}
+        {selectedChat && <><div className="chat-main-header">
           <div className="chat-user-info">
             <div className="chat-user-avatar" style={{ background: selectedChat?.bg }}>
               {selectedChat?.initial}
@@ -884,6 +902,8 @@ export default function LiveChatPage() {
             onChange={handleFileSelected}
           />
         </div>
+        </>
+        }
       </div>
 
       {/* Info Panel */}

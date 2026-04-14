@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import PageLoader from '../components/PageLoader'
+import EmptyState from '../components/EmptyState'
 import { analyticsService } from '../api/services'
 
 const PERIODS = [
@@ -144,7 +146,9 @@ function generateCSVReport({ period, overview, trendData, topFlows, funnel, enga
 /* ── SVG Line Chart ── */
 function TrendChart({ data, visibleLines }) {
   const { labels, sent, opened, clicked } = data
-  if (!labels || labels.length === 0) return null
+  if (!labels || labels.length === 0) return (
+    <EmptyState compact icon="ri-line-chart-line" title="성과 데이터가 없습니다" description="메시지를 발송하면 추이 그래프가 표시됩니다" />
+  )
 
   const W = 800
   const H = 220
@@ -159,7 +163,7 @@ function TrendChart({ data, visibleLines }) {
   ]
   const maxVal = Math.max(...allVals, 1)
 
-  const x = (i) => PAD.left + (i / (labels.length - 1)) * cw
+  const x = (i) => labels.length > 1 ? PAD.left + (i / (labels.length - 1)) * cw : PAD.left + cw / 2
   const y = (v) => PAD.top + ch - (v / maxVal) * ch
 
   const toPolyline = (arr) =>
@@ -213,7 +217,13 @@ function TrendChart({ data, visibleLines }) {
 
 /* ── Engagement Hours Chart ── */
 function EngagementHoursChart({ data }) {
-  if (!data || data.length === 0) return null
+  if (!data || data.length === 0) return (
+    <EmptyState compact icon="ri-time-line" title="참여 데이터가 없습니다" description="메시지 발송 후 시간대별 참여율이 표시됩니다" />
+  )
+  const totalValue = data.reduce((sum, d) => sum + d.value, 0)
+  if (totalValue === 0) return (
+    <EmptyState compact icon="ri-time-line" title="참여 데이터가 없습니다" description="메시지 발송 후 시간대별 참여율이 표시됩니다" />
+  )
   const maxVal = Math.max(...data.map(d => d.value), 1)
 
   return (
@@ -237,7 +247,9 @@ function EngagementHoursChart({ data }) {
 
 /* ── Contact Growth Mini Chart ── */
 function ContactGrowthChart({ data }) {
-  if (!data || data.length === 0) return null
+  if (!data || data.length === 0) return (
+    <EmptyState compact icon="ri-user-add-line" title="연락처 데이터가 없습니다" description="연락처가 추가되면 증가 추이가 표시됩니다" />
+  )
 
   const W = 400
   const H = 120
@@ -250,7 +262,7 @@ function ContactGrowthChart({ data }) {
   const maxV = Math.max(...vals)
   const range = maxV - minV || 1
 
-  const x = (i) => PAD.left + (i / (data.length - 1)) * cw
+  const x = (i) => data.length > 1 ? PAD.left + (i / (data.length - 1)) * cw : PAD.left + cw / 2
   const y = (v) => PAD.top + ch - ((v - minV) / range) * ch
 
   const line = data.map((d, i) => `${x(i)},${y(d.value)}`).join(' ')
@@ -276,13 +288,21 @@ function ContactGrowthChart({ data }) {
 /* ── Funnel ── */
 function FunnelChart({ data }) {
   const maxVal = data[0]?.value || 1
+  const allZero = data.every(d => d.value === 0)
   const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444']
+
+  if (allZero) return (
+    <EmptyState compact icon="ri-filter-3-line" title="퍼널 데이터가 없습니다" description="메시지를 발송하면 전환 퍼널이 표시됩니다" />
+  )
 
   return (
     <div className="funnel-chart">
       {data.map((step, i) => {
         const widthPct = Math.max(15, (step.value / maxVal) * 100)
-        const dropOff = i > 0 ? ((data[i - 1].value - step.value) / data[i - 1].value * 100).toFixed(1) : null
+        const prevVal = i > 0 ? data[i - 1].value : 0
+        const dropOff = i > 0 && prevVal > 0
+          ? ((prevVal - step.value) / prevVal * 100).toFixed(1)
+          : null
         return (
           <div className="funnel-step" key={step.label}>
             <div className="funnel-bar" style={{ width: `${widthPct}%`, backgroundColor: colors[i] }}>
@@ -451,11 +471,7 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      {loading && (
-        <div className="page-loading">
-          <i className="ri-loader-4-line spin" /> 데이터를 불러오는 중...
-        </div>
-      )}
+      {loading && <PageLoader text="데이터를 불러오는 중..." />}
 
       <div className="analytics-grid">
         {/* Performance Trend Chart */}
@@ -492,6 +508,9 @@ export default function AnalyticsPage() {
         <div className="dash-card">
           <div className="dash-card-header"><h3>플로우별 성과 TOP 5</h3></div>
           <div className="top-flows-list">
+            {topFlows.length === 0 && (
+              <EmptyState compact icon="ri-flow-chart" title="플로우 성과가 없습니다" description="플로우를 실행하면 성과 순위가 표시됩니다" />
+            )}
             {topFlows.map((flow, i) => (
               <div className="top-flow-item" key={flow.name}>
                 <span className="top-rank">{i + 1}</span>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { SkeletonRow } from '../components/PageLoader'
 import { contactService } from '../api/services'
 
 const GRADIENTS = [
@@ -429,7 +430,7 @@ export default function ContactsPage() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={8}>로딩 중...</td></tr>}
+            {loading && <><SkeletonRow cols={8} /><SkeletonRow cols={8} /><SkeletonRow cols={8} /></>}
             {!loading && filtered.length === 0 && (
               <tr><td colSpan={8} className="empty-state">연락처가 없습니다.</td></tr>
             )}

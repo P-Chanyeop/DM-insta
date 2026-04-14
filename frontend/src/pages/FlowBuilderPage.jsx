@@ -22,6 +22,7 @@ import {
   NODE_PALETTE,
   generateNodeId,
 } from '../components/flow-builder/flowSerializer'
+import { interpolateVariables, hasVariables } from '../components/flow-builder/VariableInserter'
 import OnboardingTour from '../components/OnboardingTour'
 
 /* ──────────────────────────────────────────────────────
@@ -405,11 +406,19 @@ function PhonePreview({ nodes }) {
   const delayNode = nodes.find(n => n.type === 'delay')
   const followUpNode = nodes.find(n => n.type === 'message' && n.data.role === 'followup')
 
+  const triggerKeyword = triggerNode?.data.keywords?.split(',')[0]?.trim() || '키워드'
+  const triggerType = triggerNode?.data.triggerType || 'comment'
+
+  // 변수 미리보기 컨텍스트
+  const previewCtx = { name: '홍길동', username: '@user123', keyword: triggerKeyword }
+  const preview = (text) => interpolateVariables(text, previewCtx)
+
   // 오프닝 DM
   if (openingNode) {
     msgs.push({
       type: 'bot-bubble',
-      text: openingNode.data.message || '오프닝 메시지',
+      text: preview(openingNode.data.message) || '오프닝 메시지',
+      hasVars: hasVariables(openingNode.data.message),
       buttons: openingNode.data.buttonText ? [{ label: openingNode.data.buttonText }] : [],
       step: '오프닝 DM',
     })
@@ -422,7 +431,8 @@ function PhonePreview({ nodes }) {
   if (followCheckNode) {
     msgs.push({
       type: 'bot-bubble',
-      text: followCheckNode.data.message || '팔로우 후 다시 시도해 주세요',
+      text: preview(followCheckNode.data.message) || '팔로우 후 다시 시도해 주세요',
+      hasVars: hasVariables(followCheckNode.data.message),
       buttons: [{ label: '팔로우 하기' }],
       step: '팔로우 확인',
     })
@@ -431,26 +441,22 @@ function PhonePreview({ nodes }) {
 
   // 이메일 수집
   if (emailCheckNode) {
-    msgs.push({ type: 'bot-bubble', text: emailCheckNode.data.message || '이메일을 입력해 주세요', buttons: [], step: '이메일 수집' })
+    msgs.push({ type: 'bot-bubble', text: preview(emailCheckNode.data.message) || '이메일을 입력해 주세요', hasVars: hasVariables(emailCheckNode.data.message), buttons: [], step: '이메일 수집' })
     msgs.push({ type: 'user-text', text: 'example@email.com' })
   }
 
   // 메인 DM + 링크
   if (mainNode) {
     const linkBtns = (mainNode.data.links || []).filter(l => l.label || l.url).map(l => ({ label: l.label || '링크', url: l.url }))
-    msgs.push({ type: 'bot-bubble', text: mainNode.data.message || '메인 메시지', buttons: linkBtns, step: '메인 DM' })
+    msgs.push({ type: 'bot-bubble', text: preview(mainNode.data.message) || '메인 메시지', hasVars: hasVariables(mainNode.data.message), buttons: linkBtns, step: '메인 DM' })
   }
 
   // 팔로업
   if (followUpNode) {
     const d = delayNode?.data
-    const unitLabel = d?.unit === 'hours' ? '시간' : d?.unit === 'days' ? '일' : '분'
     msgs.push({ type: 'delay', value: d?.delay || 30, unit: d?.unit || 'minutes' })
-    msgs.push({ type: 'bot-bubble', text: followUpNode.data.message || '팔로업 메시지', buttons: [], step: '팔로업' })
+    msgs.push({ type: 'bot-bubble', text: preview(followUpNode.data.message) || '팔로업 메시지', hasVars: hasVariables(followUpNode.data.message), buttons: [], step: '팔로업' })
   }
-
-  const triggerKeyword = triggerNode?.data.keywords || '키워드'
-  const triggerType = triggerNode?.data.triggerType || 'comment'
 
   return (
     <div className="ig-preview-wrap">
@@ -507,7 +513,10 @@ function PhonePreview({ nodes }) {
                     <div className="ig-msg-row received">
                       {showAvatar ? <div className="ig-avatar-small">B</div> : <div className="ig-avatar-spacer" />}
                       <div className={`ig-bubble-received${msg.buttons?.length ? ' has-buttons' : ''}`}>
-                        <div className="ig-bubble-text">{msg.text}</div>
+                        <div className="ig-bubble-text">
+                          {msg.text}
+                          {msg.hasVars && <span className="ig-var-badge" title="변수가 미리보기 값으로 표시됩니다"><i className="ri-braces-line" /></span>}
+                        </div>
                         {msg.buttons?.length > 0 && (
                           <div className="ig-bubble-buttons">
                             {msg.buttons.map((btn, j) => (

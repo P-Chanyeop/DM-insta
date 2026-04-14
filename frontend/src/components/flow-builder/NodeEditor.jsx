@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import VariableInserter from './VariableInserter'
 
 /* ────────────────────────────────────────────
  *  노드 속성 편집 사이드바
@@ -122,6 +123,12 @@ function TriggerEditor({ data, update }) {
 function CommentReplyEditor({ data, update }) {
   const replies = data.replies || ['']
 
+  const insertVar = (i, token) => {
+    const arr = [...replies]
+    arr[i] = arr[i] + token
+    update({ replies: arr })
+  }
+
   return (
     <div className="ne-field">
       <label>답장 메시지 (최대 3개, 랜덤 발송)</label>
@@ -129,11 +136,15 @@ function CommentReplyEditor({ data, update }) {
         <div key={i} className="ne-field-row">
           <span className="ne-field-num">{i + 1}</span>
           <input className="ne-input" value={reply}
+            placeholder="예: {이름}님 감사합니다! DM 확인해주세요"
             onChange={e => {
               const arr = [...replies]
               arr[i] = e.target.value
               update({ replies: arr })
             }} />
+          <button className="ne-var-quick-btn" title="변수 삽입" onClick={() => insertVar(i, '{이름}')}>
+            <i className="ri-braces-line" />
+          </button>
           {replies.length > 1 && (
             <button className="ne-remove-btn" onClick={() => update({ replies: replies.filter((_, j) => j !== i) })}>
               <i className="ri-close-line" />
@@ -146,7 +157,7 @@ function CommentReplyEditor({ data, update }) {
           + 답장 추가
         </button>
       )}
-      <div className="ne-hint">여러 개 등록하면 랜덤으로 하나가 선택됩니다</div>
+      <div className="ne-hint">여러 개 등록하면 랜덤으로 하나가 선택됩니다 · 변수: {'{이름}'}, {'{username}'}, {'{키워드}'}</div>
     </div>
   )
 }
@@ -154,6 +165,7 @@ function CommentReplyEditor({ data, update }) {
 /* ── 메시지(DM) 편집기 ── */
 function MessageEditor({ data, update }) {
   const links = data.links || [{ label: '', url: '' }]
+  const textareaRef = useRef(null)
 
   return (
     <>
@@ -165,11 +177,17 @@ function MessageEditor({ data, update }) {
       )}
 
       <div className="ne-field">
-        <label>메시지</label>
-        <textarea className="ne-textarea" rows={4}
+        <div className="ne-field-header">
+          <label>메시지</label>
+          <VariableInserter
+            textareaRef={textareaRef}
+            value={data.message || ''}
+            onChange={(val) => update({ message: val })}
+          />
+        </div>
+        <textarea className="ne-textarea" rows={4} ref={textareaRef}
           value={data.message || ''} onChange={e => update({ message: e.target.value })}
-          placeholder="메시지를 입력하세요" />
-        <div className="ne-hint">변수 사용: {'{first_name}'}, {'{username}'}</div>
+          placeholder="메시지를 입력하세요&#10;예: {이름}님, 요청하신 정보를 보내드릴게요!" />
       </div>
 
       {data.role === 'opening' && (
@@ -214,6 +232,8 @@ function MessageEditor({ data, update }) {
 
 /* ── 조건 편집기 ── */
 function ConditionEditor({ data, update }) {
+  const textareaRef = useRef(null)
+
   return (
     <>
       <div className="ne-field">
@@ -225,8 +245,15 @@ function ConditionEditor({ data, update }) {
         </select>
       </div>
       <div className="ne-field">
-        <label>{data.conditionType === 'followCheck' ? '미팔로우 시 안내 메시지' : '이메일 요청 메시지'}</label>
-        <textarea className="ne-textarea" rows={3}
+        <div className="ne-field-header">
+          <label>{data.conditionType === 'followCheck' ? '미팔로우 시 안내 메시지' : '이메일 요청 메시지'}</label>
+          <VariableInserter
+            textareaRef={textareaRef}
+            value={data.message || ''}
+            onChange={(val) => update({ message: val })}
+          />
+        </div>
+        <textarea className="ne-textarea" rows={3} ref={textareaRef}
           value={data.message || ''} onChange={e => update({ message: e.target.value })}
           placeholder={data.conditionType === 'followCheck' ? '팔로우 후 다시 시도해 주세요' : '이메일 주소를 입력해 주세요'} />
       </div>

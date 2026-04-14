@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
+import EmptyState from '../components/EmptyState'
+import PageLoader from '../components/PageLoader'
 import { growthToolService } from '../api/services'
 
 /* ── Backend type mapping ── */
@@ -510,9 +512,7 @@ export default function GrowthPage() {
       </div>
 
       {loading ? (
-        <div className="page-loading">
-          <i className="ri-loader-4-line spin" /> 성장 도구를 불러오는 중...
-        </div>
+        <PageLoader text="성장 도구를 불러오는 중..." />
       ) : error ? (
         <div className="empty-state">
           <i className="ri-error-warning-line" />
@@ -522,11 +522,7 @@ export default function GrowthPage() {
           </button>
         </div>
       ) : tools.length === 0 ? (
-        <div className="empty-state">
-          <i className="ri-seedling-line" style={{ fontSize: 48, color: 'var(--gray-400)' }} />
-          <h3>아직 성장 도구가 없습니다</h3>
-          <p>위의 "새 도구 추가" 버튼으로 첫 번째 성장 도구를 만들어보세요.</p>
-        </div>
+        <EmptyState icon="ri-seedling-line" title="아직 성장 도구가 없습니다" description="위의 '새 도구 추가' 버튼으로 첫 번째 성장 도구를 만들어 보세요" />
       ) : (
         <div className="growth-tools-grid">
           {tools.map(tool => (
