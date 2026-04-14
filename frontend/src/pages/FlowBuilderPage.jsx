@@ -38,6 +38,7 @@ export default function FlowBuilderPage() {
   const location = useLocation()
   const reactFlowWrapper = useRef(null)
   const tourRef = useRef(null)
+  const previewEndRef = useRef(null)
   const [reactFlowInstance, setReactFlowInstance] = useState(null)
 
   const [currentFlowId, setCurrentFlowId] = useState(location.state?.flowId || null)
@@ -82,6 +83,11 @@ export default function FlowBuilderPage() {
       }
     })()
   }, [currentFlowId])
+
+  // 폰 프리뷰 자동 스크롤
+  useEffect(() => {
+    previewEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [nodes])
 
   // 엣지 연결
   const onConnect = useCallback(
@@ -608,6 +614,7 @@ function PhonePreview({ nodes }) {
               }
               return null
             })}
+            <div ref={previewEndRef} className="ig-chat-anchor" />
           </div>
 
           {/* 하단 입력 */}

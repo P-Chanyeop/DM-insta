@@ -210,23 +210,29 @@ function MessageEditor({ data, update }) {
       {data.role === 'main' && (
         <div className="ne-field">
           <label>링크 (최대 3개)</label>
-          {links.map((link, i) => (
-            <div key={i} className="ne-link-row">
-              <input className="ne-input" placeholder="버튼 텍스트" value={link.label}
-                onChange={e => {
-                  const arr = [...links]; arr[i] = { ...arr[i], label: e.target.value }; update({ links: arr })
-                }} style={{ flex: '0 0 120px' }} />
-              <input className="ne-input" placeholder="https://..." value={link.url}
-                onChange={e => {
-                  const arr = [...links]; arr[i] = { ...arr[i], url: e.target.value }; update({ links: arr })
-                }} />
-              {links.length > 1 && (
-                <button className="ne-remove-btn" onClick={() => update({ links: links.filter((_, j) => j !== i) })}>
-                  <i className="ri-close-line" />
-                </button>
-              )}
-            </div>
-          ))}
+          {links.map((link, i) => {
+            const urlInvalid = link.url && !/^https?:\/\/.+/.test(link.url)
+            return (
+              <div key={i}>
+                <div className="ne-link-row">
+                  <input className="ne-input" placeholder="버튼 텍스트" value={link.label}
+                    onChange={e => {
+                      const arr = [...links]; arr[i] = { ...arr[i], label: e.target.value }; update({ links: arr })
+                    }} style={{ flex: '0 0 120px' }} />
+                  <input className={`ne-input${urlInvalid ? ' input-error' : ''}`} placeholder="https://..." value={link.url}
+                    onChange={e => {
+                      const arr = [...links]; arr[i] = { ...arr[i], url: e.target.value }; update({ links: arr })
+                    }} />
+                  {links.length > 1 && (
+                    <button className="ne-remove-btn" onClick={() => update({ links: links.filter((_, j) => j !== i) })}>
+                      <i className="ri-close-line" />
+                    </button>
+                  )}
+                </div>
+                {urlInvalid && <div className="ne-field-error">URL은 http:// 또는 https://로 시작해야 합니다</div>}
+              </div>
+            )
+          })}
           {links.length < 3 && (
             <button className="ne-add-btn" onClick={() => update({ links: [...links, { label: '', url: '' }] })}>
               + 링크 추가

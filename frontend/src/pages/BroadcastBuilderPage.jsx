@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast'
 import { useConfirm, useUnsavedChanges } from '../components/ConfirmDialog'
@@ -120,6 +120,10 @@ function SegmentBuilder({ segmentType, conditions, onSegmentTypeChange, onCondit
 
 /* ── DM 미리보기 ── */
 function BroadcastPreview({ messageContent, segmentType, conditions }) {
+  const chatEndRef = useRef(null)
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messageContent])
   const segmentLabel = segmentType === 'ALL'
     ? '전체 구독자'
     : conditions.length > 0 ? conditions.map(conditionSummary).join(', ') : '필터 없음'
@@ -152,6 +156,7 @@ function BroadcastPreview({ messageContent, segmentType, conditions }) {
           ) : (
             <div className="ig-empty-hint"><p>메시지를 입력하면 미리보기가 표시됩니다</p></div>
           )}
+          <div ref={chatEndRef} className="ig-chat-anchor" />
         </div>
         <div className="ig-input-bar">
           <div className="ig-input-camera"><i className="ri-camera-line" /></div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { sequenceService } from '../api/services'
 import { useConfirm, useUnsavedChanges } from '../components/ConfirmDialog'
@@ -150,6 +150,11 @@ function StepEditor({ step, index, onChange }) {
 
 /* ──────────────── DM 미리보기 ──────────────── */
 function SequencePreview({ steps }) {
+  const chatEndRef = useRef(null)
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [steps])
+
   return (
     <div className="ig-phone" style={{ transform: 'scale(0.85)', transformOrigin: 'top center' }}>
       <div className="ig-phone-notch" />
@@ -198,6 +203,7 @@ function SequencePreview({ steps }) {
             }
             return null
           })}
+          <div ref={chatEndRef} className="ig-chat-anchor" />
         </div>
 
         <div className="ig-input-bar">
