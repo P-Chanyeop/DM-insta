@@ -1745,6 +1745,87 @@ label.ne-radio {
 .form-group textarea { resize: vertical; min-height: 60px; }
 .form-actions { display: flex; gap: 8px; }
 
+/* ===== Sequence Builder ===== */
+.sb-timeline { display: flex; flex-direction: column; gap: 0; }
+.sb-timeline-item { cursor: pointer; }
+.sb-timeline-connector { display: flex; flex-direction: column; align-items: center; margin-left: 24px; position: relative; }
+.sb-connector-line { width: 2px; height: 28px; background: var(--gray-200, #E5E7EB); }
+.sb-connector-delay {
+  font-size: 10px; font-weight: 600; color: var(--gray-400, #9CA3AF);
+  display: flex; align-items: center; gap: 3px; padding: 2px 8px;
+  background: var(--gray-50, #F9FAFB); border-radius: 10px; border: 1px solid var(--gray-100, #F3F4F6);
+  white-space: nowrap;
+}
+.sb-connector-delay i { font-size: 11px; }
+.sb-step-card {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  background: #fff; border: 2px solid var(--gray-100, #F3F4F6); border-radius: 12px;
+  transition: all 0.15s;
+}
+.sb-step-card:hover { border-color: var(--gray-300, #D1D5DB); }
+.sb-step-card.selected { border-color: var(--primary, #3B82F6); box-shadow: 0 0 0 3px rgba(59,130,246,0.08); }
+.sb-step-icon {
+  width: 36px; height: 36px; border-radius: 10px; display: flex;
+  align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
+}
+.sb-step-body { flex: 1; min-width: 0; }
+.sb-step-title { font-size: 13px; font-weight: 700; color: var(--gray-900, #111827); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-step-subtitle { font-size: 11px; color: var(--gray-500, #6B7280); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-step-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.sb-step-act-btn {
+  width: 26px; height: 26px; border: none; background: transparent; border-radius: 6px;
+  color: var(--gray-400, #9CA3AF); cursor: pointer; display: flex;
+  align-items: center; justify-content: center; font-size: 16px; transition: all 0.15s;
+}
+.sb-step-act-btn:hover { background: var(--gray-100, #F3F4F6); color: var(--gray-600, #4B5563); }
+.sb-step-act-btn.delete:hover { background: #FEE2E2; color: #EF4444; }
+
+/* Add step buttons */
+.sb-add-section { margin-top: 0; }
+.sb-add-buttons { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
+.sb-add-btn {
+  display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px;
+  border: 1px dashed var(--gray-300, #D1D5DB); border-radius: 8px;
+  background: transparent; font-size: 12px; font-weight: 600;
+  color: var(--gray-500, #6B7280); cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.sb-add-btn i { font-size: 14px; color: var(--type-color); }
+.sb-add-btn:hover { border-color: var(--type-color); color: var(--type-color); background: rgba(59,130,246,0.05); }
+
+/* Step editor panel */
+.sb-step-editor { padding: 4px 0; }
+.sb-editor-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+  padding-bottom: 16px; border-bottom: 1px solid var(--gray-100, #F3F4F6);
+}
+.sb-editor-icon {
+  width: 40px; height: 40px; border-radius: 10px; display: flex;
+  align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;
+}
+
+/* Step type selection cards */
+.sb-type-cards { display: flex; flex-wrap: wrap; gap: 6px; }
+.sb-type-card {
+  display: flex; align-items: center; gap: 5px; padding: 7px 12px;
+  border: 2px solid var(--gray-100, #F3F4F6); border-radius: 8px;
+  background: white; font-size: 12px; font-weight: 600;
+  color: var(--gray-600, #4B5563); cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.sb-type-card i { font-size: 14px; color: var(--type-color); }
+.sb-type-card:hover { border-color: var(--gray-300, #D1D5DB); }
+.sb-type-card.active { border-color: var(--type-color); background: rgba(59,130,246,0.05); color: var(--type-color); }
+
+/* Delay presets */
+.sb-delay-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.sb-delay-chip {
+  padding: 5px 10px; border: 1px solid var(--gray-200, #E5E7EB); border-radius: 16px;
+  background: #fff; font-size: 12px; font-weight: 600; color: var(--gray-600, #4B5563);
+  cursor: pointer; transition: all 0.15s; font-family: inherit;
+}
+.sb-delay-chip:hover { border-color: var(--primary, #3B82F6); color: var(--primary, #3B82F6); }
+.sb-delay-chip.active { background: var(--primary-50, #EFF6FF); border-color: var(--primary, #3B82F6); color: var(--primary, #3B82F6); }
+.sb-delay-custom { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+
 /* ===== Dropdown Menu ===== */
 .dropdown { position: relative; display: inline-block; }
 .dropdown-menu { position: absolute; right: 0; top: 100%; background: #fff; border: 1px solid var(--gray-100, #F3F4F6); border-radius: var(--radius-md, 12px); box-shadow: var(--shadow-lg, 0 10px 25px rgba(0,0,0,0.1)); min-width: 200px; z-index: 10; padding: 6px; }

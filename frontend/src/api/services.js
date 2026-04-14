@@ -68,7 +68,9 @@ export const dashboardService = {
 
 export const sequenceService = {
   list: () => api.get('/sequences'),
+  get: (id) => api.get(`/sequences/${id}`),
   create: (data) => api.post('/sequences', data),
+  update: (id, data) => api.put(`/sequences/${id}`, data),
   toggle: (id) => api.patch(`/sequences/${id}/toggle`),
   delete: (id) => api.delete(`/sequences/${id}`),
 }

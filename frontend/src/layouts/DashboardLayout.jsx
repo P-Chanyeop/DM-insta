@@ -197,8 +197,8 @@ export default function DashboardLayout() {
     }
   }
 
-  // Flow builder has its own full-screen layout
-  if (location.pathname.startsWith('/app/flows/builder')) {
+  // Flow builder & Sequence builder have their own full-screen layout
+  if (location.pathname.startsWith('/app/flows/builder') || location.pathname.startsWith('/app/sequences/builder')) {
     return <Outlet />
   }
 

@@ -14,6 +14,7 @@ import AnalyticsPage from './pages/AnalyticsPage'
 import TemplatesPage from './pages/TemplatesPage'
 import SettingsPage from './pages/SettingsPage'
 import FlowBuilderPage from './pages/FlowBuilderPage'
+import SequenceBuilderPage from './pages/SequenceBuilderPage'
 import LegalPage from './pages/LegalPage'
 
 export default function App() {
@@ -33,6 +34,8 @@ export default function App() {
         <Route path="livechat" element={<LiveChatPage />} />
         <Route path="broadcast" element={<BroadcastPage />} />
         <Route path="sequences" element={<SequencesPage />} />
+        <Route path="sequences/builder" element={<SequenceBuilderPage />} />
+        <Route path="sequences/builder/:id" element={<SequenceBuilderPage />} />
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="growth" element={<GrowthPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />

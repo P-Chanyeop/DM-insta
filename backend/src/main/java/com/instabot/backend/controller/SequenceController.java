@@ -22,9 +22,19 @@ public class SequenceController {
         return ResponseEntity.ok(sequenceService.getSequences(SecurityUtils.currentUserId()));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<SequenceDto.Response> getSequence(@PathVariable Long id) {
+        return ResponseEntity.ok(sequenceService.getSequence(SecurityUtils.currentUserId(), id));
+    }
+
     @PostMapping
     public ResponseEntity<SequenceDto.Response> createSequence(@Valid @RequestBody SequenceDto.CreateRequest request) {
         return ResponseEntity.ok(sequenceService.createSequence(SecurityUtils.currentUserId(), request));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<SequenceDto.Response> updateSequence(@PathVariable Long id, @Valid @RequestBody SequenceDto.CreateRequest request) {
+        return ResponseEntity.ok(sequenceService.updateSequence(SecurityUtils.currentUserId(), id, request));
     }
 
     @PatchMapping("/{id}/toggle")

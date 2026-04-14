@@ -26,6 +26,46 @@ public class SequenceService {
                 .toList();
     }
 
+    public SequenceDto.Response getSequence(Long userId, Long id) {
+        Sequence seq = sequenceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("시퀀스를 찾을 수 없습니다."));
+        if (!seq.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("시퀀스를 찾을 수 없습니다.");
+        }
+        return toResponse(seq);
+    }
+
+    @Transactional
+    public SequenceDto.Response updateSequence(Long userId, Long id, SequenceDto.CreateRequest request) {
+        Sequence seq = sequenceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("시퀀스를 찾을 수 없습니다."));
+        if (!seq.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("시퀀스를 찾을 수 없습니다.");
+        }
+
+        seq.setName(request.getName());
+        seq.setDescription(request.getDescription());
+
+        // orphanRemoval=true 이므로 clear 후 재추가
+        seq.getSteps().clear();
+
+        if (request.getSteps() != null) {
+            for (SequenceDto.StepRequest sr : request.getSteps()) {
+                SequenceStep step = SequenceStep.builder()
+                        .sequence(seq)
+                        .stepOrder(sr.getStepOrder())
+                        .name(sr.getName())
+                        .messageContent(sr.getMessageContent())
+                        .delayMinutes(sr.getDelayMinutes())
+                        .type(sr.getType() != null ? SequenceStep.StepType.valueOf(sr.getType()) : SequenceStep.StepType.MESSAGE)
+                        .build();
+                seq.getSteps().add(step);
+            }
+        }
+
+        return toResponse(sequenceRepository.save(seq));
+    }
+
     @Transactional
     public SequenceDto.Response createSequence(Long userId, SequenceDto.CreateRequest request) {
         User user = userRepository.findById(userId)
