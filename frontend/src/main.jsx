@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { ToastProvider } from './components/Toast'
 import { PlanProvider } from './components/PlanContext'
+import { ConfirmProvider } from './components/ConfirmDialog'
 import './styles/global.css'
 import './styles/landing.css'
 import './styles/dashboard-layout.css'
@@ -16,7 +17,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <ToastProvider>
         <PlanProvider>
-          <App />
+          <ConfirmProvider>
+            <App />
+          </ConfirmProvider>
         </PlanProvider>
       </ToastProvider>
     </BrowserRouter>

@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast'
+import { useConfirm, useUnsavedChanges } from '../components/ConfirmDialog'
 import { broadcastService } from '../api/services'
 
 /* ── 세그먼트 조건 타입 ── */
@@ -168,6 +169,7 @@ function BroadcastPreview({ messageContent, segmentType, conditions }) {
 export default function BroadcastBuilderPage() {
   const navigate = useNavigate()
   const toast = useToast()
+  const confirm = useConfirm()
 
   const [name, setName] = useState('')
   const [messageContent, setMessageContent] = useState('')
@@ -178,6 +180,28 @@ export default function BroadcastBuilderPage() {
   const [scheduledTime, setScheduledTime] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [hasChanges, setHasChanges] = useState(false)
+
+  // 변경 감지
+  useEffect(() => { setHasChanges(true) }, [name, messageContent, segmentType, conditions, scheduleType, scheduledDate, scheduledTime])
+
+  // 브라우저 새로고침/탭 닫기 시 미저장 경고
+  useUnsavedChanges(hasChanges && (name.trim() || messageContent.trim()))
+
+  const handleCancel = async () => {
+    if (hasChanges && (name.trim() || messageContent.trim())) {
+      const ok = await confirm({
+        title: '변경 사항 저장 안 됨',
+        message: '저장하지 않은 변경 사항이 있습니다. 저장하지 않고 나가시겠습니까?',
+        confirmText: '나가기',
+        cancelText: '계속 편집',
+        variant: 'danger',
+        icon: 'ri-error-warning-line',
+      })
+      if (!ok) return
+    }
+    navigate('/app/broadcast')
+  }
 
   const handleSend = async () => {
     if (!name.trim()) { setError('브로드캐스트 이름을 입력하세요'); return }
@@ -191,6 +215,7 @@ export default function BroadcastBuilderPage() {
       const segment = segmentType === 'ALL' ? 'ALL' : JSON.stringify({ logic: 'AND', conditions })
       const scheduledAt = scheduleType === 'scheduled' ? `${scheduledDate}T${scheduledTime}` : null
       await broadcastService.create({ name: name.trim(), messageContent: messageContent.trim(), segment, scheduledAt })
+      setHasChanges(false)
       toast.success(scheduleType === 'immediate' ? '브로드캐스트가 발송되었습니다!' : '브로드캐스트가 예약되었습니다!')
       navigate('/app/broadcast')
     } catch (err) {
@@ -208,7 +233,7 @@ export default function BroadcastBuilderPage() {
       {/* 헤더 */}
       <div className="fb-header">
         <div className="fb-header-left">
-          <button onClick={() => navigate('/app/broadcast')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#6B7280', display: 'flex', alignItems: 'center' }}>
+          <button onClick={handleCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#6B7280', display: 'flex', alignItems: 'center' }}>
             <i className="ri-arrow-left-line" />
           </button>
           <input className="fb-title-input" value={name} onChange={e => setName(e.target.value)} placeholder="브로드캐스트 이름" />
@@ -218,7 +243,7 @@ export default function BroadcastBuilderPage() {
         </div>
         <div className="fb-header-right">
           {error && <span style={{ fontSize: 12, color: '#EF4444', fontWeight: 600 }}><i className="ri-error-warning-line" /> {error}</span>}
-          <button className="btn-secondary" onClick={() => navigate('/app/broadcast')}>취소</button>
+          <button className="btn-secondary" onClick={handleCancel}>취소</button>
           <button className="btn-primary" onClick={handleSend} disabled={sending}>
             {sending
               ? <><i className="ri-loader-4-line spin" /> 처리 중...</>

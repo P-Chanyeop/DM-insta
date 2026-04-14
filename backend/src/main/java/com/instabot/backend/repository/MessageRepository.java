@@ -19,4 +19,11 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
            "GROUP BY CAST(m.sentAt AS LocalDate) " +
            "ORDER BY CAST(m.sentAt AS LocalDate)")
     List<Object[]> countDailyOutboundByUserId(@Param("userId") Long userId, @Param("since") java.time.LocalDateTime since);
+
+    @Query("SELECT EXTRACT(HOUR FROM m.sentAt) AS hr, COUNT(m) AS cnt " +
+           "FROM Message m " +
+           "WHERE m.conversation.user.id = :userId AND m.direction = 'OUTBOUND' AND m.sentAt >= :since " +
+           "GROUP BY EXTRACT(HOUR FROM m.sentAt) " +
+           "ORDER BY EXTRACT(HOUR FROM m.sentAt)")
+    List<Object[]> countHourlyOutboundByUserId(@Param("userId") Long userId, @Param("since") java.time.LocalDateTime since);
 }

@@ -4,6 +4,7 @@ import { SkeletonRow } from '../components/PageLoader'
 import { useToast } from '../components/Toast'
 import { usePlan } from '../components/PlanContext'
 import UpgradeModal, { QuotaBar } from '../components/UpgradeModal'
+import { useConfirm } from '../components/ConfirmDialog'
 import { automationService, flowService } from '../api/services'
 
 function formatNumber(value) {
@@ -12,6 +13,7 @@ function formatNumber(value) {
 
 export default function AutomationPage() {
   const toast = useToast()
+  const confirmDialog = useConfirm()
   const { getLimit, isAtLimit } = usePlan()
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -79,7 +81,15 @@ export default function AutomationPage() {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('이 자동화를 삭제하시겠습니까?')) return
+    const ok = await confirmDialog({
+      title: '자동화 삭제',
+      message: '이 자동화 트리거를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+      confirmText: '삭제',
+      cancelText: '취소',
+      variant: 'danger',
+      icon: 'ri-delete-bin-line',
+    })
+    if (!ok) return
     try {
       await automationService.delete(id)
       toast.success('트리거가 삭제되었습니다.')

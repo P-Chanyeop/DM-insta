@@ -27,7 +27,11 @@ function mapTopFlows(flowPerformances) {
   const top = sorted.slice(0, 5)
   const maxVal = top[0]?.sentCount || 1
   return top.map(f => ({
+    id: f.id,
     name: f.name,
+    triggerType: f.triggerType,
+    active: f.active,
+    openRate: f.openRate,
     pct: Math.round(((f.sentCount || 0) / maxVal) * 100),
     value: f.sentCount || 0,
   }))
@@ -63,11 +67,11 @@ function mapTrendData(dailyMessages) {
   return { labels, sent, opened, clicked }
 }
 
-function mapEngagementHours() {
-  // 시간대별 참여율은 아직 백엔드 미지원 - 빈 데이터 반환
+function mapEngagementHours(hourlyEngagement) {
   const hours = []
   for (let h = 0; h < 24; h++) {
-    hours.push({ hour: h, value: 0 })
+    const entry = hourlyEngagement?.find(e => e.hour === h)
+    hours.push({ hour: h, value: entry?.count || 0 })
   }
   return hours
 }
@@ -286,6 +290,61 @@ function ContactGrowthChart({ data }) {
   )
 }
 
+/* ── Flow Detail Modal ── */
+function FlowDetailModal({ flow, onClose }) {
+  if (!flow) return null
+
+  const triggerLabels = {
+    KEYWORD: '키워드 트리거',
+    STORY_REPLY: '스토리 답장',
+    STORY_MENTION: '스토리 멘션',
+    COMMENT: '댓글 트리거',
+    WELCOME: '환영 메시지',
+    MANUAL: '수동 실행',
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal flow-detail-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3><i className="ri-flow-chart" /> 플로우 상세</h3>
+          <button className="modal-close" onClick={onClose}><i className="ri-close-line" /></button>
+        </div>
+        <div className="flow-detail-content">
+          <div className="flow-detail-name">
+            <h4>{flow.name}</h4>
+            <span className={`flow-detail-badge ${flow.active ? 'active' : 'inactive'}`}>
+              {flow.active ? '활성' : '비활성'}
+            </span>
+          </div>
+          <div className="flow-detail-grid">
+            <div className="flow-detail-stat">
+              <span className="fd-label">트리거 유형</span>
+              <span className="fd-value">{triggerLabels[flow.triggerType] || flow.triggerType}</span>
+            </div>
+            <div className="flow-detail-stat">
+              <span className="fd-label">총 발송</span>
+              <span className="fd-value">{(flow.value || 0).toLocaleString()}건</span>
+            </div>
+            <div className="flow-detail-stat">
+              <span className="fd-label">열림률</span>
+              <span className="fd-value">{flow.openRate != null ? `${Math.round(flow.openRate)}%` : '--'}</span>
+            </div>
+            <div className="flow-detail-stat">
+              <span className="fd-label">성과 비율</span>
+              <span className="fd-value">{flow.pct}%</span>
+            </div>
+          </div>
+          {/* mini bar */}
+          <div className="flow-detail-bar-wrap">
+            <div className="flow-detail-bar" style={{ width: `${flow.pct}%` }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── Funnel ── */
 function FunnelChart({ data }) {
   const maxVal = data[0]?.value || 1
@@ -326,13 +385,14 @@ export default function AnalyticsPage() {
   const [visibleLines, setVisibleLines] = useState({ sent: true, opened: true, clicked: true })
   const [downloading, setDownloading] = useState(false)
   const [apiData, setApiData] = useState(null)
+  const [selectedFlow, setSelectedFlow] = useState(null)
   const toast = useToast()
 
   const overview = useMemo(() => apiData ? mapOverviewData(apiData) : mapOverviewData({}), [apiData])
   const trendData = useMemo(() => apiData ? mapTrendData(apiData.dailyMessages) : { labels: [], sent: [], opened: [], clicked: [] }, [apiData])
   const topFlows = useMemo(() => apiData ? mapTopFlows(apiData.flowPerformances) : [], [apiData])
   const funnel = useMemo(() => apiData ? mapFunnelData(apiData) : mapFunnelData({}), [apiData])
-  const engagementData = useMemo(() => mapEngagementHours(), [])
+  const engagementData = useMemo(() => mapEngagementHours(apiData?.hourlyEngagement), [apiData])
   const contactData = useMemo(() => apiData ? mapContactGrowth(apiData.dailyNewContacts, apiData.totalContacts) : [], [apiData])
 
   useEffect(() => {
@@ -403,6 +463,7 @@ export default function AnalyticsPage() {
 
   return (
     <>
+      <FlowDetailModal flow={selectedFlow} onClose={() => setSelectedFlow(null)} />
       <div className="page-header">
         <div>
           <h2>분석 & 통계</h2>
@@ -488,7 +549,7 @@ export default function AnalyticsPage() {
               <EmptyState compact icon="ri-flow-chart" title="플로우 성과가 없습니다" description="플로우를 실행하면 성과 순위가 표시됩니다" />
             )}
             {topFlows.map((flow, i) => (
-              <div className="top-flow-item" key={flow.name}>
+              <div className="top-flow-item clickable" key={flow.name} onClick={() => setSelectedFlow(flow)} title="클릭하여 상세 보기">
                 <span className="top-rank">{i + 1}</span>
                 <div className="top-flow-info">
                   <strong>{flow.name}</strong>

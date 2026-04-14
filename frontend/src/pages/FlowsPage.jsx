@@ -5,6 +5,7 @@ import PageLoader, { SkeletonCard } from '../components/PageLoader'
 import { useToast } from '../components/Toast'
 import { usePlan } from '../components/PlanContext'
 import UpgradeModal, { QuotaBar } from '../components/UpgradeModal'
+import { useConfirm } from '../components/ConfirmDialog'
 import { flowService } from '../api/services'
 
 // Canonical enum values match backend Flow.TriggerType
@@ -43,6 +44,7 @@ function formatRelative(dateString) {
 export default function FlowsPage() {
   const navigate = useNavigate()
   const toast = useToast()
+  const confirmDialog = useConfirm()
   const { getLimit, isAtLimit } = usePlan()
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('전체')
@@ -130,7 +132,16 @@ export default function FlowsPage() {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('이 플로우를 삭제하시겠습니까?')) return
+    const flow = flows.find(f => f.id === id)
+    const ok = await confirmDialog({
+      title: '플로우 삭제',
+      message: `"${flow?.name || '플로우'}"를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
+      confirmText: '삭제',
+      cancelText: '취소',
+      variant: 'danger',
+      icon: 'ri-delete-bin-line',
+    })
+    if (!ok) return
     try {
       await flowService.delete(id)
       toast.success('플로우가 삭제되었습니다.')

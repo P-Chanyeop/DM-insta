@@ -5,6 +5,7 @@ import PageLoader from '../components/PageLoader'
 import { useToast } from '../components/Toast'
 import { usePlan } from '../components/PlanContext'
 import UpgradeModal from '../components/UpgradeModal'
+import { useConfirm } from '../components/ConfirmDialog'
 import { sequenceService } from '../api/services'
 
 const STEP_TYPE_MAP = {
@@ -28,6 +29,7 @@ function formatDelay(minutes) {
 export default function SequencesPage() {
   const navigate = useNavigate()
   const toast = useToast()
+  const confirm = useConfirm()
   const { canUse } = usePlan()
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [sequences, setSequences] = useState([])
@@ -72,7 +74,16 @@ export default function SequencesPage() {
 
   async function handleDelete(e, id) {
     e.stopPropagation()
-    if (!window.confirm('이 시퀀스를 삭제하시겠습니까?')) return
+    const seq = sequences.find(s => s.id === id)
+    const ok = await confirm({
+      title: '시퀀스 삭제',
+      message: `"${seq?.name || '시퀀스'}"를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
+      confirmText: '삭제',
+      cancelText: '취소',
+      variant: 'danger',
+      icon: 'ri-delete-bin-line',
+    })
+    if (!ok) return
     const prev = sequences
     setSequences(s => s.filter(seq => seq.id !== id))
     try {

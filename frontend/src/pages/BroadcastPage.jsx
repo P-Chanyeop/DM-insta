@@ -5,6 +5,7 @@ import PageLoader from '../components/PageLoader'
 import { useToast } from '../components/Toast'
 import { usePlan } from '../components/PlanContext'
 import UpgradeModal from '../components/UpgradeModal'
+import { useConfirm } from '../components/ConfirmDialog'
 import { broadcastService } from '../api/services'
 
 function formatNumber(value) {
@@ -60,6 +61,7 @@ export default function BroadcastPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const { canUse } = usePlan()
+  const confirm = useConfirm()
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -96,7 +98,16 @@ export default function BroadcastPage() {
   }
 
   const handleCancel = async (id) => {
-    if (!confirm('이 브로드캐스트를 취소하시겠습니까?')) return
+    const bc = broadcasts.find(b => b.id === id)
+    const ok = await confirm({
+      title: '브로드캐스트 취소',
+      message: `"${bc?.name || '브로드캐스트'}"를 취소하시겠습니까? 예약된 발송이 중단됩니다.`,
+      confirmText: '취소하기',
+      cancelText: '돌아가기',
+      variant: 'danger',
+      icon: 'ri-close-circle-line',
+    })
+    if (!ok) return
     try {
       await broadcastService.cancel(id)
       toast.success('브로드캐스트가 취소되었습니다.')

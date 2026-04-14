@@ -75,18 +75,23 @@ const KEYBOARD_SHORTCUTS = [
   { keys: ['Esc'], desc: '팝업 닫기' },
 ]
 
-const SEARCHABLE_PAGES = [
-  { label: '대시보드', path: '/app', icon: 'ri-dashboard-3-line', keywords: ['대시보드', 'dashboard', '홈'] },
-  { label: '자동화 플로우', path: '/app/flows', icon: 'ri-flow-chart', keywords: ['플로우', 'flow', '자동화', '빌더'] },
-  { label: '자동화 트리거', path: '/app/automation', icon: 'ri-robot-2-line', keywords: ['트리거', 'trigger', '자동', '키워드'] },
-  { label: '라이브 채팅', path: '/app/livechat', icon: 'ri-chat-3-line', keywords: ['채팅', 'chat', '라이브', '메시지', 'DM'] },
-  { label: '브로드캐스팅', path: '/app/broadcast', icon: 'ri-broadcast-line', keywords: ['브로드캐스트', 'broadcast', '대량', '발송'] },
-  { label: '시퀀스', path: '/app/sequences', icon: 'ri-time-line', keywords: ['시퀀스', 'sequence', '드립', '캠페인'] },
-  { label: '연락처', path: '/app/contacts', icon: 'ri-contacts-book-2-line', keywords: ['연락처', 'contact', '구독자', 'CRM'] },
-  { label: '성장 도구', path: '/app/growth', icon: 'ri-seedling-line', keywords: ['성장', 'growth', '도구'] },
-  { label: '분석', path: '/app/analytics', icon: 'ri-line-chart-line', keywords: ['분석', 'analytics', '통계', '리포트'] },
-  { label: '템플릿', path: '/app/templates', icon: 'ri-file-copy-2-line', keywords: ['템플릿', 'template', '양식'] },
-  { label: '설정', path: '/app/settings', icon: 'ri-settings-3-line', keywords: ['설정', 'settings', '계정', '연동', 'API'] },
+const SEARCHABLE_ITEMS = [
+  // 페이지 네비게이션
+  { type: 'page', label: '대시보드', path: '/app', icon: 'ri-dashboard-3-line', keywords: ['대시보드', 'dashboard', '홈'] },
+  { type: 'page', label: '자동화 플로우', path: '/app/flows', icon: 'ri-flow-chart', keywords: ['플로우', 'flow', '자동화', '빌더'] },
+  { type: 'page', label: '자동화 트리거', path: '/app/automation', icon: 'ri-robot-2-line', keywords: ['트리거', 'trigger', '자동', '키워드'] },
+  { type: 'page', label: '라이브 채팅', path: '/app/livechat', icon: 'ri-chat-3-line', keywords: ['채팅', 'chat', '라이브', '메시지', 'DM'] },
+  { type: 'page', label: '브로드캐스팅', path: '/app/broadcast', icon: 'ri-broadcast-line', keywords: ['브로드캐스트', 'broadcast', '대량', '발송'] },
+  { type: 'page', label: '시퀀스', path: '/app/sequences', icon: 'ri-time-line', keywords: ['시퀀스', 'sequence', '드립', '캠페인'] },
+  { type: 'page', label: '연락처', path: '/app/contacts', icon: 'ri-contacts-book-2-line', keywords: ['연락처', 'contact', '구독자', 'CRM'] },
+  { type: 'page', label: '성장 도구', path: '/app/growth', icon: 'ri-seedling-line', keywords: ['성장', 'growth', '도구'] },
+  { type: 'page', label: '분석 & 통계', path: '/app/analytics', icon: 'ri-line-chart-line', keywords: ['분석', 'analytics', '통계', '리포트'] },
+  { type: 'page', label: '템플릿', path: '/app/templates', icon: 'ri-file-copy-2-line', keywords: ['템플릿', 'template', '양식'] },
+  { type: 'page', label: '설정', path: '/app/settings', icon: 'ri-settings-3-line', keywords: ['설정', 'settings', '계정', '연동', 'API'] },
+  // 빠른 액션
+  { type: 'action', label: '새 플로우 만들기', path: '/app/flows/builder', icon: 'ri-add-circle-line', keywords: ['새', 'new', '만들기', '플로우', 'flow', '생성'] },
+  { type: 'action', label: '새 브로드캐스트 만들기', path: '/app/broadcast/builder', icon: 'ri-add-circle-line', keywords: ['새', 'new', '만들기', '브로드캐스트', 'broadcast', '발송'] },
+  { type: 'action', label: '새 시퀀스 만들기', path: '/app/sequences/builder', icon: 'ri-add-circle-line', keywords: ['새', 'new', '만들기', '시퀀스', 'sequence'] },
 ]
 
 export default function DashboardLayout() {
@@ -94,8 +99,9 @@ export default function DashboardLayout() {
   const [notifOpen, setNotifOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [shortcutsModal, setShortcutsModal] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchFocused, setSearchFocused] = useState(false)
+  const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false)
+  const [cmdQuery, setCmdQuery] = useState('')
+  const [cmdIndex, setCmdIndex] = useState(0)
   const [notifications, setNotifications] = useState(DEMO_NOTIFICATIONS)
   const { planLabel, getUsage, getLimit } = usePlan()
 
@@ -109,16 +115,13 @@ export default function DashboardLayout() {
 
   const notifRef = useRef(null)
   const helpRef = useRef(null)
-  const searchRef = useRef(null)
+  const cmdInputRef = useRef(null)
 
   // Close dropdowns on outside click
   useEffect(() => {
     function handleClick(e) {
       if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false)
       if (helpRef.current && !helpRef.current.contains(e.target)) setHelpOpen(false)
-      if (searchRef.current && !searchRef.current.contains(e.target)) {
-        setSearchFocused(false)
-      }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
@@ -128,26 +131,24 @@ export default function DashboardLayout() {
   useEffect(() => {
     setNotifOpen(false)
     setHelpOpen(false)
-    setSearchFocused(false)
-    setSearchQuery('')
+    setCmdPaletteOpen(false)
+    setCmdQuery('')
   }, [location.pathname])
 
-  // Keyboard shortcut: Ctrl+K for search, Ctrl+/ for help, Esc to close
+  // Keyboard shortcut: Ctrl+K for command palette, Ctrl+/ for help, Esc to close
   useEffect(() => {
     function handleKeyDown(e) {
       if (e.key === 'Escape') {
         setNotifOpen(false)
         setHelpOpen(false)
         setShortcutsModal(false)
-        setSearchFocused(false)
+        setCmdPaletteOpen(false)
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault()
-        const input = searchRef.current?.querySelector('input')
-        if (input) {
-          input.focus()
-          setSearchFocused(true)
-        }
+        setCmdPaletteOpen(prev => !prev)
+        setCmdQuery('')
+        setCmdIndex(0)
       }
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
         e.preventDefault()
@@ -157,6 +158,13 @@ export default function DashboardLayout() {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+  // Auto-focus command palette input
+  useEffect(() => {
+    if (cmdPaletteOpen) {
+      setTimeout(() => cmdInputRef.current?.focus(), 50)
+    }
+  }, [cmdPaletteOpen])
 
   const unreadCount = notifications.filter(n => n.unread).length
 
@@ -169,19 +177,44 @@ export default function DashboardLayout() {
     setNotifOpen(false)
   }
 
-  // Search filtering
-  const searchResults = searchQuery.trim()
-    ? SEARCHABLE_PAGES.filter(page => {
-        const q = searchQuery.toLowerCase()
-        return page.label.toLowerCase().includes(q) ||
-          page.keywords.some(kw => kw.toLowerCase().includes(q))
-      })
-    : []
+  // Command palette filtering
+  const cmdResults = useMemo(() => {
+    const q = cmdQuery.trim().toLowerCase()
+    if (!q) return SEARCHABLE_ITEMS
+    return SEARCHABLE_ITEMS.filter(item =>
+      item.label.toLowerCase().includes(q) ||
+      item.keywords.some(kw => kw.toLowerCase().includes(q))
+    )
+  }, [cmdQuery])
 
-  const handleSearchSelect = (path) => {
-    navigate(path)
-    setSearchQuery('')
-    setSearchFocused(false)
+  // Group results by type
+  const cmdGrouped = useMemo(() => {
+    const pages = cmdResults.filter(r => r.type === 'page')
+    const actions = cmdResults.filter(r => r.type === 'action')
+    return { pages, actions }
+  }, [cmdResults])
+
+  // Flat list for keyboard navigation
+  const cmdFlat = useMemo(() => [...cmdGrouped.actions, ...cmdGrouped.pages], [cmdGrouped])
+
+  const handleCmdSelect = (item) => {
+    navigate(item.path)
+    setCmdPaletteOpen(false)
+    setCmdQuery('')
+    setCmdIndex(0)
+  }
+
+  const handleCmdKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setCmdIndex(prev => Math.min(prev + 1, cmdFlat.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setCmdIndex(prev => Math.max(prev - 1, 0))
+    } else if (e.key === 'Enter' && cmdFlat.length > 0) {
+      e.preventDefault()
+      handleCmdSelect(cmdFlat[cmdIndex])
+    }
   }
 
   const handleHelpAction = (link) => {
@@ -286,52 +319,15 @@ export default function DashboardLayout() {
             <h1 className="page-title">{pageTitle}</h1>
           </div>
           <div className="topbar-right">
-            {/* Search Box */}
-            <div className="search-box" ref={searchRef} style={{ position: 'relative' }}>
+            {/* Search Trigger (opens command palette) */}
+            <button
+              className="search-box"
+              onClick={() => { setCmdPaletteOpen(true); setCmdQuery(''); setCmdIndex(0) }}
+              style={{ cursor: 'pointer' }}
+            >
               <i className="ri-search-line" />
-              <input
-                type="text"
-                placeholder="검색... (Ctrl+K)"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && searchResults.length > 0) {
-                    handleSearchSelect(searchResults[0].path)
-                  }
-                  if (e.key === 'Escape') {
-                    e.target.blur()
-                    setSearchFocused(false)
-                    setSearchQuery('')
-                  }
-                }}
-              />
-              {searchFocused && searchQuery.trim() && (
-                <div className="topbar-dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, minWidth: 280, marginTop: 4, background: 'var(--bg-primary, #fff)', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.12)', border: '1px solid var(--border-color, #e5e7eb)', zIndex: 1000, overflow: 'hidden' }}>
-                  {searchResults.length > 0 ? (
-                    <div style={{ padding: '4px 0' }}>
-                      {searchResults.map(page => (
-                        <button
-                          key={page.path}
-                          onClick={() => handleSearchSelect(page.path)}
-                          style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text-primary, #1a1a1a)', textAlign: 'left' }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary, #f3f4f6)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                        >
-                          <i className={page.icon} style={{ fontSize: 18, color: 'var(--text-secondary, #666)' }} />
-                          <span>{page.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ padding: '20px 16px', textAlign: 'center', color: 'var(--text-secondary, #999)', fontSize: 14 }}>
-                      <i className="ri-search-line" style={{ fontSize: 24, display: 'block', marginBottom: 8 }} />
-                      검색 결과가 없습니다
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+              <span style={{ color: 'var(--text-secondary, #999)', fontSize: 14 }}>검색... (Ctrl+K)</span>
+            </button>
 
             {/* Notification Bell */}
             <div ref={notifRef} style={{ position: 'relative' }}>
@@ -442,6 +438,84 @@ export default function DashboardLayout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Command Palette Modal (Ctrl+K) */}
+      {cmdPaletteOpen && (
+        <div
+          className="cmd-palette-overlay"
+          onClick={(e) => { if (e.target === e.currentTarget) setCmdPaletteOpen(false) }}
+        >
+          <div className="cmd-palette">
+            <div className="cmd-palette-input-wrap">
+              <i className="ri-search-line" />
+              <input
+                ref={cmdInputRef}
+                type="text"
+                className="cmd-palette-input"
+                placeholder="페이지, 액션 검색..."
+                value={cmdQuery}
+                onChange={(e) => { setCmdQuery(e.target.value); setCmdIndex(0) }}
+                onKeyDown={handleCmdKeyDown}
+              />
+              <kbd className="cmd-palette-kbd">ESC</kbd>
+            </div>
+            <div className="cmd-palette-results">
+              {cmdFlat.length === 0 && (
+                <div className="cmd-palette-empty">
+                  <i className="ri-search-line" />
+                  <p>검색 결과가 없습니다</p>
+                </div>
+              )}
+              {cmdGrouped.actions.length > 0 && (
+                <div className="cmd-palette-group">
+                  <div className="cmd-palette-group-label">빠른 액션</div>
+                  {cmdGrouped.actions.map((item) => {
+                    const flatIdx = cmdFlat.indexOf(item)
+                    return (
+                      <button
+                        key={item.path}
+                        className={`cmd-palette-item${flatIdx === cmdIndex ? ' active' : ''}`}
+                        onClick={() => handleCmdSelect(item)}
+                        onMouseEnter={() => setCmdIndex(flatIdx)}
+                      >
+                        <div className="cmd-item-icon action"><i className={item.icon} /></div>
+                        <span>{item.label}</span>
+                        <i className="ri-arrow-right-line cmd-item-arrow" />
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {cmdGrouped.pages.length > 0 && (
+                <div className="cmd-palette-group">
+                  <div className="cmd-palette-group-label">페이지</div>
+                  {cmdGrouped.pages.map((item) => {
+                    const flatIdx = cmdFlat.indexOf(item)
+                    return (
+                      <button
+                        key={item.path}
+                        className={`cmd-palette-item${flatIdx === cmdIndex ? ' active' : ''}`}
+                        onClick={() => handleCmdSelect(item)}
+                        onMouseEnter={() => setCmdIndex(flatIdx)}
+                      >
+                        <div className="cmd-item-icon page"><i className={item.icon} /></div>
+                        <span>{item.label}</span>
+                        {location.pathname === item.path && <span className="cmd-item-current">현재 페이지</span>}
+                        <i className="ri-arrow-right-line cmd-item-arrow" />
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="cmd-palette-footer">
+              <span><kbd>↑</kbd><kbd>↓</kbd> 이동</span>
+              <span><kbd>Enter</kbd> 선택</span>
+              <span><kbd>Esc</kbd> 닫기</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Keyboard Shortcuts Modal */}
       {shortcutsModal && (

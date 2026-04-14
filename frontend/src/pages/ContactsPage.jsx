@@ -4,6 +4,7 @@ import { SkeletonRow } from '../components/PageLoader'
 import { useToast } from '../components/Toast'
 import { usePlan } from '../components/PlanContext'
 import { QuotaBar } from '../components/UpgradeModal'
+import { useConfirm } from '../components/ConfirmDialog'
 import { contactService } from '../api/services'
 
 const GRADIENTS = [
@@ -40,6 +41,7 @@ export default function ContactsPage() {
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
   const toast = useToast()
+  const confirmDialog = useConfirm()
   const { getLimit } = usePlan()
 
   const [loading, setLoading] = useState(true)
@@ -235,7 +237,15 @@ export default function ContactsPage() {
   // --- Bulk actions ---
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return
-    if (!confirm(`${selectedIds.size}명의 연락처를 삭제하시겠습니까?`)) return
+    const ok = await confirmDialog({
+      title: '연락처 일괄 삭제',
+      message: `선택한 ${selectedIds.size}명의 연락처를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
+      confirmText: '삭제',
+      cancelText: '취소',
+      variant: 'danger',
+      icon: 'ri-delete-bin-line',
+    })
+    if (!ok) return
     try {
       await contactService.deleteBulk([...selectedIds])
       setSelectedIds(new Set())

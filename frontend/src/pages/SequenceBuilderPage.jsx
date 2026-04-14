@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { sequenceService } from '../api/services'
+import { useConfirm, useUnsavedChanges } from '../components/ConfirmDialog'
+import { useToast } from '../components/Toast'
 
 const STEP_TYPES = [
   { value: 'MESSAGE', label: '메시지', icon: 'ri-message-3-line', color: '#3B82F6' },
@@ -215,6 +217,8 @@ export default function SequenceBuilderPage() {
   const navigate = useNavigate()
   const { id } = useParams()
   const location = useLocation()
+  const confirm = useConfirm()
+  const toast = useToast()
 
   const isNew = !id
   const [loading, setLoading] = useState(!!id)
@@ -225,6 +229,9 @@ export default function SequenceBuilderPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [hasChanges, setHasChanges] = useState(false)
+
+  // 브라우저 새로고침/탭 닫기 시 미저장 경고
+  useUnsavedChanges(hasChanges)
 
   // 기존 시퀀스 로드
   useEffect(() => {
@@ -277,8 +284,18 @@ export default function SequenceBuilderPage() {
     setSelectedIndex(steps.length)
   }
 
-  const removeStep = (index) => {
+  const removeStep = async (index) => {
     if (steps.length <= 1) return
+    const step = steps[index]
+    const ok = await confirm({
+      title: '단계 삭제',
+      message: `"${step.name || `단계 ${index + 1}`}" 단계를 삭제하시겠습니까?`,
+      confirmText: '삭제',
+      cancelText: '취소',
+      variant: 'danger',
+      icon: 'ri-delete-bin-line',
+    })
+    if (!ok) return
     setSteps(prev => prev.filter((_, i) => i !== index).map((s, i) => ({
       ...s, stepOrder: i + 1, delayMinutes: i === 0 ? 0 : s.delayMinutes,
     })))
@@ -316,9 +333,12 @@ export default function SequenceBuilderPage() {
       }
       if (id) {
         await sequenceService.update(id, payload)
+        toast.success('시퀀스가 업데이트되었습니다!')
       } else {
         await sequenceService.create(payload)
+        toast.success('시퀀스가 생성되었습니다!')
       }
+      setHasChanges(false)
       navigate('/app/sequences')
     } catch (err) {
       setError(err.message || '저장에 실패했습니다')
@@ -327,9 +347,17 @@ export default function SequenceBuilderPage() {
     }
   }
 
-  const handleBack = () => {
+  const handleBack = async () => {
     if (hasChanges && steps.some(s => s.messageContent)) {
-      if (!window.confirm('저장하지 않은 변경 사항이 있습니다. 나가시겠습니까?')) return
+      const ok = await confirm({
+        title: '변경 사항 저장 안 됨',
+        message: '저장하지 않은 변경 사항이 있습니다. 저장하지 않고 나가시겠습니까?',
+        confirmText: '나가기',
+        cancelText: '계속 편집',
+        variant: 'danger',
+        icon: 'ri-error-warning-line',
+      })
+      if (!ok) return
     }
     navigate('/app/sequences')
   }

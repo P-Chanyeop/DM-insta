@@ -41,6 +41,7 @@ public class AnalyticsService {
         private List<DailyStats> dailyMessages;
         private List<DailyStats> dailyNewContacts;
         private List<FlowPerformance> flowPerformances;
+        private List<HourlyStats> hourlyEngagement;
     }
 
     @Data
@@ -59,6 +60,13 @@ public class AnalyticsService {
         private boolean active;
         private Long sentCount;
         private Double openRate;
+    }
+
+    @Data
+    @Builder
+    public static class HourlyStats {
+        private int hour;
+        private long count;
     }
 
     public AnalyticsResponse getAnalytics(Long userId, int days) {
@@ -106,6 +114,10 @@ public class AnalyticsService {
                         .build())
                 .toList();
 
+        // 시간대별 참여 통계
+        List<HourlyStats> hourlyEngagement = buildHourlyStats(
+                messageRepository.countHourlyOutboundByUserId(userId, startDate));
+
         return AnalyticsResponse.builder()
                 .totalMessages(totalMessages)
                 .totalContacts(totalContacts)
@@ -115,7 +127,29 @@ public class AnalyticsService {
                 .dailyMessages(dailyMessages)
                 .dailyNewContacts(dailyNewContacts)
                 .flowPerformances(flowPerformances)
+                .hourlyEngagement(hourlyEngagement)
                 .build();
+    }
+
+    /**
+     * DB 쿼리 결과(시간대별 카운트)를 0~23시 전체 리스트로 변환.
+     * 데이터가 없는 시간대는 0으로 채움.
+     */
+    private List<HourlyStats> buildHourlyStats(List<Object[]> queryResult) {
+        Map<Integer, Long> countsByHour = queryResult.stream()
+                .collect(Collectors.toMap(
+                        row -> ((Number) row[0]).intValue(),
+                        row -> ((Number) row[1]).longValue()
+                ));
+
+        List<HourlyStats> stats = new ArrayList<>();
+        for (int h = 0; h < 24; h++) {
+            stats.add(HourlyStats.builder()
+                    .hour(h)
+                    .count(countsByHour.getOrDefault(h, 0L))
+                    .build());
+        }
+        return stats;
     }
 
     /**
