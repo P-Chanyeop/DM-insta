@@ -1,7 +1,15 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 export default function UpgradeModal({ open, onClose, feature, description }) {
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!open) return
+    const handleKeyDown = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [open, onClose])
 
   if (!open) return null
 
@@ -51,8 +59,21 @@ export function ProBadge({ onClick }) {
 }
 
 /** Quota warning bar */
-export function QuotaBar({ current, max, label }) {
+export function QuotaBar({ current, max, label, loading }) {
   if (max === Infinity) return null
+  if (loading) {
+    return (
+      <div className="quota-bar">
+        <div className="quota-info">
+          <span>{label}</span>
+          <span className="quota-nums">불러오는 중...</span>
+        </div>
+        <div className="quota-track">
+          <div className="quota-fill" style={{ width: 0 }} />
+        </div>
+      </div>
+    )
+  }
   const pct = Math.min(100, Math.round((current / max) * 100))
   const isNear = pct >= 80
   const isFull = pct >= 100

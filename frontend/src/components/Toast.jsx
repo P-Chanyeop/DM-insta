@@ -22,9 +22,23 @@ export function ToastProvider({ children }) {
     }, 300)
   }, [])
 
+  const MAX_TOASTS = 5
+
   const showToast = useCallback((message, type = 'success', duration = 3500) => {
     const id = ++toastId
-    setToasts(prev => [...prev, { id, message, type, leaving: false }])
+    setToasts(prev => {
+      const next = [...prev, { id, message, type, leaving: false }]
+      // Auto-remove oldest if exceeding max
+      if (next.filter(t => !t.leaving).length > MAX_TOASTS) {
+        const oldest = next.find(t => !t.leaving)
+        if (oldest) {
+          clearTimeout(timers.current[oldest.id])
+          delete timers.current[oldest.id]
+          removeToast(oldest.id)
+        }
+      }
+      return next
+    })
     timers.current[id] = setTimeout(() => {
       removeToast(id)
       delete timers.current[id]

@@ -116,7 +116,7 @@ export default function AutomationPage() {
       </div>
 
       {getLimit('automations') !== Infinity && (
-        <QuotaBar current={automations.length} max={getLimit('automations')} label="트리거" />
+        <QuotaBar current={automations.length} max={getLimit('automations')} label="트리거" loading={loading} />
       )}
 
       {error && (

@@ -272,7 +272,7 @@ export default function ContactsPage() {
           <h2>연락처 관리</h2>
           <p>총 {totalElements.toLocaleString('ko-KR')}명의 구독자를 관리하세요</p>
           {getLimit('contacts') !== Infinity && (
-            <QuotaBar current={totalElements} max={getLimit('contacts')} label="연락처" />
+            <QuotaBar current={totalElements} max={getLimit('contacts')} label="연락처" loading={loading} />
           )}
         </div>
         <div className="header-actions">

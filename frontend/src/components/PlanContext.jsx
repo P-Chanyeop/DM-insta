@@ -64,10 +64,12 @@ export function PlanProvider({ children }) {
           automations: info.automationCount || 0,
         })
       }
+      return true
     } catch {
       // API 실패 시 로컬 유저 정보에서 플랜 확인
       const user = getStoredUser()
       if (user?.plan) setPlan(user.plan)
+      return false
     } finally {
       setLoading(false)
     }

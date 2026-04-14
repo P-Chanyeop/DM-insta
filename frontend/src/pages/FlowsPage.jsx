@@ -173,7 +173,7 @@ export default function FlowsPage() {
       </div>
 
       {getLimit('flows') !== Infinity && (
-        <QuotaBar current={flows.length} max={getLimit('flows')} label="플로우" />
+        <QuotaBar current={flows.length} max={getLimit('flows')} label="플로우" loading={loading} />
       )}
 
       {error && (

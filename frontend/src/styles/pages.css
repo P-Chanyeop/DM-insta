@@ -755,34 +755,10 @@
 .line-chart-placeholder { position: relative; }
 .line-chart-placeholder svg { width: 100%; height: 200px; }
 .chart-x-labels { display: flex; justify-content: space-between; padding: 8px 0; font-size: 12px; color: var(--gray-400); }
-.chart-legend-btns { display: flex; gap: 6px; }
-.legend-btn {
-  padding: 4px 12px; border-radius: 100px; font-size: 12px; font-weight: 600;
-  background: var(--gray-100); color: var(--gray-500); border: none; cursor: pointer;
-}
-.legend-btn.active.blue { background: var(--primary-100); color: var(--primary); }
-.legend-btn.active.green { background: var(--green-light); color: var(--green); }
-.legend-btn.active.purple { background: var(--purple-light); color: var(--purple); }
-
 .top-flows-list { display: flex; flex-direction: column; gap: 12px; }
-.top-flow-item { display: flex; align-items: center; gap: 12px; }
-.top-rank {
-  width: 28px; height: 28px; border-radius: 50%; background: var(--gray-100);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 800; color: var(--gray-600);
-}
-.top-flow-info { flex: 1; }
-.top-flow-info strong { display: block; font-size: 13px; color: var(--gray-800); margin-bottom: 4px; }
-.top-flow-bar { height: 6px; background: var(--gray-100); border-radius: 3px; overflow: hidden; }
-.top-flow-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--purple)); border-radius: 3px; }
-.top-flow-value { font-size: 14px; font-weight: 700; color: var(--gray-800); }
 
 .funnel-chart { display: flex; flex-direction: column; gap: 8px; }
-.funnel-step .funnel-bar {
-  padding: 12px 16px; background: linear-gradient(90deg, var(--primary), var(--primary-light));
-  border-radius: var(--radius); color: white; font-size: 13px; font-weight: 600;
-  transition: all 0.3s;
-}
+.funnel-step:nth-child(1) .funnel-bar { background: linear-gradient(90deg, var(--primary, #3B82F6), var(--primary-light, #93C5FD)); }
 .funnel-step:nth-child(2) .funnel-bar { background: linear-gradient(90deg, #6366F1, #818CF8); }
 .funnel-step:nth-child(3) .funnel-bar { background: linear-gradient(90deg, #8B5CF6, #A78BFA); }
 .funnel-step:nth-child(4) .funnel-bar { background: linear-gradient(90deg, #EC4899, #F472B6); }

@@ -164,6 +164,13 @@ export default function SettingsPage() {
   const { plan: currentUserPlan, usage: planUsage, limits: planLimits, refresh: refreshPlan } = usePlan()
   const [billingCycle, setBillingCycle] = useState('monthly')
 
+  // Sync tab when navigated via state (e.g. UpgradeModal → billing)
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab)
+    }
+  }, [location.state])
+
   const toast = useToast()
   const showToast = useCallback((message, type = 'success') => {
     toast(message, type)
@@ -223,8 +230,7 @@ export default function SettingsPage() {
   const [visibleKeys, setVisibleKeys] = useState({})
   const [integrationLoading, setIntegrationLoading] = useState({})
 
-  // Billing state
-  const [currentPlan, setCurrentPlan] = useState('free')
+  // Billing state — plan comes from PlanContext (currentUserPlan)
   const [planUpgrading, setPlanUpgrading] = useState(null)
   const [billingInfo, setBillingInfo] = useState(null)
   const [billingLoading, setBillingLoading] = useState(false)
@@ -242,7 +248,6 @@ export default function SettingsPage() {
           name: userData.name || '',
           email: userData.email || '',
         }))
-        setCurrentPlan((userData.plan || 'FREE').toLowerCase())
         setStoredUser({ email: userData.email, name: userData.name, plan: userData.plan })
       } catch {
         // Fallback to stored user if API fails
@@ -253,7 +258,6 @@ export default function SettingsPage() {
             name: stored.name || '',
             email: stored.email || '',
           }))
-          setCurrentPlan((stored.plan || 'FREE').toLowerCase())
         }
       } finally {
         if (mounted) setProfileLoading(false)
@@ -1212,7 +1216,7 @@ export default function SettingsPage() {
     }
 
     const getPlanButton = (plan) => {
-      const isCurrent = plan.id === currentPlan.toLowerCase()
+      const isCurrent = plan.id === currentUserPlan.toLowerCase()
       if (plan.id === 'enterprise') {
         return (
           <button className="btn-primary billing-plan-btn" onClick={() => handlePlanAction('enterprise')}>
@@ -1349,7 +1353,7 @@ export default function SettingsPage() {
           </div>
           <div className="billing-plans-grid">
             {PLANS.map((plan) => {
-              const isCurrent = plan.id === currentPlan.toLowerCase()
+              const isCurrent = plan.id === currentUserPlan.toLowerCase()
               const price = billingCycle === 'annual' ? plan.annualPrice : plan.monthlyPrice
               return (
                 <div className={`billing-plan-card${isCurrent ? ' current' : ''}${plan.popular ? ' popular' : ''}`} key={plan.id}>
@@ -1382,7 +1386,12 @@ export default function SettingsPage() {
         {/* Billing history */}
         <div className="settings-section">
           <h3>결제 내역</h3>
-          {isSubscribed ? (
+          {billingLoading ? (
+            <div className="billing-history-card empty">
+              <i className="ri-loader-4-line spin" style={{ fontSize: 20 }} />
+              <p>결제 정보를 불러오는 중...</p>
+            </div>
+          ) : isSubscribed ? (
             <div className="billing-history-card">
               <i className="ri-file-list-3-line" />
               <p>결제 내역 및 인보이스는 Stripe 고객 포털에서 확인할 수 있습니다.</p>
