@@ -157,7 +157,7 @@ export default function SequencesPage() {
           </button>
         </div>
       ) : sequences.length === 0 ? (
-        <EmptyState icon="ri-list-ordered-2" title="아직 시퀀스가 없습니다" description="단계별 자동 메시지를 설정하여 고객과 지속적으로 소통하세요" actionLabel="시퀀스 만들기" onAction={() => setShowForm(true)} />
+        <EmptyState icon="ri-list-ordered-2" title="아직 시퀀스가 없습니다" description="단계별 자동 메시지를 설정하여 고객과 지속적으로 소통하세요" actionLabel="시퀀스 만들기" onAction={() => sequenceAllowed ? setShowForm(true) : setUpgradeOpen(true)} />
       ) : (
         sequences.map((seq) => (
           <div className="sequence-card" key={seq.id}>

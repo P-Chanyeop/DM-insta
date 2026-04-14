@@ -139,7 +139,7 @@ export default function BroadcastPage() {
       <div className="broadcast-list">
         {loading && <PageLoader text="브로드캐스트를 불러오는 중..." />}
         {!loading && filtered.length === 0 && (
-          <EmptyState icon="ri-broadcast-line" title="브로드캐스트가 없습니다" description="대량 DM을 보내려면 첫 브로드캐스트를 만들어 보세요" actionLabel="브로드캐스트 만들기" onAction={() => setModal(true)} />
+          <EmptyState icon="ri-broadcast-line" title="브로드캐스트가 없습니다" description="대량 DM을 보내려면 첫 브로드캐스트를 만들어 보세요" actionLabel="브로드캐스트 만들기" onAction={() => broadcastAllowed ? setModal(true) : setUpgradeOpen(true)} />
         )}
         {filtered.map((b) => {
           const s = statusLabel(b.status)

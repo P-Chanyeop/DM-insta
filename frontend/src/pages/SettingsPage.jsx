@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import { api, getStoredUser, setStoredUser } from '../api/client'
 import { integrationService, userService, teamService, billingService } from '../api/services'
 import { useToast } from '../components/Toast'
+import { usePlan } from '../components/PlanContext'
 
 const TABS = [
   { key: 'account', icon: 'ri-instagram-line', label: '계정 연결' },
@@ -67,28 +69,48 @@ const PLANS = [
   {
     id: 'free',
     name: 'Free',
-    price: '₩0',
-    period: '/월',
-    features: ['월 1,000 메시지', '기본 자동화 3개', 'Instagram 계정 1개', '커뮤니티 지원'],
-    cta: '현재 플랜',
-    current: true,
+    monthlyPrice: 0,
+    annualPrice: 0,
+    features: [
+      { text: '연락처 1,000명', included: true },
+      { text: '기본 자동화 3개', included: true },
+      { text: 'Instagram 계정 1개', included: true },
+      { text: '커뮤니티 지원', included: true },
+      { text: '브로드캐스팅', included: false },
+      { text: '시퀀스 (드립)', included: false },
+    ],
   },
   {
     id: 'pro',
     name: 'Pro',
-    price: '₩49,000',
-    period: '/월',
-    features: ['월 50,000 메시지', '무제한 자동화', 'Instagram 계정 5개', '팀 멤버 5명', '우선 지원', 'API 연동', '고급 분석'],
-    cta: '업그레이드',
+    monthlyPrice: 29000,
+    annualPrice: 23200,
     popular: true,
+    features: [
+      { text: '연락처 15,000명', included: true },
+      { text: '무제한 자동화', included: true },
+      { text: 'Instagram 계정 5개', included: true },
+      { text: '팀 멤버 5명', included: true },
+      { text: '브로드캐스팅 & 시퀀스', included: true },
+      { text: '고급 분석 & A/B 테스트', included: true },
+      { text: '우선 지원', included: true },
+    ],
   },
   {
     id: 'enterprise',
-    name: 'Enterprise',
-    price: '문의',
-    period: '',
-    features: ['무제한 메시지', '무제한 자동화', '무제한 계정', '무제한 팀 멤버', '전담 매니저', 'SLA 보장', '커스텀 연동', '온보딩 지원'],
-    cta: '문의하기',
+    name: 'Business',
+    monthlyPrice: 89000,
+    annualPrice: 71200,
+    features: [
+      { text: '무제한 연락처', included: true },
+      { text: '무제한 자동화', included: true },
+      { text: '무제한 계정 & 팀', included: true },
+      { text: '전담 매니저', included: true },
+      { text: 'SLA 보장', included: true },
+      { text: '커스텀 연동 & 웹훅', included: true },
+      { text: '온보딩 지원', included: true },
+      { text: '화이트 라벨', included: true },
+    ],
   },
 ]
 
@@ -137,7 +159,10 @@ function saveNotifications(notifications) {
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('account')
+  const location = useLocation()
+  const [activeTab, setActiveTab] = useState(location.state?.tab || 'account')
+  const { plan: currentUserPlan, usage: planUsage, limits: planLimits, refresh: refreshPlan } = usePlan()
+  const [billingCycle, setBillingCycle] = useState('monthly')
 
   const toast = useToast()
   const showToast = useCallback((message, type = 'success') => {
@@ -348,6 +373,7 @@ export default function SettingsPage() {
       setActiveTab('billing')
       showToast('결제가 완료되었습니다!', 'success')
       window.history.replaceState({}, '', window.location.pathname)
+      refreshPlan()
 
       // webhook 처리가 지연될 수 있으므로 폴링
       let retries = 0
@@ -1180,152 +1206,169 @@ export default function SettingsPage() {
     const isSubscribed = billingInfo && billingInfo.plan && billingInfo.plan.toLowerCase() !== 'free'
     const isCancelPending = billingInfo?.cancelAtPeriodEnd
 
+    const formatPrice = (amount) => {
+      if (amount === 0) return '₩0'
+      return `₩${amount.toLocaleString('ko-KR')}`
+    }
+
     const getPlanButton = (plan) => {
-      const isCurrent = plan.id === currentPlan
+      const isCurrent = plan.id === currentPlan.toLowerCase()
       if (plan.id === 'enterprise') {
         return (
-          <button className="btn-primary" onClick={() => handlePlanAction('enterprise')}>
-            <i className="ri-mail-send-line" /> 문의하기
+          <button className="btn-primary billing-plan-btn" onClick={() => handlePlanAction('enterprise')}>
+            <i className="ri-mail-send-line" /> 영업팀 문의
           </button>
         )
       }
       if (isCurrent) {
         return (
-          <button className="btn-secondary" disabled style={{ opacity: 0.6, cursor: 'not-allowed' }}>
+          <button className="btn-secondary billing-plan-btn" disabled>
             현재 플랜
           </button>
         )
       }
       if (plan.id === 'free') {
-        // If user is on a paid plan, don't show downgrade button — use portal
-        if (isSubscribed) return null
-        return (
-          <button className="btn-secondary" disabled style={{ opacity: 0.6, cursor: 'not-allowed' }}>
-            현재 플랜
+        if (isSubscribed) return (
+          <button className="btn-secondary billing-plan-btn" onClick={handleManageSubscription} disabled={portalLoading}>
+            {portalLoading ? '로딩 중...' : '다운그레이드'}
           </button>
         )
+        return <button className="btn-secondary billing-plan-btn" disabled>현재 플랜</button>
       }
-      // PRO upgrade button (only show if on FREE)
-      if (currentPlan === 'free' || !isSubscribed) {
-        return (
-          <button
-            className="btn-primary"
-            disabled={planUpgrading === plan.id}
-            onClick={() => handlePlanAction(plan.id)}
-          >
-            {planUpgrading === plan.id ? (
-              <><i className="ri-loader-4-line spin" /> 처리 중...</>
-            ) : (
-              <><i className="ri-arrow-up-line" /> 업그레이드</>
-            )}
-          </button>
-        )
-      }
-      return null
+      return (
+        <button
+          className="btn-primary billing-plan-btn"
+          disabled={planUpgrading === plan.id}
+          onClick={() => handlePlanAction(plan.id)}
+        >
+          {planUpgrading === plan.id ? (
+            <><i className="ri-loader-4-line spin" /> 처리 중...</>
+          ) : (
+            <><i className="ri-arrow-up-line" /> 업그레이드</>
+          )}
+        </button>
+      )
     }
+
+    const usageItems = [
+      { label: '연락처', current: planUsage.contacts, max: planLimits.contacts, icon: 'ri-contacts-book-2-line' },
+      { label: '자동화 플로우', current: planUsage.flows, max: planLimits.flows, icon: 'ri-flow-chart' },
+      { label: '트리거', current: planUsage.automations, max: planLimits.automations, icon: 'ri-robot-2-line' },
+    ]
 
     return (
       <>
-        {/* Subscription status card */}
+        {/* Subscription status */}
         <div className="settings-section">
           <h3>구독 현황</h3>
           {billingLoading ? (
-            <div style={{ padding: '24px 0', textAlign: 'center', color: '#94A3B8' }}>
+            <div className="billing-status-card">
               <i className="ri-loader-4-line spin" style={{ fontSize: 20 }} /> 로딩 중...
             </div>
           ) : isSubscribed ? (
-            <div style={{
-              background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12,
-              padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              flexWrap: 'wrap', gap: 16,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div style={{
-                  width: 48, height: 48, borderRadius: 12,
-                  background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <i className="ri-vip-crown-2-line" style={{ color: '#fff', fontSize: 22 }} />
+            <div className="billing-status-card subscribed">
+              <div className="billing-status-info">
+                <div className="billing-status-icon">
+                  <i className="ri-vip-crown-2-line" />
                 </div>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <strong style={{ fontSize: 16 }}>{billingInfo.plan} 플랜</strong>
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', padding: '2px 10px',
-                      borderRadius: 12, fontSize: 12, fontWeight: 600,
-                      background: isCancelPending ? '#FEF3C7' : '#D1FAE5',
-                      color: isCancelPending ? '#D97706' : '#059669',
-                      border: `1px solid ${isCancelPending ? '#FDE68A' : '#A7F3D0'}`,
-                    }}>
+                  <div className="billing-status-plan">
+                    <strong>{billingInfo.plan} 플랜</strong>
+                    <span className={`billing-status-badge ${isCancelPending ? 'warning' : 'active'}`}>
                       {isCancelPending ? '취소 예정' : '활성'}
                     </span>
                   </div>
-                  <div style={{ fontSize: 13, color: '#64748B' }}>
-                    {billingInfo.currentPeriodEnd && (
-                      <>
-                        {isCancelPending ? '만료일' : '다음 결제일'}:{' '}
-                        <strong>{new Date(billingInfo.currentPeriodEnd).toLocaleDateString('ko-KR')}</strong>
-                      </>
-                    )}
-                  </div>
+                  {billingInfo.currentPeriodEnd && (
+                    <div className="billing-status-date">
+                      {isCancelPending ? '만료일' : '다음 결제일'}:{' '}
+                      <strong>{new Date(billingInfo.currentPeriodEnd).toLocaleDateString('ko-KR')}</strong>
+                    </div>
+                  )}
                 </div>
               </div>
-              <button
-                className="btn-secondary"
-                onClick={handleManageSubscription}
-                disabled={portalLoading}
-              >
-                {portalLoading ? (
-                  <><i className="ri-loader-4-line spin" /> 로딩 중...</>
-                ) : (
-                  <><i className="ri-settings-3-line" /> 구독 관리</>
-                )}
+              <button className="btn-secondary" onClick={handleManageSubscription} disabled={portalLoading}>
+                {portalLoading ? <><i className="ri-loader-4-line spin" /> 로딩 중...</> : <><i className="ri-settings-3-line" /> 구독 관리</>}
               </button>
             </div>
           ) : (
-            <div style={{
-              background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12,
-              padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 12,
-            }}>
-              <i className="ri-information-line" style={{ fontSize: 20, color: '#94A3B8' }} />
-              <span style={{ fontSize: 14, color: '#64748B' }}>
-                현재 무료 플랜입니다. 아래에서 업그레이드할 수 있습니다.
-              </span>
+            <div className="billing-status-card free">
+              <i className="ri-information-line" />
+              <span>현재 무료 플랜입니다. 아래에서 업그레이드하여 모든 기능을 활용하세요.</span>
             </div>
           )}
         </div>
 
+        {/* Usage overview */}
+        <div className="settings-section">
+          <h3>사용량</h3>
+          <div className="billing-usage-grid">
+            {usageItems.map(item => {
+              const isUnlimited = item.max === Infinity
+              const pct = isUnlimited ? 5 : Math.min(100, Math.round((item.current / item.max) * 100))
+              const isNear = !isUnlimited && pct >= 80
+              const isFull = !isUnlimited && pct >= 100
+              return (
+                <div className="billing-usage-item" key={item.label}>
+                  <div className="billing-usage-header">
+                    <i className={item.icon} />
+                    <span>{item.label}</span>
+                    <span className={`billing-usage-count${isFull ? ' full' : isNear ? ' near' : ''}`}>
+                      {item.current.toLocaleString()} / {isUnlimited ? '무제한' : item.max.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="billing-usage-track">
+                    <div
+                      className={`billing-usage-fill${isFull ? ' full' : isNear ? ' near' : ''}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
         {/* Plan cards */}
         <div className="settings-section">
-          <h3>요금제</h3>
-          <div className="settings-plans-grid">
+          <div className="billing-plans-header">
+            <h3>요금제</h3>
+            <div className="billing-cycle-toggle">
+              <button
+                className={billingCycle === 'monthly' ? 'active' : ''}
+                onClick={() => setBillingCycle('monthly')}
+              >
+                월간
+              </button>
+              <button
+                className={billingCycle === 'annual' ? 'active' : ''}
+                onClick={() => setBillingCycle('annual')}
+              >
+                연간 <span className="billing-save-tag">20% 할인</span>
+              </button>
+            </div>
+          </div>
+          <div className="billing-plans-grid">
             {PLANS.map((plan) => {
-              const isCurrent = plan.id === currentPlan
+              const isCurrent = plan.id === currentPlan.toLowerCase()
+              const price = billingCycle === 'annual' ? plan.annualPrice : plan.monthlyPrice
               return (
-                <div
-                  className={`settings-plan-card${isCurrent ? ' current' : ''}${plan.popular ? ' popular' : ''}`}
-                  key={plan.id}
-                  style={isCurrent ? { borderColor: '#6366F1', borderWidth: 2 } : undefined}
-                >
-                  {plan.popular && <div className="settings-plan-badge">인기</div>}
-                  {isCurrent && (
-                    <div style={{
-                      position: 'absolute', top: 12, right: 12,
-                      background: '#6366F1', color: '#fff', fontSize: 11, fontWeight: 700,
-                      padding: '2px 8px', borderRadius: 6,
-                    }}>
-                      현재
+                <div className={`billing-plan-card${isCurrent ? ' current' : ''}${plan.popular ? ' popular' : ''}`} key={plan.id}>
+                  {plan.popular && <div className="billing-plan-popular">추천</div>}
+                  {isCurrent && <div className="billing-plan-current">현재</div>}
+                  <h4>{plan.name}</h4>
+                  <div className="billing-plan-price">
+                    <span className="billing-plan-amount">{formatPrice(price)}</span>
+                    <span className="billing-plan-period">/월</span>
+                  </div>
+                  {billingCycle === 'annual' && plan.monthlyPrice > 0 && (
+                    <div className="billing-plan-annual-note">
+                      연 {formatPrice(price * 12)} (월 {formatPrice(plan.monthlyPrice)}에서 절약)
                     </div>
                   )}
-                  <h4>{plan.name}</h4>
-                  <div className="settings-plan-price">
-                    <span className="settings-plan-amount">{plan.price}</span>
-                    <span className="settings-plan-period">{plan.period}</span>
-                  </div>
-                  <ul className="settings-plan-features">
+                  <ul className="billing-plan-features">
                     {plan.features.map((f) => (
-                      <li key={f}>
-                        <i className="ri-check-line" /> {f}
+                      <li key={f.text} className={f.included ? '' : 'excluded'}>
+                        <i className={f.included ? 'ri-check-line' : 'ri-close-line'} /> {f.text}
                       </li>
                     ))}
                   </ul>
@@ -1336,32 +1379,19 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Billing history / portal link */}
+        {/* Billing history */}
         <div className="settings-section">
           <h3>결제 내역</h3>
           {isSubscribed ? (
-            <div style={{
-              background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12,
-              padding: '20px 24px', textAlign: 'center',
-            }}>
-              <i className="ri-file-list-3-line" style={{ fontSize: 28, color: '#94A3B8', marginBottom: 8, display: 'block' }} />
-              <p style={{ color: '#64748B', fontSize: 14, margin: '0 0 12px' }}>
-                결제 내역 및 인보이스는 Stripe 고객 포털에서 확인할 수 있습니다.
-              </p>
-              <button
-                className="btn-secondary small"
-                onClick={handleManageSubscription}
-                disabled={portalLoading}
-              >
-                {portalLoading ? (
-                  <><i className="ri-loader-4-line spin" /> 로딩 중...</>
-                ) : (
-                  <><i className="ri-external-link-line" /> 결제 내역 보기</>
-                )}
+            <div className="billing-history-card">
+              <i className="ri-file-list-3-line" />
+              <p>결제 내역 및 인보이스는 Stripe 고객 포털에서 확인할 수 있습니다.</p>
+              <button className="btn-secondary small" onClick={handleManageSubscription} disabled={portalLoading}>
+                {portalLoading ? <><i className="ri-loader-4-line spin" /> 로딩 중...</> : <><i className="ri-external-link-line" /> 결제 내역 보기</>}
               </button>
             </div>
           ) : (
-            <div className="settings-billing-empty">
+            <div className="billing-history-card empty">
               <i className="ri-file-list-3-line" />
               <p>결제 내역이 없습니다.</p>
             </div>
