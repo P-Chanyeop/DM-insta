@@ -1826,6 +1826,60 @@ label.ne-radio {
 .sb-delay-chip.active { background: var(--primary-50, #EFF6FF); border-color: var(--primary, #3B82F6); color: var(--primary, #3B82F6); }
 .sb-delay-custom { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 
+/* ===== Broadcast Builder ===== */
+.bc-segment-builder { display: flex; flex-direction: column; gap: 12px; }
+.bc-conditions { display: flex; flex-direction: column; gap: 0; }
+.bc-condition-logic {
+  font-size: 11px; font-weight: 700; color: var(--primary, #3B82F6);
+  text-align: center; padding: 4px 0;
+}
+.bc-condition-row { display: flex; flex-direction: column; }
+.bc-condition-card {
+  display: flex; gap: 8px; align-items: center; padding: 10px 12px;
+  background: var(--gray-50, #F9FAFB); border: 1px solid var(--gray-100, #F3F4F6);
+  border-radius: 10px;
+}
+.bc-condition-card .fb-select, .bc-condition-card .fb-input { flex: 1; min-width: 0; }
+.bc-segment-summary {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  background: #EDE9FE; border-radius: 10px; font-size: 12px; color: #5B21B6;
+  border: 1px solid #DDD6FE;
+}
+.bc-segment-summary i { font-size: 14px; flex-shrink: 0; }
+.bc-schedule-cards { display: flex; gap: 10px; }
+.bc-schedule-card {
+  flex: 1; display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  border: 2px solid var(--gray-100, #F3F4F6); border-radius: 12px;
+  background: white; cursor: pointer; transition: all 0.15s; text-align: left;
+  font-family: inherit;
+}
+.bc-schedule-card i { font-size: 22px; color: var(--gray-400, #9CA3AF); flex-shrink: 0; }
+.bc-schedule-card strong { display: block; font-size: 13px; color: var(--gray-900, #111827); }
+.bc-schedule-card span { display: block; font-size: 11px; color: var(--gray-500, #6B7280); margin-top: 2px; }
+.bc-schedule-card:hover { border-color: var(--gray-300, #D1D5DB); }
+.bc-schedule-card.active { border-color: var(--primary, #3B82F6); background: var(--primary-50, #EFF6FF); }
+.bc-schedule-card.active i { color: var(--primary, #3B82F6); }
+.bc-schedule-picker { display: flex; gap: 12px; margin-top: 12px; }
+
+/* Broadcast card status timeline */
+.bc-status-timeline {
+  display: flex; align-items: center; gap: 0; margin: 12px 0;
+  font-size: 11px; color: var(--gray-400, #9CA3AF);
+}
+.bc-timeline-step {
+  display: flex; align-items: center; gap: 4px; padding: 3px 8px;
+  border-radius: 6px;
+}
+.bc-timeline-step.done { color: #059669; background: #D1FAE5; }
+.bc-timeline-step.current { color: #2563EB; background: #DBEAFE; font-weight: 700; }
+.bc-timeline-line { flex: 1; height: 2px; background: var(--gray-200, #E5E7EB); max-width: 40px; }
+.bc-timeline-line.done { background: #6EE7B7; }
+.bc-sending-progress {
+  height: 4px; background: var(--gray-100, #F3F4F6); border-radius: 2px;
+  overflow: hidden; margin: 8px 0;
+}
+.bc-sending-fill { height: 100%; background: var(--primary, #3B82F6); border-radius: 2px; transition: width 0.3s; }
+
 /* ===== Dropdown Menu ===== */
 .dropdown { position: relative; display: inline-block; }
 .dropdown-menu { position: absolute; right: 0; top: 100%; background: #fff; border: 1px solid var(--gray-100, #F3F4F6); border-radius: var(--radius-md, 12px); box-shadow: var(--shadow-lg, 0 10px 25px rgba(0,0,0,0.1)); min-width: 200px; z-index: 10; padding: 6px; }

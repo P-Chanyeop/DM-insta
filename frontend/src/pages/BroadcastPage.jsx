@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import PageLoader from '../components/PageLoader'
 import { useToast } from '../components/Toast'
@@ -26,23 +27,44 @@ function statusLabel(status) {
   }
 }
 
+const TIMELINE_STEPS = ['DRAFT', 'SCHEDULED', 'SENDING', 'SENT']
+const TIMELINE_LABELS = { DRAFT: '작성', SCHEDULED: '예약', SENDING: '발송중', SENT: '완료' }
+
+function StatusTimeline({ status }) {
+  if (status === 'CANCELLED') {
+    return (
+      <div className="bc-status-timeline">
+        <div className="bc-timeline-step" style={{ color: '#DC2626', background: '#FEE2E2' }}>
+          <i className="ri-close-circle-line" /> 취소됨
+        </div>
+      </div>
+    )
+  }
+  const currentIdx = TIMELINE_STEPS.indexOf(status)
+  return (
+    <div className="bc-status-timeline">
+      {TIMELINE_STEPS.map((step, i) => (
+        <div key={step} style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+          <div className={`bc-timeline-step${i < currentIdx ? ' done' : i === currentIdx ? ' current' : ''}`}>
+            {i < currentIdx && <i className="ri-check-line" />}
+            {TIMELINE_LABELS[step]}
+          </div>
+          {i < TIMELINE_STEPS.length - 1 && <div className={`bc-timeline-line${i < currentIdx ? ' done' : ''}`} />}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function BroadcastPage() {
+  const navigate = useNavigate()
   const toast = useToast()
   const { canUse } = usePlan()
   const [upgradeOpen, setUpgradeOpen] = useState(false)
-  const [modal, setModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [broadcasts, setBroadcasts] = useState([])
   const [activeTab, setActiveTab] = useState('전체')
-  const [form, setForm] = useState({
-    name: '',
-    messageContent: '',
-    segment: 'ALL',
-    scheduleType: 'immediate',
-    scheduledAt: '',
-  })
-
   const loadBroadcasts = async () => {
     try {
       setLoading(true)
@@ -65,25 +87,11 @@ export default function BroadcastPage() {
     return true
   })
 
-  const handleCreate = async () => {
-    if (!form.name || !form.messageContent) {
-      toast.warning('이름과 메시지를 입력해주세요.')
-      return
-    }
-    try {
-      const payload = {
-        name: form.name,
-        messageContent: form.messageContent,
-        segment: form.segment,
-        scheduledAt: form.scheduleType === 'scheduled' && form.scheduledAt ? form.scheduledAt : null,
-      }
-      await broadcastService.create(payload)
-      setForm({ name: '', messageContent: '', segment: 'ALL', scheduleType: 'immediate', scheduledAt: '' })
-      setModal(false)
-      toast.success('브로드캐스트가 생성되었습니다.')
-      await loadBroadcasts()
-    } catch (err) {
-      toast.error(err.message || '생성에 실패했습니다.')
+  function handleNewBroadcast() {
+    if (canUse('broadcast')) {
+      navigate('/app/broadcast/builder')
+    } else {
+      setUpgradeOpen(true)
     }
   }
 
@@ -113,7 +121,7 @@ export default function BroadcastPage() {
           <h2>브로드캐스팅</h2>
           <p>구독자에게 대량 DM을 발송하세요</p>
         </div>
-        <button className="btn-primary" onClick={() => broadcastAllowed ? setModal(true) : setUpgradeOpen(true)}>
+        <button className="btn-primary" onClick={handleNewBroadcast}>
           <i className="ri-add-line" /> 새 브로드캐스트
         </button>
       </div>
@@ -139,7 +147,7 @@ export default function BroadcastPage() {
       <div className="broadcast-list">
         {loading && <PageLoader text="브로드캐스트를 불러오는 중..." />}
         {!loading && filtered.length === 0 && (
-          <EmptyState icon="ri-broadcast-line" title="브로드캐스트가 없습니다" description="대량 DM을 보내려면 첫 브로드캐스트를 만들어 보세요" actionLabel="브로드캐스트 만들기" onAction={() => broadcastAllowed ? setModal(true) : setUpgradeOpen(true)} />
+          <EmptyState icon="ri-broadcast-line" title="브로드캐스트가 없습니다" description="대량 DM을 보내려면 첫 브로드캐스트를 만들어 보세요" actionLabel="브로드캐스트 만들기" onAction={handleNewBroadcast} />
         )}
         {filtered.map((b) => {
           const s = statusLabel(b.status)
@@ -150,6 +158,12 @@ export default function BroadcastPage() {
                 <h4>{b.name}</h4>
                 <p>{b.segment || '전체 구독자'} · {s.label}</p>
               </div>
+              <StatusTimeline status={b.status} />
+              {b.status === 'SENDING' && b.sentCount > 0 && (
+                <div className="bc-sending-progress">
+                  <div className="bc-sending-fill" style={{ width: `${Math.min(100, b.sentCount)}%` }} />
+                </div>
+              )}
               <div className="bc-stats-grid">
                 <div className="bc-stat"><div className="bc-stat-value">{formatNumber(b.sentCount)}</div><div className="bc-stat-label">발송</div></div>
                 <div className="bc-stat"><div className="bc-stat-value">{formatNumber(b.openCount)}</div><div className="bc-stat-label">열림</div></div>
@@ -170,94 +184,6 @@ export default function BroadcastPage() {
         })}
       </div>
 
-      {modal && (
-        <div
-          className="modal-overlay active"
-          onClick={(e) => { if (e.target === e.currentTarget) setModal(false) }}
-        >
-          <div className="modal">
-            <div className="modal-header">
-              <h3>새 브로드캐스트</h3>
-              <button className="icon-btn" onClick={() => setModal(false)}>
-                <i className="ri-close-line" />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>브로드캐스트 이름</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="예: 봄 시즌 세일 안내"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>대상 세그먼트</label>
-                <select
-                  className="form-input"
-                  value={form.segment}
-                  onChange={(e) => setForm({ ...form, segment: e.target.value })}
-                >
-                  <option value="ALL">전체 구독자</option>
-                  <option value="VIP">VIP</option>
-                  <option value="NEW">신규 구독자</option>
-                  <option value="ACTIVE">활성 구독자</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>메시지 내용</label>
-                <textarea
-                  className="form-textarea"
-                  rows={4}
-                  placeholder="메시지를 입력하세요..."
-                  value={form.messageContent}
-                  onChange={(e) => setForm({ ...form, messageContent: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>발송 시점</label>
-                <div style={{ display: 'flex', gap: 16 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="time"
-                      checked={form.scheduleType === 'immediate'}
-                      onChange={() => setForm({ ...form, scheduleType: 'immediate' })}
-                    />
-                    즉시 발송
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="time"
-                      checked={form.scheduleType === 'scheduled'}
-                      onChange={() => setForm({ ...form, scheduleType: 'scheduled' })}
-                    />
-                    예약 발송
-                  </label>
-                </div>
-                {form.scheduleType === 'scheduled' && (
-                  <input
-                    type="datetime-local"
-                    className="form-input"
-                    style={{ marginTop: 8 }}
-                    value={form.scheduledAt}
-                    onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
-                  />
-                )}
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setModal(false)}>취소</button>
-              <button className="btn-primary" onClick={handleCreate}>
-                <i className="ri-send-plane-line" /> {form.scheduleType === 'immediate' ? '발송하기' : '예약하기'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }

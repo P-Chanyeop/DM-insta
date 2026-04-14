@@ -15,6 +15,7 @@ import TemplatesPage from './pages/TemplatesPage'
 import SettingsPage from './pages/SettingsPage'
 import FlowBuilderPage from './pages/FlowBuilderPage'
 import SequenceBuilderPage from './pages/SequenceBuilderPage'
+import BroadcastBuilderPage from './pages/BroadcastBuilderPage'
 import LegalPage from './pages/LegalPage'
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="automation" element={<AutomationPage />} />
         <Route path="livechat" element={<LiveChatPage />} />
         <Route path="broadcast" element={<BroadcastPage />} />
+        <Route path="broadcast/builder" element={<BroadcastBuilderPage />} />
         <Route path="sequences" element={<SequencesPage />} />
         <Route path="sequences/builder" element={<SequenceBuilderPage />} />
         <Route path="sequences/builder/:id" element={<SequenceBuilderPage />} />
