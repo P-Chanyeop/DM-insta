@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { ToastProvider } from './components/Toast'
+import { PlanProvider } from './components/PlanContext'
 import './styles/global.css'
 import './styles/landing.css'
 import './styles/dashboard-layout.css'
@@ -14,7 +15,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <ToastProvider>
-        <App />
+        <PlanProvider>
+          <App />
+        </PlanProvider>
       </ToastProvider>
     </BrowserRouter>
   </React.StrictMode>

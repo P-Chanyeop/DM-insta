@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import EmptyState from '../components/EmptyState'
 import PageLoader from '../components/PageLoader'
 import { useToast } from '../components/Toast'
+import { usePlan } from '../components/PlanContext'
+import UpgradeModal from '../components/UpgradeModal'
 import { broadcastService } from '../api/services'
 
 function formatNumber(value) {
@@ -26,6 +28,8 @@ function statusLabel(status) {
 
 export default function BroadcastPage() {
   const toast = useToast()
+  const { canUse } = usePlan()
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [modal, setModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -94,14 +98,22 @@ export default function BroadcastPage() {
     }
   }
 
+  const broadcastAllowed = canUse('broadcast')
+
   return (
     <>
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        feature="브로드캐스팅"
+        description="브로드캐스팅은 프로 플랜 이상에서 사용할 수 있습니다. 구독자에게 대량 DM을 발송하려면 업그레이드하세요."
+      />
       <div className="page-header">
         <div>
           <h2>브로드캐스팅</h2>
           <p>구독자에게 대량 DM을 발송하세요</p>
         </div>
-        <button className="btn-primary" onClick={() => setModal(true)}>
+        <button className="btn-primary" onClick={() => broadcastAllowed ? setModal(true) : setUpgradeOpen(true)}>
           <i className="ri-add-line" /> 새 브로드캐스트
         </button>
       </div>

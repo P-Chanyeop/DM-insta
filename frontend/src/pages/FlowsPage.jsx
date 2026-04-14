@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import PageLoader, { SkeletonCard } from '../components/PageLoader'
 import { useToast } from '../components/Toast'
+import { usePlan } from '../components/PlanContext'
+import UpgradeModal, { QuotaBar } from '../components/UpgradeModal'
 import { flowService } from '../api/services'
 
 // Canonical enum values match backend Flow.TriggerType
@@ -41,6 +43,8 @@ function formatRelative(dateString) {
 export default function FlowsPage() {
   const navigate = useNavigate()
   const toast = useToast()
+  const { getLimit, isAtLimit } = usePlan()
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('전체')
   const [search, setSearch] = useState('')
   const [triggerFilter, setTriggerFilter] = useState('전체')
@@ -109,6 +113,10 @@ export default function FlowsPage() {
   }, [flows, activeTab, search, triggerFilter, sortBy])
 
   const handleCreate = () => {
+    if (isAtLimit('flows')) {
+      setUpgradeOpen(true)
+      return
+    }
     navigate('/app/flows/builder')
   }
 
@@ -148,6 +156,12 @@ export default function FlowsPage() {
 
   return (
     <>
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        feature="플로우 개수 한도 초과"
+        description={`무료 플랜에서는 최대 ${getLimit('flows')}개의 플로우를 생성할 수 있습니다. 무제한 플로우를 사용하려면 업그레이드하세요.`}
+      />
       <div className="page-header">
         <div>
           <h2>자동화 플로우</h2>
@@ -157,6 +171,10 @@ export default function FlowsPage() {
           <i className="ri-add-line" /> 새 자동화 만들기
         </button>
       </div>
+
+      {getLimit('flows') !== Infinity && (
+        <QuotaBar current={flows.length} max={getLimit('flows')} label="플로우" />
+      )}
 
       {error && (
         <div className="alert-banner error">

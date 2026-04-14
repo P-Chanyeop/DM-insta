@@ -2,10 +2,14 @@ import { useState, useEffect } from 'react'
 import EmptyState from '../components/EmptyState'
 import PageLoader from '../components/PageLoader'
 import { useToast } from '../components/Toast'
+import { usePlan } from '../components/PlanContext'
+import UpgradeModal from '../components/UpgradeModal'
 import { sequenceService } from '../api/services'
 
 export default function SequencesPage() {
   const toast = useToast()
+  const { canUse } = usePlan()
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [sequences, setSequences] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -82,14 +86,22 @@ export default function SequencesPage() {
     return n.toLocaleString()
   }
 
+  const sequenceAllowed = canUse('sequences')
+
   return (
     <>
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        feature="시퀀스 (드립 캠페인)"
+        description="시퀀스는 프로 플랜 이상에서 사용할 수 있습니다. 자동 순차 메시지를 보내려면 업그레이드하세요."
+      />
       <div className="page-header">
         <div>
           <h2>시퀀스 (드립 캠페인)</h2>
           <p>시간 간격을 두고 자동으로 여러 메시지를 순차 발송하세요</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
+        <button className="btn-primary" onClick={() => sequenceAllowed ? setShowForm(!showForm) : setUpgradeOpen(true)}>
           <i className="ri-add-line" /> 새 시퀀스
         </button>
       </div>

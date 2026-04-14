@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../api/client'
+import { usePlan } from '../components/PlanContext'
 
 const NAV_SECTIONS = [
   {
@@ -96,6 +97,7 @@ export default function DashboardLayout() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [notifications, setNotifications] = useState(DEMO_NOTIFICATIONS)
+  const { planLabel, getUsage, getLimit } = usePlan()
 
   const location = useLocation()
   const navigate = useNavigate()
@@ -256,10 +258,20 @@ export default function DashboardLayout() {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="plan-badge">프로 플랜</div>
+          <div className="plan-badge">{planLabel} 플랜</div>
           <div className="plan-usage">
-            <div className="usage-bar"><div className="usage-fill" style={{ width: '56%' }} /></div>
-            <span>8,432 / 15,000 연락처</span>
+            <div className="usage-bar">
+              <div
+                className="usage-fill"
+                style={{
+                  width: `${getLimit('contacts') === Infinity ? 5 : Math.min(100, Math.round((getUsage('contacts') / getLimit('contacts')) * 100))}%`,
+                  background: getLimit('contacts') !== Infinity && getUsage('contacts') / getLimit('contacts') >= 0.8 ? '#F59E0B' : undefined,
+                }}
+              />
+            </div>
+            <span>
+              {getUsage('contacts').toLocaleString()} / {getLimit('contacts') === Infinity ? '무제한' : getLimit('contacts').toLocaleString()} 연락처
+            </span>
           </div>
         </div>
       </aside>

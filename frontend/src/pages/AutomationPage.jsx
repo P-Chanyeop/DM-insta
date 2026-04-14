@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import EmptyState from '../components/EmptyState'
 import { SkeletonRow } from '../components/PageLoader'
 import { useToast } from '../components/Toast'
+import { usePlan } from '../components/PlanContext'
+import UpgradeModal, { QuotaBar } from '../components/UpgradeModal'
 import { automationService, flowService } from '../api/services'
 
 function formatNumber(value) {
@@ -10,6 +12,8 @@ function formatNumber(value) {
 
 export default function AutomationPage() {
   const toast = useToast()
+  const { getLimit, isAtLimit } = usePlan()
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [automations, setAutomations] = useState([])
@@ -92,15 +96,28 @@ export default function AutomationPage() {
 
   return (
     <>
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        feature="트리거 개수 한도 초과"
+        description={`무료 플랜에서는 최대 ${getLimit('automations')}개의 트리거를 생성할 수 있습니다. 무제한 트리거를 사용하려면 업그레이드하세요.`}
+      />
       <div className="page-header">
         <div>
           <h2>자동화 트리거</h2>
           <p>다양한 이벤트에 자동으로 반응하는 트리거를 설정하세요</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowForm((v) => !v)}>
+        <button className="btn-primary" onClick={() => {
+          if (isAtLimit('automations')) { setUpgradeOpen(true); return }
+          setShowForm((v) => !v)
+        }}>
           <i className="ri-add-line" /> {showForm ? '닫기' : '새 트리거 추가'}
         </button>
       </div>
+
+      {getLimit('automations') !== Infinity && (
+        <QuotaBar current={automations.length} max={getLimit('automations')} label="트리거" />
+      )}
 
       {error && (
         <div className="alert-banner error">
