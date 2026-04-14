@@ -231,7 +231,7 @@ export default function FlowBuilderPage() {
             <span className="fb-toggle-slider" />
           </label>
           <button
-            className="fb-preview-toggle-btn"
+            className="fb-guide-btn"
             onClick={() => tourRef.current?.restart()}
             title="사용법 가이드"
           >

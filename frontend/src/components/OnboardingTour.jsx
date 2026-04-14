@@ -38,11 +38,18 @@ const STEPS = [
     placement: 'bottom',
   },
   {
-    selector: '.fb-preview-toggle-btn',
+    selector: '.ig-preview-wrap',
     icon: 'ri-smartphone-line',
     title: 'DM 미리보기',
-    desc: '이 버튼을 클릭하면 실제 인스타그램 DM이 어떻게 보이는지 미리볼 수 있어요. 노드 설정을 변경하면 실시간으로 업데이트됩니다!',
-    placement: 'bottom',
+    desc: '실제 인스타그램 DM이 어떻게 보이는지 미리볼 수 있어요. 노드 설정을 변경하면 실시간으로 업데이트됩니다! 헤더의 📱 버튼으로 열고 닫을 수 있어요.',
+    placement: 'left',
+    beforeShow: () => {
+      // 미리보기 패널이 닫혀있으면 열기
+      if (!document.querySelector('.ig-preview-wrap')) {
+        const btn = document.querySelector('.fb-preview-toggle-btn:not(.active)')
+        if (btn) btn.click()
+      }
+    },
   },
   {
     selector: '.fb-header-right',
@@ -96,18 +103,16 @@ const OnboardingTour = forwardRef(function OnboardingTour(props, ref) {
     const currentStep = visibleSteps[step]
     if (!currentStep) return
 
-    const el = document.querySelector(currentStep.selector)
-    if (!el) {
-      // Skip missing elements
-      if (step < visibleSteps.length - 1) setStep(step + 1)
-      return
-    }
+    // 스텝 진입 전 액션 (예: 미리보기 패널 열기)
+    if (currentStep.beforeShow) currentStep.beforeShow()
 
-    // Scroll into view if needed
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-
-    // Measure after scroll settles
     const measure = () => {
+      const el = document.querySelector(currentStep.selector)
+      if (!el) {
+        if (step < visibleSteps.length - 1) setStep(step + 1)
+        return
+      }
+
       const rect = el.getBoundingClientRect()
       const pad = 8
       setSpotlightRect({
@@ -117,7 +122,6 @@ const OnboardingTour = forwardRef(function OnboardingTour(props, ref) {
         height: rect.height + pad * 2,
       })
 
-      // Tooltip positioning
       const tooltipW = 340
       const tooltipH = 260
       const gap = 16
@@ -135,23 +139,19 @@ const OnboardingTour = forwardRef(function OnboardingTour(props, ref) {
         t = { top: Math.max(12, rect.top), left: rect.left - gap - tooltipW }
         finalPlacement = 'left'
       } else {
-        // Fallback: bottom
         t = { top: rect.bottom + gap, left: Math.max(12, Math.min(rect.left, window.innerWidth - tooltipW - 12)) }
         finalPlacement = 'bottom'
       }
 
-      // Clamp vertical
-      if (t.top + tooltipH > window.innerHeight - 12) {
-        t.top = window.innerHeight - tooltipH - 12
-      }
+      if (t.top + tooltipH > window.innerHeight - 12) t.top = window.innerHeight - tooltipH - 12
       if (t.top < 12) t.top = 12
 
       setTooltipStyle(t)
       setPlacement(finalPlacement)
     }
 
-    // Delay to let scroll finish
-    setTimeout(measure, 350)
+    // beforeShow 후 React 렌더 대기 (100ms), 일반 스텝은 즉시
+    setTimeout(measure, currentStep.beforeShow ? 300 : 16)
   }, [step, getVisibleSteps])
 
   useEffect(() => {

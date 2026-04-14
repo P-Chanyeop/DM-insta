@@ -1022,13 +1022,15 @@ label.ne-radio {
 }
 .ne-add-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-50); }
 
-/* 미리보기 토글 버튼 */
+/* 헤더 아이콘 버튼 공통 */
+.fb-guide-btn,
 .fb-preview-toggle-btn {
   width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--gray-200);
   background: white; color: var(--gray-500); font-size: 18px;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: all 0.15s;
 }
+.fb-guide-btn:hover,
 .fb-preview-toggle-btn:hover { background: var(--gray-50); color: var(--gray-700); }
 .fb-preview-toggle-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
