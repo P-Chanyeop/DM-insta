@@ -30,7 +30,7 @@ public class EmailService {
     @Async
     public void sendVerificationEmail(String to, String code) {
         String subject = "[센드잇] 이메일 인증 코드";
-        String logoUrl = baseUrl + "/images/logo-icon.png";
+        String logoUrl = baseUrl + "/images/sendit_04_full_gradient.png";
         String body = buildVerificationTemplate(code, logoUrl);
         sendHtmlEmail(to, subject, body);
     }
@@ -41,7 +41,7 @@ public class EmailService {
     @Async
     public void sendPasswordResetEmail(String to, String code) {
         String subject = "[센드잇] 비밀번호 재설정 코드";
-        String logoUrl = baseUrl + "/images/logo-icon.png";
+        String logoUrl = baseUrl + "/images/sendit_04_full_gradient.png";
         String body = buildResetTemplate(code, logoUrl);
         sendHtmlEmail(to, subject, body);
     }
@@ -57,8 +57,7 @@ public class EmailService {
                   <table width="480" cellpadding="0" cellspacing="0" style="background:#FFFFFF; border-radius:12px; border:1px solid #E8E8E8; overflow:hidden;">
                     <!-- 헤더 -->
                     <tr><td style="padding:40px 32px 0; text-align:center;">
-                      <img src="%s" alt="센드잇" width="48" height="48" style="display:inline-block; margin-bottom:16px;" />
-                      <p style="color:#111; font-size:15px; font-weight:700; margin:0 0 4px; letter-spacing:-0.5px;">센드잇</p>
+                      <img src="%s" alt="센드잇" height="72" style="display:inline-block; margin-bottom:12px;" />
                       <p style="color:#999; font-size:12px; margin:0;">이메일 인증</p>
                     </td></tr>
 
@@ -116,8 +115,7 @@ public class EmailService {
                   <table width="480" cellpadding="0" cellspacing="0" style="background:#FFFFFF; border-radius:12px; border:1px solid #E8E8E8; overflow:hidden;">
                     <!-- 헤더 -->
                     <tr><td style="padding:40px 32px 0; text-align:center;">
-                      <img src="%s" alt="센드잇" width="48" height="48" style="display:inline-block; margin-bottom:16px;" />
-                      <p style="color:#111; font-size:15px; font-weight:700; margin:0 0 4px; letter-spacing:-0.5px;">센드잇</p>
+                      <img src="%s" alt="센드잇" height="72" style="display:inline-block; margin-bottom:12px;" />
                       <p style="color:#999; font-size:12px; margin:0;">비밀번호 재설정</p>
                     </td></tr>
 

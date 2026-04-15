@@ -84,7 +84,7 @@ export default function LandingPage() {
       <nav className={`landing-nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="nav-container">
           <a href="/" className="logo" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
-            <div className="logo-icon"><i className="ri-send-plane-fill" /></div>
+            <img src="/images/sendit_03_icon_gradient.png" alt="센드잇" className="logo-img" />
             <span className="logo-text">센드잇</span>
           </a>
           <ul className="nav-links">
@@ -386,7 +386,7 @@ export default function LandingPage() {
           <div className="footer-grid">
             <div className="footer-brand">
               <a href="/" className="logo" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
-                <div className="logo-icon"><i className="ri-instagram-line"/></div>
+                <img src="/images/sendit_03_icon_gradient.png" alt="센드잇" className="logo-img" />
                 <span className="logo-text">센드잇</span>
               </a>
               <p>인스타그램 마케팅 자동화의 새로운 기준.<br/>한국 사업자를 위한 최고의 DM 자동화 플랫폼</p>

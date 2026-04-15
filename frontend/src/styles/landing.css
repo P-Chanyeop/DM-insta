@@ -11,6 +11,7 @@
   max-width: 1200px; margin: 0 auto; padding: 0 24px;
   display: flex; align-items: center; justify-content: space-between; height: 72px;
 }
+.nav-container .logo-img { width: 36px; height: 36px; object-fit: contain; }
 .nav-links { display: flex; list-style: none; gap: 32px; }
 .nav-links a {
   font-size: 15px; font-weight: 500; color: var(--gray-600); transition: color 0.2s;

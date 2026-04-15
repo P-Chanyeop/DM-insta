@@ -173,7 +173,7 @@ export default function AuthPage() {
       <div className="auth-page">
         <div className="auth-container">
           <Link to="/" className="auth-logo">
-            <img src="/images/logo-full-transparent.png" alt="센드잇" className="auth-logo-img" />
+            <img src="/images/sendit_04_full_gradient.png" alt="센드잇" className="auth-logo-img" />
           </Link>
 
           <div className="auth-card">
@@ -252,7 +252,7 @@ export default function AuthPage() {
       <div className="auth-page">
         <div className="auth-container">
           <Link to="/" className="auth-logo">
-            <img src="/images/logo-full-transparent.png" alt="센드잇" className="auth-logo-img" />
+            <img src="/images/sendit_04_full_gradient.png" alt="센드잇" className="auth-logo-img" />
           </Link>
 
           <div className="auth-card">
@@ -374,7 +374,7 @@ export default function AuthPage() {
     <div className="auth-page">
       <div className="auth-container">
         <Link to="/" className="auth-logo">
-          <img src="/images/logo-full-transparent.png" alt="센드잇" className="auth-logo-img" />
+          <img src="/images/sendit_04_full_gradient.png" alt="센드잇" className="auth-logo-img" />
         </Link>
 
         <div className="auth-card">

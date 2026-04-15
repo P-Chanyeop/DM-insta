@@ -273,7 +273,7 @@ export default function DashboardLayout() {
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <a href="/" className="logo">
-            <img src="/images/logo-icon-transparent.png" alt="센드잇" className="logo-img" />
+            <img src="/images/sendit_03_icon_gradient.png" alt="센드잇" className="logo-img" />
             <span className="logo-text">센드잇</span>
           </a>
           {/* Mobile close button */}
