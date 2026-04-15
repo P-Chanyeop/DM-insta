@@ -119,6 +119,13 @@ export const billingService = {
   createPortal: () => api.post('/billing/portal'),
 }
 
+export const instagramProfileService = {
+  setIceBreakers: (items) => api.post('/instagram/ice-breakers', { items }),
+  deleteIceBreakers: () => api.delete('/instagram/ice-breakers'),
+  setPersistentMenu: (items) => api.post('/instagram/persistent-menu', { items }),
+  deletePersistentMenu: () => api.delete('/instagram/persistent-menu'),
+}
+
 export const conversationService = {
   list: (status) => api.get(`/conversations${status ? `?status=${status}` : ''}`),
   get: (id) => api.get(`/conversations/${id}`),

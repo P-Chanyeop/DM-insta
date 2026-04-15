@@ -2203,3 +2203,99 @@ label.ne-radio {
   .industry-grid { grid-template-columns: repeat(2, 1fr); }
   .industry-modal { padding: 28px 20px 24px; margin: 12px; }
 }
+
+/* ===== Messaging Settings (Ice Breaker & Persistent Menu) ===== */
+.messaging-section-header h3 {
+  display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700;
+  color: var(--gray-900, #111827); margin-bottom: 4px;
+}
+.messaging-section-header h3 i { font-size: 20px; color: var(--primary, #3B82F6); }
+.messaging-section-desc {
+  font-size: 13px; color: var(--gray-500, #6B7280); line-height: 1.5; margin-bottom: 16px;
+}
+.messaging-items-list {
+  display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px;
+}
+.messaging-item-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px; background: var(--gray-50, #F9FAFB);
+  border-radius: 10px; border: 1px solid var(--gray-100, #F3F4F6);
+}
+.messaging-item-number {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  background: var(--primary, #3B82F6); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; margin-top: 4px;
+}
+.messaging-item-fields {
+  flex: 1; display: flex; flex-direction: column; gap: 6px;
+}
+.messaging-item-fields .setting-input.small { font-size: 13px; padding: 7px 10px; }
+.messaging-item-type-row { display: flex; gap: 8px; }
+.messaging-item-type-row .setting-input.small { flex: 1; }
+.messaging-item-type-row select.setting-input.small { max-width: 220px; }
+.messaging-item-remove {
+  width: 32px; height: 32px; border-radius: 8px; border: none;
+  background: none; color: var(--gray-400, #9CA3AF); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  transition: all 0.15s; flex-shrink: 0; margin-top: 2px;
+}
+.messaging-item-remove:hover { background: #FEE2E2; color: #EF4444; }
+.messaging-actions {
+  display: flex; gap: 8px; margin-top: 16px; padding-top: 16px;
+  border-top: 1px solid var(--gray-100, #F3F4F6);
+}
+
+/* DM Preview */
+.messaging-preview { margin-top: 20px; }
+.messaging-preview-title {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: var(--gray-500, #6B7280); margin-bottom: 10px;
+}
+.messaging-preview-phone {
+  width: 280px; border-radius: 16px; overflow: hidden;
+  border: 2px solid var(--gray-200, #E5E7EB); background: #fff;
+  box-shadow: 0 4px 16px rgba(0,0,0,.06);
+}
+.messaging-preview-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; background: linear-gradient(135deg, #833AB4, #FD1D1D, #FCAF45);
+  color: #fff; font-weight: 700; font-size: 14px;
+}
+.mp-avatar {
+  width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,.25);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.messaging-preview-body { padding: 14px; }
+.mp-welcome {
+  font-size: 12px; color: var(--gray-500, #6B7280); text-align: center;
+  margin-bottom: 10px;
+}
+.mp-icebreakers { display: flex; flex-direction: column; gap: 6px; }
+.mp-ib-btn {
+  padding: 8px 12px; border-radius: 18px; font-size: 13px; font-weight: 500;
+  background: var(--gray-50, #F0F0F0); color: var(--primary, #3B82F6);
+  border: 1px solid rgba(59,130,246,.2); text-align: center; cursor: default;
+}
+.mp-ib-empty {
+  padding: 16px; text-align: center; font-size: 12px;
+  color: var(--gray-400, #9CA3AF); font-style: italic;
+}
+
+/* Info Box */
+.messaging-info-box {
+  display: flex; gap: 12px; padding: 16px;
+  background: #EFF6FF; border-radius: 10px; border: 1px solid rgba(59,130,246,.15);
+}
+.messaging-info-box > i {
+  font-size: 20px; color: var(--primary, #3B82F6); flex-shrink: 0; margin-top: 2px;
+}
+.messaging-info-box strong {
+  display: block; font-size: 14px; font-weight: 700;
+  color: var(--gray-800, #1F2937); margin-bottom: 6px;
+}
+.messaging-info-box ul {
+  margin: 0; padding-left: 18px; font-size: 13px;
+  color: var(--gray-600, #4B5563); line-height: 1.7;
+}
+.messaging-info-box li { margin-bottom: 2px; }

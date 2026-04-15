@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import { api, getStoredUser, setStoredUser } from '../api/client'
-import { integrationService, userService, teamService, billingService } from '../api/services'
+import { integrationService, userService, teamService, billingService, instagramProfileService } from '../api/services'
 import { useToast } from '../components/Toast'
 import { usePlan } from '../components/PlanContext'
 
 const TABS = [
   { key: 'account', icon: 'ri-instagram-line', label: '계정 연결' },
+  { key: 'messaging', icon: 'ri-message-3-line', label: '메시징 설정' },
   { key: 'profile', icon: 'ri-user-line', label: '프로필' },
   { key: 'team', icon: 'ri-team-line', label: '팀 멤버' },
   { key: 'notifications', icon: 'ri-notification-3-line', label: '알림' },
@@ -237,6 +238,16 @@ export default function SettingsPage() {
   const [billingInfo, setBillingInfo] = useState(null)
   const [billingLoading, setBillingLoading] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
+
+  // Ice Breaker & Persistent Menu state
+  const [iceBreakers, setIceBreakers] = useState([
+    { question: '', payload: '' },
+  ])
+  const [iceBreakerSaving, setIceBreakerSaving] = useState(false)
+  const [persistentMenu, setPersistentMenu] = useState([
+    { title: '', type: 'postback', payload: '', url: '' },
+  ])
+  const [persistentMenuSaving, setPersistentMenuSaving] = useState(false)
 
   // Load user profile from backend
   useEffect(() => {
@@ -699,7 +710,274 @@ export default function SettingsPage() {
     }
   }
 
+  // ── Ice Breaker Handlers ──
+  const handleIceBreakerChange = (index, field, value) => {
+    setIceBreakers(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item))
+  }
+  const addIceBreaker = () => {
+    if (iceBreakers.length >= 4) return
+    setIceBreakers(prev => [...prev, { question: '', payload: '' }])
+  }
+  const removeIceBreaker = (index) => {
+    setIceBreakers(prev => prev.filter((_, i) => i !== index))
+  }
+  const saveIceBreakers = async () => {
+    const validItems = iceBreakers.filter(ib => ib.question.trim())
+    if (validItems.length === 0) {
+      showToast('질문을 1개 이상 입력해 주세요.', 'error')
+      return
+    }
+    setIceBreakerSaving(true)
+    try {
+      await instagramProfileService.setIceBreakers(
+        validItems.map(ib => ({ question: ib.question.trim(), payload: ib.payload.trim() || ib.question.trim() }))
+      )
+      showToast('Ice Breaker가 설정되었습니다.')
+    } catch (err) {
+      showToast(err.message || 'Ice Breaker 설정에 실패했습니다.', 'error')
+    } finally {
+      setIceBreakerSaving(false)
+    }
+  }
+  const deleteAllIceBreakers = async () => {
+    setIceBreakerSaving(true)
+    try {
+      await instagramProfileService.deleteIceBreakers()
+      setIceBreakers([{ question: '', payload: '' }])
+      showToast('Ice Breaker가 삭제되었습니다.')
+    } catch (err) {
+      showToast(err.message || 'Ice Breaker 삭제에 실패했습니다.', 'error')
+    } finally {
+      setIceBreakerSaving(false)
+    }
+  }
+
+  // ── Persistent Menu Handlers ──
+  const handleMenuChange = (index, field, value) => {
+    setPersistentMenu(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item))
+  }
+  const addMenuItem = () => {
+    if (persistentMenu.length >= 5) return
+    setPersistentMenu(prev => [...prev, { title: '', type: 'postback', payload: '', url: '' }])
+  }
+  const removeMenuItem = (index) => {
+    setPersistentMenu(prev => prev.filter((_, i) => i !== index))
+  }
+  const savePersistentMenu = async () => {
+    const validItems = persistentMenu.filter(m => m.title.trim())
+    if (validItems.length === 0) {
+      showToast('메뉴 항목을 1개 이상 입력해 주세요.', 'error')
+      return
+    }
+    setPersistentMenuSaving(true)
+    try {
+      await instagramProfileService.setPersistentMenu(
+        validItems.map(m => ({
+          title: m.title.trim(),
+          type: m.type,
+          ...(m.type === 'web_url' ? { url: m.url.trim() } : { payload: m.payload.trim() || m.title.trim() }),
+        }))
+      )
+      showToast('Persistent Menu가 설정되었습니다.')
+    } catch (err) {
+      showToast(err.message || 'Persistent Menu 설정에 실패했습니다.', 'error')
+    } finally {
+      setPersistentMenuSaving(false)
+    }
+  }
+  const deleteAllPersistentMenu = async () => {
+    setPersistentMenuSaving(true)
+    try {
+      await instagramProfileService.deletePersistentMenu()
+      setPersistentMenu([{ title: '', type: 'postback', payload: '', url: '' }])
+      showToast('Persistent Menu가 삭제되었습니다.')
+    } catch (err) {
+      showToast(err.message || 'Persistent Menu 삭제에 실패했습니다.', 'error')
+    } finally {
+      setPersistentMenuSaving(false)
+    }
+  }
+
   // Tab content renderers
+  const renderMessagingTab = () => (
+    <>
+      {/* Ice Breaker Section */}
+      <div className="settings-section">
+        <div className="messaging-section-header">
+          <div>
+            <h3><i className="ri-questionnaire-line" /> Ice Breaker</h3>
+            <p className="messaging-section-desc">
+              DM 대화를 처음 시작할 때 표시되는 FAQ 버튼입니다. 최대 4개까지 설정할 수 있습니다.
+            </p>
+          </div>
+        </div>
+
+        <div className="messaging-items-list">
+          {iceBreakers.map((ib, idx) => (
+            <div className="messaging-item-row" key={idx}>
+              <div className="messaging-item-number">{idx + 1}</div>
+              <div className="messaging-item-fields">
+                <input
+                  type="text"
+                  className="setting-input"
+                  placeholder="질문 텍스트 (예: 💰 가격 문의)"
+                  value={ib.question}
+                  onChange={(e) => handleIceBreakerChange(idx, 'question', e.target.value)}
+                  maxLength={80}
+                />
+                <input
+                  type="text"
+                  className="setting-input small"
+                  placeholder="Payload (비우면 질문과 동일)"
+                  value={ib.payload}
+                  onChange={(e) => handleIceBreakerChange(idx, 'payload', e.target.value)}
+                />
+              </div>
+              {iceBreakers.length > 1 && (
+                <button className="messaging-item-remove" onClick={() => removeIceBreaker(idx)} title="삭제">
+                  <i className="ri-close-line" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {iceBreakers.length < 4 && (
+          <button className="btn-secondary small" onClick={addIceBreaker} style={{ marginTop: 8 }}>
+            <i className="ri-add-line" /> 항목 추가
+          </button>
+        )}
+
+        <div className="messaging-actions">
+          <button className="btn-primary" onClick={saveIceBreakers} disabled={iceBreakerSaving}>
+            {iceBreakerSaving ? <><i className="ri-loader-4-line spin" /> 저장 중...</> : <><i className="ri-save-line" /> Ice Breaker 저장</>}
+          </button>
+          <button className="btn-ghost" onClick={deleteAllIceBreakers} disabled={iceBreakerSaving}>
+            <i className="ri-delete-bin-line" /> 초기화
+          </button>
+        </div>
+
+        {/* DM Preview */}
+        <div className="messaging-preview">
+          <div className="messaging-preview-title">
+            <i className="ri-smartphone-line" /> 미리보기
+          </div>
+          <div className="messaging-preview-phone">
+            <div className="messaging-preview-header">
+              <div className="mp-avatar"><i className="ri-instagram-line" /></div>
+              <span>내 비즈니스</span>
+            </div>
+            <div className="messaging-preview-body">
+              <div className="mp-welcome">자주 묻는 질문을 선택해 주세요</div>
+              <div className="mp-icebreakers">
+                {iceBreakers.filter(ib => ib.question.trim()).length === 0 ? (
+                  <div className="mp-ib-empty">질문을 입력하면 여기에 표시됩니다</div>
+                ) : (
+                  iceBreakers.filter(ib => ib.question.trim()).map((ib, i) => (
+                    <div className="mp-ib-btn" key={i}>{ib.question}</div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Persistent Menu Section */}
+      <div className="settings-section">
+        <div className="messaging-section-header">
+          <div>
+            <h3><i className="ri-menu-line" /> Persistent Menu</h3>
+            <p className="messaging-section-desc">
+              DM 대화 하단에 항상 표시되는 메뉴입니다. 사용자가 ≡ 아이콘을 탭하면 표시됩니다.
+            </p>
+          </div>
+        </div>
+
+        <div className="messaging-items-list">
+          {persistentMenu.map((item, idx) => (
+            <div className="messaging-item-row" key={idx}>
+              <div className="messaging-item-number">{idx + 1}</div>
+              <div className="messaging-item-fields">
+                <input
+                  type="text"
+                  className="setting-input"
+                  placeholder="메뉴 제목 (예: 주문 조회)"
+                  value={item.title}
+                  onChange={(e) => handleMenuChange(idx, 'title', e.target.value)}
+                  maxLength={30}
+                />
+                <div className="messaging-item-type-row">
+                  <select
+                    className="setting-input small"
+                    value={item.type}
+                    onChange={(e) => handleMenuChange(idx, 'type', e.target.value)}
+                  >
+                    <option value="postback">Postback (자동화 트리거)</option>
+                    <option value="web_url">URL 링크</option>
+                  </select>
+                  {item.type === 'web_url' ? (
+                    <input
+                      type="url"
+                      className="setting-input small"
+                      placeholder="https://example.com"
+                      value={item.url}
+                      onChange={(e) => handleMenuChange(idx, 'url', e.target.value)}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      className="setting-input small"
+                      placeholder="Payload (비우면 제목과 동일)"
+                      value={item.payload}
+                      onChange={(e) => handleMenuChange(idx, 'payload', e.target.value)}
+                    />
+                  )}
+                </div>
+              </div>
+              {persistentMenu.length > 1 && (
+                <button className="messaging-item-remove" onClick={() => removeMenuItem(idx)} title="삭제">
+                  <i className="ri-close-line" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {persistentMenu.length < 5 && (
+          <button className="btn-secondary small" onClick={addMenuItem} style={{ marginTop: 8 }}>
+            <i className="ri-add-line" /> 메뉴 추가
+          </button>
+        )}
+
+        <div className="messaging-actions">
+          <button className="btn-primary" onClick={savePersistentMenu} disabled={persistentMenuSaving}>
+            {persistentMenuSaving ? <><i className="ri-loader-4-line spin" /> 저장 중...</> : <><i className="ri-save-line" /> Persistent Menu 저장</>}
+          </button>
+          <button className="btn-ghost" onClick={deleteAllPersistentMenu} disabled={persistentMenuSaving}>
+            <i className="ri-delete-bin-line" /> 초기화
+          </button>
+        </div>
+      </div>
+
+      {/* Info Section */}
+      <div className="settings-section">
+        <div className="messaging-info-box">
+          <i className="ri-information-line" />
+          <div>
+            <strong>Ice Breaker & Persistent Menu 안내</strong>
+            <ul>
+              <li>Ice Breaker의 Payload는 자동화 트리거의 키워드와 매칭됩니다.</li>
+              <li>Persistent Menu의 Postback 타입도 동일하게 키워드 트리거로 동작합니다.</li>
+              <li>설정 변경 후 Instagram 앱에 반영되기까지 몇 분이 소요될 수 있습니다.</li>
+              <li>Instagram 비즈니스 계정이 연결되어 있어야 합니다.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+
   const renderAccountTab = () => (
     <>
       <div className="settings-section">
@@ -1498,6 +1776,7 @@ export default function SettingsPage() {
 
   const TAB_RENDERERS = {
     account: renderAccountTab,
+    messaging: renderMessagingTab,
     profile: renderProfileTab,
     team: renderTeamTab,
     notifications: renderNotificationsTab,

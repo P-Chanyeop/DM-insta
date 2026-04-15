@@ -289,7 +289,7 @@ public class InstagramApiService {
         }
     }
 
-    // ─── Ice Breaker / Welcome Message ───
+    // ─── Ice Breaker / Persistent Menu ───
 
     public JsonNode setIceBreakers(String igUserId, List<Map<String, String>> iceBreakers, String accessToken) {
         String url = apiBaseUrl + "/v21.0/" + igUserId + "/messenger_profile";
@@ -304,6 +304,65 @@ public class InstagramApiService {
         );
 
         return postToInstagram(url, body, accessToken);
+    }
+
+    public JsonNode deleteIceBreakers(String igUserId, String accessToken) {
+        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messenger_profile";
+        Map<String, Object> body = Map.of("fields", List.of("ice_breakers"));
+        return deleteFromInstagram(url, body, accessToken);
+    }
+
+    public JsonNode setPersistentMenu(String igUserId, List<Map<String, Object>> menuItems, String accessToken) {
+        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messenger_profile";
+
+        List<Map<String, Object>> callToActions = menuItems.stream()
+                .map(item -> {
+                    String type = Objects.toString(item.get("type"), "postback");
+                    Map<String, Object> action = new HashMap<>();
+                    action.put("title", Objects.toString(item.get("title"), ""));
+                    action.put("type", type);
+                    if ("web_url".equals(type)) {
+                        action.put("url", Objects.toString(item.get("url"), ""));
+                    } else {
+                        action.put("payload", Objects.toString(item.getOrDefault("payload", item.get("title")), ""));
+                    }
+                    return action;
+                })
+                .toList();
+
+        Map<String, Object> body = Map.of(
+                "persistent_menu", List.of(
+                        Map.of(
+                                "locale", "default",
+                                "call_to_actions", callToActions
+                        )
+                )
+        );
+
+        return postToInstagram(url, body, accessToken);
+    }
+
+    public JsonNode deletePersistentMenu(String igUserId, String accessToken) {
+        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messenger_profile";
+        Map<String, Object> body = Map.of("fields", List.of("persistent_menu"));
+        return deleteFromInstagram(url, body, accessToken);
+    }
+
+    private JsonNode deleteFromInstagram(String url, Map<String, Object> body, String accessToken) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(accessToken);
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.DELETE, request, JsonNode.class);
+            log.debug("Instagram API DELETE 응답: {}", response.getBody());
+            return response.getBody();
+        } catch (Exception e) {
+            log.error("Instagram API DELETE 호출 실패: url={}, error={}", url, e.getMessage());
+            throw new RuntimeException("Instagram API 호출에 실패했습니다: " + e.getMessage());
+        }
     }
 
     // ─── 토큰 갱신 ───
