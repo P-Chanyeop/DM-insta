@@ -114,6 +114,28 @@ export function flowDataToGraph(fd) {
     y += Y_SPACING
   }
 
+  // 5-1. 고급 조건들 (즉시 평가형)
+  const advConditions = fd.conditions || []
+  advConditions.forEach((cond, i) => {
+    if (!cond.enabled) return
+    const id = `condition-adv-${i}`
+    nodes.push({
+      id,
+      type: 'condition',
+      position: { x: X_CENTER, y },
+      data: {
+        conditionType: cond.type,
+        ...(cond.type === 'tagCheck' && { tagName: cond.tagName || '' }),
+        ...(cond.type === 'customField' && { fieldName: cond.fieldName || '', operator: cond.operator || 'equals', fieldValue: cond.fieldValue || '' }),
+        ...(cond.type === 'timeRange' && { startHour: cond.startHour ?? 9, endHour: cond.endHour ?? 18, activeDays: cond.activeDays || [0,1,2,3,4,5,6] }),
+        ...(cond.type === 'random' && { probability: cond.probability ?? 50 }),
+      },
+    })
+    edges.push(makeEdge(prevNodeId, id, 'pass'))
+    prevNodeId = id
+    y += Y_SPACING
+  })
+
   // 6. 메인 DM
   const mainId = 'message-main'
   nodes.push({
@@ -270,6 +292,7 @@ export function graphToFlowData(nodes, edges) {
   const openingNode = nodes.find(n => n.type === 'message' && n.data.role === 'opening')
   const followCheckNode = nodes.find(n => n.type === 'condition' && n.data.conditionType === 'followCheck')
   const emailCheckNode = nodes.find(n => n.type === 'condition' && n.data.conditionType === 'emailCheck')
+  const advConditionNodes = nodes.filter(n => n.type === 'condition' && !['followCheck', 'emailCheck'].includes(n.data.conditionType))
   const mainNode = nodes.find(n => n.type === 'message' && n.data.role === 'main')
   const delayNode = nodes.find(n => n.type === 'delay')
   const followUpNode = nodes.find(n => n.type === 'message' && n.data.role === 'followup')
@@ -309,6 +332,22 @@ export function graphToFlowData(nodes, edges) {
         message: emailCheckNode?.data.message || '',
       },
     },
+    conditions: advConditionNodes.map(n => ({
+      enabled: true,
+      type: n.data.conditionType,
+      ...(n.data.conditionType === 'tagCheck' && { tagName: n.data.tagName || '' }),
+      ...(n.data.conditionType === 'customField' && {
+        fieldName: n.data.fieldName || '',
+        operator: n.data.operator || 'equals',
+        fieldValue: n.data.fieldValue || '',
+      }),
+      ...(n.data.conditionType === 'timeRange' && {
+        startHour: n.data.startHour ?? 9,
+        endHour: n.data.endHour ?? 18,
+        activeDays: n.data.activeDays || [0,1,2,3,4,5,6],
+      }),
+      ...(n.data.conditionType === 'random' && { probability: n.data.probability ?? 50 }),
+    })),
     mainDm: {
       message: mainNode?.data.message || '',
       links: (mainNode?.data.links || []).filter(l => l.url).map(l => ({ text: l.label || '', url: l.url })),
@@ -409,6 +448,14 @@ export const NODE_PALETTE = [
     defaultData: { conditionType: 'followCheck', message: '팔로우 후 다시 시도해 주세요' } },
   { type: 'condition', label: '이메일 수집', icon: 'ri-mail-line', color: '#8B5CF6',
     defaultData: { conditionType: 'emailCheck', message: '이메일 주소를 입력해 주세요' } },
+  { type: 'condition', label: '태그 확인', icon: 'ri-price-tag-3-line', color: '#8B5CF6',
+    defaultData: { conditionType: 'tagCheck', tagName: '' } },
+  { type: 'condition', label: '필드 조건', icon: 'ri-database-2-line', color: '#8B5CF6',
+    defaultData: { conditionType: 'customField', fieldName: '', operator: 'equals', fieldValue: '' } },
+  { type: 'condition', label: '시간 조건', icon: 'ri-time-line', color: '#8B5CF6',
+    defaultData: { conditionType: 'timeRange', startHour: 9, endHour: 18, activeDays: [0,1,2,3,4,5,6] } },
+  { type: 'condition', label: '랜덤 분기', icon: 'ri-dice-line', color: '#8B5CF6',
+    defaultData: { conditionType: 'random', probability: 50 } },
   { type: 'message', label: '메인 DM', icon: 'ri-link', color: '#10B981',
     defaultData: { role: 'main', message: '', links: [{ label: '', url: '' }] } },
   { type: 'delay', label: '대기', icon: 'ri-time-line', color: '#F59E0B',

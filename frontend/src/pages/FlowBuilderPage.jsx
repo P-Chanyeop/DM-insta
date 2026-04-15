@@ -480,6 +480,19 @@ function PhonePreview({ nodes }) {
     msgs.push({ type: 'user-text', text: 'example@email.com' })
   }
 
+  // 고급 조건 노드들 (즉시 평가형)
+  const advCondNodes = nodes.filter(n => n.type === 'condition' && !['followCheck', 'emailCheck'].includes(n.data.conditionType))
+  advCondNodes.forEach(cn => {
+    const ct = cn.data.conditionType
+    const condLabels = { tagCheck: '태그 확인', customField: '필드 조건', timeRange: '시간 조건', random: '랜덤 분기' }
+    let detail = ''
+    if (ct === 'tagCheck') detail = `태그 "${cn.data.tagName || '?'}" 보유 여부`
+    else if (ct === 'customField') detail = `${cn.data.fieldName || '?'} ${cn.data.operator || '='} ${cn.data.fieldValue || '?'}`
+    else if (ct === 'timeRange') detail = `${cn.data.startHour ?? 9}시~${cn.data.endHour ?? 18}시 활성`
+    else if (ct === 'random') detail = `${cn.data.probability ?? 50}% 확률로 통과`
+    msgs.push({ type: 'system-note', text: `🔀 ${condLabels[ct] || '조건'}: ${detail}`, step: condLabels[ct] || '조건' })
+  })
+
   // 메인 DM + 링크
   if (mainNode) {
     const linkBtns = (mainNode.data.links || []).filter(l => l.label || l.url).map(l => ({ label: l.label || '링크', url: l.url }))

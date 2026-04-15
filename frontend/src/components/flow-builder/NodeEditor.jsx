@@ -41,7 +41,7 @@ function getNodeTitle(node) {
     trigger: '트리거 설정',
     commentReply: '댓글 답장 설정',
     message: node.data.role === 'opening' ? '오프닝 DM 설정' : node.data.role === 'main' ? '메인 DM 설정' : '팔로업 DM 설정',
-    condition: node.data.conditionType === 'followCheck' ? '팔로우 확인 설정' : '이메일 수집 설정',
+    condition: ({ followCheck: '팔로우 확인', emailCheck: '이메일 수집', tagCheck: '태그 확인', customField: '필드 조건', timeRange: '시간 조건', random: '랜덤 분기' }[node.data.conditionType] || '조건') + ' 설정',
     delay: '대기 시간 설정',
     action: '액션 설정',
     webhook: '웹훅 설정',
@@ -271,30 +271,143 @@ function MessageEditor({ data, update }) {
 /* ── 조건 편집기 ── */
 function ConditionEditor({ data, update }) {
   const textareaRef = useRef(null)
+  const ct = data.conditionType || 'followCheck'
+  const isWaitType = ct === 'followCheck' || ct === 'emailCheck'
 
   return (
     <>
       <div className="ne-field">
         <label>조건 유형</label>
-        <select className="ne-select" value={data.conditionType || 'followCheck'}
+        <select className="ne-select" value={ct}
           onChange={e => update({ conditionType: e.target.value })}>
-          <option value="followCheck">팔로우 확인</option>
-          <option value="emailCheck">이메일 수집</option>
+          <optgroup label="대기형 (사용자 행동 필요)">
+            <option value="followCheck">팔로우 확인</option>
+            <option value="emailCheck">이메일 수집</option>
+          </optgroup>
+          <optgroup label="즉시 평가형">
+            <option value="tagCheck">태그 확인</option>
+            <option value="customField">커스텀 필드 조건</option>
+            <option value="timeRange">시간대 조건</option>
+            <option value="random">랜덤 분기</option>
+          </optgroup>
         </select>
       </div>
-      <div className="ne-field">
-        <div className="ne-field-header">
-          <label>{data.conditionType === 'followCheck' ? '미팔로우 시 안내 메시지' : '이메일 요청 메시지'}</label>
-          <VariableInserter
-            textareaRef={textareaRef}
-            value={data.message || ''}
-            onChange={(val) => update({ message: val })}
-          />
+
+      {/* 대기형: 팔로우/이메일 — 메시지 입력 */}
+      {isWaitType && (
+        <div className="ne-field">
+          <div className="ne-field-header">
+            <label>{ct === 'followCheck' ? '미팔로우 시 안내 메시지' : '이메일 요청 메시지'}</label>
+            <VariableInserter
+              textareaRef={textareaRef}
+              value={data.message || ''}
+              onChange={(val) => update({ message: val })}
+            />
+          </div>
+          <textarea className="ne-textarea" rows={3} ref={textareaRef}
+            value={data.message || ''} onChange={e => update({ message: e.target.value })}
+            placeholder={ct === 'followCheck' ? '팔로우 후 다시 시도해 주세요' : '이메일 주소를 입력해 주세요'} />
         </div>
-        <textarea className="ne-textarea" rows={3} ref={textareaRef}
-          value={data.message || ''} onChange={e => update({ message: e.target.value })}
-          placeholder={data.conditionType === 'followCheck' ? '팔로우 후 다시 시도해 주세요' : '이메일 주소를 입력해 주세요'} />
-      </div>
+      )}
+
+      {/* 태그 확인 */}
+      {ct === 'tagCheck' && (
+        <div className="ne-field">
+          <label>확인할 태그</label>
+          <input className="ne-input" placeholder="예: VIP"
+            value={data.tagName || ''} onChange={e => update({ tagName: e.target.value })} />
+          <p className="ne-hint">연락처에 해당 태그가 있으면 통과합니다. 태그 1개만 입력하세요. 액션 노드에서 태그를 추가할 수 있습니다.</p>
+        </div>
+      )}
+
+      {/* 커스텀 필드 조건 */}
+      {ct === 'customField' && (
+        <>
+          <div className="ne-field">
+            <label>필드 이름</label>
+            <input className="ne-input" placeholder="예: grade, purchase_count"
+              value={data.fieldName || ''} onChange={e => update({ fieldName: e.target.value })} />
+          </div>
+          <div className="ne-field">
+            <label>비교 연산자</label>
+            <select className="ne-select" value={data.operator || 'equals'}
+              onChange={e => update({ operator: e.target.value })}>
+              <option value="equals">같음 (=)</option>
+              <option value="not_equals">다름 (≠)</option>
+              <option value="contains">포함</option>
+              <option value="gt">초과 (&gt;)</option>
+              <option value="gte">이상 (≥)</option>
+              <option value="lt">미만 (&lt;)</option>
+              <option value="lte">이하 (≤)</option>
+              <option value="exists">존재 여부</option>
+            </select>
+          </div>
+          {data.operator !== 'exists' && (
+            <div className="ne-field">
+              <label>비교 값</label>
+              <input className="ne-input" placeholder="비교할 값 입력"
+                value={data.fieldValue || ''} onChange={e => update({ fieldValue: e.target.value })} />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* 시간대 조건 */}
+      {ct === 'timeRange' && (
+        <>
+          <div className="ne-field">
+            <label>활성 시간대</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input type="number" className="ne-input" min={0} max={23} style={{ width: 70 }}
+                value={data.startHour ?? 9} onChange={e => update({ startHour: parseInt(e.target.value) || 0 })} />
+              <span>시 ~</span>
+              <input type="number" className="ne-input" min={0} max={23} style={{ width: 70 }}
+                value={data.endHour ?? 18} onChange={e => update({ endHour: parseInt(e.target.value) || 0 })} />
+              <span>시</span>
+            </div>
+            <p className="ne-hint">한국 시간(KST) 기준. 지정 시간 내에만 통과합니다.</p>
+          </div>
+          <div className="ne-field">
+            <label>요일 제한 (선택)</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {['월', '화', '수', '목', '금', '토', '일'].map((d, i) => {
+                const days = data.activeDays || [0, 1, 2, 3, 4, 5, 6]
+                const isActive = days.includes(i)
+                return (
+                  <button key={d} type="button"
+                    className={`ne-day-btn${isActive ? ' active' : ''}`}
+                    onClick={() => {
+                      const next = isActive ? days.filter(x => x !== i) : [...days, i]
+                      update({ activeDays: next.length > 0 ? next : [0, 1, 2, 3, 4, 5, 6] })
+                    }}
+                    style={{
+                      padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                      border: isActive ? '1.5px solid #8B5CF6' : '1px solid #E5E7EB',
+                      background: isActive ? '#EDE9FE' : '#fff',
+                      color: isActive ? '#7C3AED' : '#6B7280',
+                      fontWeight: isActive ? 600 : 400,
+                    }}
+                  >{d}</button>
+                )
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 랜덤 분기 */}
+      {ct === 'random' && (
+        <div className="ne-field">
+          <label>통과 확률: {data.probability ?? 50}%</label>
+          <input type="range" min={1} max={99} className="ne-range"
+            value={data.probability ?? 50} onChange={e => update({ probability: parseInt(e.target.value) })} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#9CA3AF' }}>
+            <span>1% (거의 차단)</span>
+            <span>99% (거의 통과)</span>
+          </div>
+          <p className="ne-hint">설정한 확률로 통과/실패가 결정됩니다. A/B 테스트나 샘플링에 활용하세요.</p>
+        </div>
+      )}
     </>
   )
 }

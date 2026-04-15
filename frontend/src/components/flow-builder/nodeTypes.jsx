@@ -137,21 +137,39 @@ export const ConditionNode = memo(({ data, selected }) => {
   const condLabels = {
     followCheck: '팔로우 확인',
     emailCheck: '이메일 수집',
+    tagCheck: '태그 확인',
+    customField: '필드 조건',
+    timeRange: '시간 조건',
+    random: '랜덤 분기',
+  }
+  const condIcons = {
+    followCheck: 'ri-user-follow-line',
+    emailCheck: 'ri-mail-line',
+    tagCheck: 'ri-price-tag-3-line',
+    customField: 'ri-database-2-line',
+    timeRange: 'ri-time-line',
+    random: 'ri-dice-line',
+  }
+
+  const renderDetail = () => {
+    const ct = data.conditionType
+    if (ct === 'tagCheck' && data.tagName) return <div className="flow-node-detail"><i className="ri-price-tag-3-line" /> {data.tagName}</div>
+    if (ct === 'customField' && data.fieldName) return <div className="flow-node-detail"><i className="ri-database-2-line" /> {data.fieldName} {data.operator || '='} {data.fieldValue || '?'}</div>
+    if (ct === 'timeRange') return <div className="flow-node-detail"><i className="ri-time-line" /> {data.startHour ?? 9}시~{data.endHour ?? 18}시</div>
+    if (ct === 'random') return <div className="flow-node-detail"><i className="ri-dice-line" /> {data.probability ?? 50}% 확률</div>
+    if (data.message) return <div className="flow-node-preview">"{data.message.slice(0, 40)}{data.message.length > 40 ? '...' : ''}"</div>
+    return <div className="flow-node-placeholder">조건을 설정하세요</div>
   }
 
   return (
     <div className={`flow-node condition-node ${selected ? 'selected' : ''}`}>
       <Handle type="target" position={Position.Top} className="flow-handle" />
       <div className="flow-node-header" style={{ background: nodeColors.condition }}>
-        <i className={data.conditionType === 'followCheck' ? 'ri-user-follow-line' : 'ri-mail-line'} />
+        <i className={condIcons[data.conditionType] || 'ri-question-line'} />
         <span>{condLabels[data.conditionType] || '조건'}</span>
       </div>
       <div className="flow-node-body">
-        {data.message ? (
-          <div className="flow-node-preview">"{data.message.slice(0, 40)}{data.message.length > 40 ? '...' : ''}"</div>
-        ) : (
-          <div className="flow-node-placeholder">조건 메시지를 설정하세요</div>
-        )}
+        {renderDetail()}
       </div>
       <Handle
         type="source"

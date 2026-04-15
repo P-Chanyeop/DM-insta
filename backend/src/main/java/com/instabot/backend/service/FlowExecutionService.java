@@ -360,6 +360,21 @@ public class FlowExecutionService {
         // 변수 치환을 위한 Contact 조회
         Contact contact = findContact(igAccount.getUser().getId(), senderIgId);
 
+        // 고급 조건 평가 (즉시 평가형 — 실패 시 플로우 중단)
+        if (flowData.has("conditions")) {
+            JsonNode conditions = flowData.get("conditions");
+            if (conditions.isArray()) {
+                for (JsonNode cond : conditions) {
+                    if (!cond.path("enabled").asBoolean(false)) continue;
+                    if (!evaluateCondition(cond, contact)) {
+                        log.info("고급 조건 미충족, 플로우 중단: flowId={}, type={}, sender={}",
+                                flow.getId(), cond.path("type").asText(), senderIgId);
+                        return;
+                    }
+                }
+            }
+        }
+
         // 메인 DM 발송
         if (flowData.has("mainDm")) {
             executeMainDm(flowData.get("mainDm"), botIgId, senderIgId, accessToken, contact, triggerKeyword);
@@ -696,6 +711,83 @@ public class FlowExecutionService {
             DateTimeFormatter.ofPattern("M월 d일");
 
     /**
+     * 고급 조건 평가 (즉시 평가형)
+     * @return true = 통과, false = 실패 (플로우 중단)
+     */
+    private boolean evaluateCondition(JsonNode cond, Contact contact) {
+        String type = cond.path("type").asText("");
+
+        return switch (type) {
+            case "tagCheck" -> {
+                String tagName = cond.path("tagName").asText("").trim();
+                if (tagName.isEmpty()) yield true; // 태그 미설정 시 통과
+                yield contact != null && contact.getTags() != null && contact.getTags().contains(tagName);
+            }
+            case "customField" -> {
+                String fieldName = cond.path("fieldName").asText("").trim();
+                if (fieldName.isEmpty()) yield true;
+                String operator = cond.path("operator").asText("equals");
+                String expected = cond.path("fieldValue").asText("");
+                String actual = getCustomFieldValue(contact, fieldName);
+
+                yield switch (operator) {
+                    case "equals" -> expected.equals(actual);
+                    case "not_equals" -> !expected.equals(actual);
+                    case "contains" -> actual != null && actual.contains(expected);
+                    case "gt" -> compareNumeric(actual, expected) > 0;
+                    case "gte" -> compareNumeric(actual, expected) >= 0;
+                    case "lt" -> compareNumeric(actual, expected) < 0;
+                    case "lte" -> compareNumeric(actual, expected) <= 0;
+                    case "exists" -> actual != null && !actual.isEmpty();
+                    default -> true;
+                };
+            }
+            case "timeRange" -> {
+                int startHour = cond.path("startHour").asInt(9);
+                int endHour = cond.path("endHour").asInt(18);
+                java.time.ZonedDateTime now = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Seoul"));
+                int currentHour = now.getHour();
+                int currentDow = now.getDayOfWeek().getValue() - 1; // 0=월 ~ 6=일
+
+                // 요일 체크
+                JsonNode activeDays = cond.get("activeDays");
+                if (activeDays != null && activeDays.isArray() && !activeDays.isEmpty()) {
+                    boolean dayMatch = false;
+                    for (JsonNode d : activeDays) {
+                        if (d.asInt(-1) == currentDow) { dayMatch = true; break; }
+                    }
+                    if (!dayMatch) yield false;
+                }
+
+                // 시간 체크 (같으면 24시간 활성, startHour < endHour: 같은날, 초과: 자정 걸침)
+                if (startHour == endHour) {
+                    yield true; // 동일 시간 = 24시간 활성
+                } else if (startHour < endHour) {
+                    yield currentHour >= startHour && currentHour < endHour;
+                } else {
+                    yield currentHour >= startHour || currentHour < endHour;
+                }
+            }
+            case "random" -> {
+                int probability = cond.path("probability").asInt(50);
+                yield java.util.concurrent.ThreadLocalRandom.current().nextInt(100) < probability;
+            }
+            default -> true;
+        };
+    }
+
+    private int compareNumeric(String actual, String expected) {
+        try {
+            double a = actual != null ? Double.parseDouble(actual) : 0;
+            double e = Double.parseDouble(expected);
+            return Double.compare(a, e);
+        } catch (NumberFormatException e) {
+            // 숫자가 아닌 경우 문자열 비교
+            return (actual != null ? actual : "").compareTo(expected);
+        }
+    }
+
+    /**
      * 메시지 템플릿의 변수를 실제 값으로 치환
      * 지원 변수: {이름}/{name}, {username}, {키워드}/{keyword}, {날짜}/{date}, {custom.필드명}
      */
@@ -733,6 +825,7 @@ public class FlowExecutionService {
      * Contact의 customFields JSON에서 특정 필드 값을 추출
      */
     private String getCustomFieldValue(Contact contact, String fieldName) {
+        if (contact == null) return "";
         String customFields = contact.getCustomFields();
         if (customFields == null || customFields.isBlank()) return "";
         try {
