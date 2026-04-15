@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
-#  센드잇 (SendIt) — AWS Lightsail 배포 스크립트
-#  사용법: ./deploy.sh [setup|build|deploy|all]
+#  센드잇 (SendIt) — 배포 스크립트
+#  사용법: ./deploy.sh [setup|build|deploy|all|docker-setup|docker-deploy]
 # ============================================================
 
 set -euo pipefail
@@ -19,9 +19,69 @@ log()  { echo -e "${GREEN}[INFO]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 err()  { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
-# ─── 서버 초기 세팅 (최초 1회) ────────────────────────────
+# ─── Docker 배포: 초기 세팅 ──────────────────────────────────
+cmd_docker_setup() {
+    log "Docker 프로덕션 세팅 시작..."
+
+    # Docker + Docker Compose 확인
+    command -v docker >/dev/null 2>&1 || err "Docker가 설치되어 있지 않습니다."
+    docker compose version >/dev/null 2>&1 || err "Docker Compose V2가 필요합니다."
+
+    # 배포 디렉토리 생성
+    sudo mkdir -p ${APP_DIR}
+    cd ${APP_DIR}
+
+    # .env 파일 복사
+    if [ ! -f ${APP_DIR}/.env ]; then
+        sudo cp "${REPO_DIR}/.env.example" ${APP_DIR}/.env
+        sudo chmod 600 ${APP_DIR}/.env
+        warn ".env 파일이 생성되었습니다. 반드시 실제 값으로 수정하세요:"
+        warn "  sudo nano ${APP_DIR}/.env"
+    fi
+
+    # docker-compose.prod.yml 복사
+    sudo cp "${REPO_DIR}/docker-compose.prod.yml" ${APP_DIR}/docker-compose.prod.yml
+
+    # Nginx SSL 설정 (선택)
+    if [ -d /etc/nginx ]; then
+        log "Nginx SSL 설정 복사..."
+        sudo cp "${REPO_DIR}/deploy/nginx-ssl.conf" /etc/nginx/sites-available/sendit
+        sudo ln -sf /etc/nginx/sites-available/sendit /etc/nginx/sites-enabled/sendit
+        sudo rm -f /etc/nginx/sites-enabled/default
+        warn "deploy/nginx-ssl.conf 에서 YOUR_DOMAIN을 실제 도메인으로 변경하세요."
+        warn "SSL 인증서: sudo certbot certonly --nginx -d your-domain.com"
+    fi
+
+    log "Docker 세팅 완료!"
+    log "다음 단계:"
+    log "  1. sudo nano ${APP_DIR}/.env  (환경변수 설정)"
+    log "  2. ${APP_DIR}에서 docker compose -f docker-compose.prod.yml up -d"
+}
+
+# ─── Docker 배포: 업데이트 배포 ──────────────────────────────
+cmd_docker_deploy() {
+    log "Docker 프로덕션 배포 시작..."
+    cd ${APP_DIR}
+
+    [ -f docker-compose.prod.yml ] || err "docker-compose.prod.yml이 없습니다. docker-setup을 먼저 실행하세요."
+    [ -f .env ] || err ".env 파일이 없습니다. docker-setup을 먼저 실행하세요."
+
+    # 최신 이미지 pull
+    docker compose -f docker-compose.prod.yml pull
+
+    # 서비스 업데이트
+    docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+    # 불필요한 이미지 정리
+    docker image prune -f
+
+    log "배포 완료!"
+    docker compose -f docker-compose.prod.yml ps
+}
+
+# ─── Bare-metal: 서버 초기 세팅 (최초 1회) ───────────────────
 cmd_setup() {
-    log "서버 초기 세팅 시작..."
+    log "서버 초기 세팅 시작 (bare-metal)..."
 
     # 시스템 패키지
     sudo apt update && sudo apt install -y \
@@ -60,7 +120,7 @@ cmd_setup() {
     sudo rm -f /etc/nginx/sites-enabled/default
     sudo nginx -t && sudo systemctl reload nginx
 
-    # MySQL 초기 DB (root 비밀번호 설정 후 실행)
+    # MySQL 초기 DB
     log "MySQL 데이터베이스 생성..."
     warn "MySQL root 비밀번호를 입력하세요:"
     sudo mysql -u root -p <<'SQL'
@@ -75,12 +135,12 @@ SQL
     log "초기 세팅 완료! .env 파일과 MySQL 비밀번호를 반드시 수정하세요."
 }
 
-# ─── 빌드 ──────────────────────────────────────────────────
+# ─── Bare-metal: 빌드 ────────────────────────────────────────
 cmd_build() {
     log "빌드 시작..."
     cd "${REPO_DIR}"
 
-    # Backend (Gradle)
+    # Backend
     log "백엔드 빌드 중..."
     cd backend
     chmod +x gradlew 2>/dev/null || true
@@ -88,23 +148,20 @@ cmd_build() {
     cd ..
     log "백엔드 JAR 생성 완료"
 
-    # Frontend (Vite)
+    # Frontend
     log "프론트엔드 빌드 중..."
     cd frontend
-
-    # 프로덕션 빌드: Nginx가 /api 프록시하므로 상대경로 사용
     export VITE_API_BASE_URL="/api"
     export VITE_WS_BASE_URL="/ws"
-
     npm ci
     npm run build
     cd ..
     log "프론트엔드 빌드 완료"
 }
 
-# ─── 배포 ──────────────────────────────────────────────────
+# ─── Bare-metal: 배포 ────────────────────────────────────────
 cmd_deploy() {
-    log "배포 시작..."
+    log "배포 시작 (bare-metal)..."
 
     # JAR 복사
     JAR_FILE=$(ls -t "${REPO_DIR}/backend/build/libs/"*.jar 2>/dev/null | head -1)
@@ -142,6 +199,12 @@ cmd_deploy() {
 
 # ─── 메인 ──────────────────────────────────────────────────
 case "${1:-help}" in
+    docker-setup)
+        cmd_docker_setup
+        ;;
+    docker-deploy)
+        cmd_docker_deploy
+        ;;
     setup)
         cmd_setup
         ;;
@@ -156,11 +219,16 @@ case "${1:-help}" in
         cmd_deploy
         ;;
     *)
-        echo "사용법: $0 {setup|build|deploy|all}"
+        echo "사용법: $0 {docker-setup|docker-deploy|setup|build|deploy|all}"
         echo ""
-        echo "  setup   서버 초기 세팅 (최초 1회)"
-        echo "  build   백엔드 JAR + 프론트엔드 빌드"
-        echo "  deploy  빌드된 파일을 서버에 배포"
-        echo "  all     빌드 + 배포"
+        echo "  [Docker 배포 — 권장]"
+        echo "  docker-setup    Docker 프로덕션 초기 세팅"
+        echo "  docker-deploy   Docker 이미지 pull + 서비스 업데이트"
+        echo ""
+        echo "  [Bare-metal 배포]"
+        echo "  setup           서버 초기 세팅 (최초 1회)"
+        echo "  build           백엔드 JAR + 프론트엔드 빌드"
+        echo "  deploy          빌드된 파일을 서버에 배포"
+        echo "  all             빌드 + 배포"
         ;;
 esac
