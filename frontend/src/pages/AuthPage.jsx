@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { authService } from '../api/services'
+import { api } from '../api/client'
 import { useToast } from '../components/Toast'
 
 export default function AuthPage() {
@@ -155,8 +156,15 @@ export default function AuthPage() {
     }
   }
 
-  const handleInstagramOAuth = () => {
-    showToast('설정 > 연동(API)에서 Instagram을 먼저 연결하세요')
+  const handleInstagramOAuth = async () => {
+    try {
+      const data = await api.get('/instagram/oauth-url')
+      if (data.url) {
+        window.open(data.url, '_blank', 'width=600,height=700')
+      }
+    } catch (err) {
+      showToast('Instagram 연동을 위해 관리자에게 앱 설정을 문의하세요')
+    }
   }
 
   // Email verification view
