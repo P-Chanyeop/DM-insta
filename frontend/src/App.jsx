@@ -26,6 +26,7 @@ const GroupBuyPage = lazy(() => import('./pages/GroupBuyPage'))
 const AgencyPage = lazy(() => import('./pages/AgencyPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const LegalPage = lazy(() => import('./pages/LegalPage'))
+const OnboardingPage = lazy(() => import('./pages/OnboardingPage'))
 
 export default function App() {
   return (
@@ -36,6 +37,7 @@ export default function App() {
       <Route path="/terms" element={<Suspense fallback={<PageLoader />}><LegalPage /></Suspense>} />
       <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><LegalPage /></Suspense>} />
       <Route path="/signup" element={<AuthPage />} />
+      <Route path="/app/onboarding" element={<Suspense fallback={<PageLoader />}><OnboardingPage /></Suspense>} />
       <Route path="/app" element={<DashboardLayout />}>
         <Route index element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />
         <Route path="flows" element={<Suspense fallback={<PageLoader />}><FlowsPage /></Suspense>} />

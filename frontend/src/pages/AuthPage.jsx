@@ -94,7 +94,8 @@ export default function AuthPage() {
           // 인증 코드 재발송
           authService.resendVerification({ email: form.email }).catch(() => {})
         } else {
-          navigate('/app')
+          const onboardingDone = localStorage.getItem('onboarding_completed')
+          navigate(onboardingDone ? '/app' : '/app/onboarding')
         }
       }
     } catch (err) {
@@ -110,7 +111,7 @@ export default function AuthPage() {
     setVerifyLoading(true)
     try {
       await authService.verifyEmail({ email: verifyEmail, code: verifyCode })
-      navigate('/app')
+      navigate('/app/onboarding')
     } catch (err) {
       setVerifyError(err.message || '인증에 실패했습니다.')
     } finally {
