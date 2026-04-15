@@ -50,6 +50,7 @@ public class FlowExecutionService {
     private final ContactRepository contactRepository;
     private final PendingFlowActionRepository pendingFlowActionRepository;
     private final ScheduledFollowUpRepository scheduledFollowUpRepository;
+    private final NodeExecutionRepository nodeExecutionRepository;
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
@@ -74,16 +75,26 @@ public class FlowExecutionService {
 
             // 변수 치환을 위한 Contact 조회
             Contact contact = findContact(igAccount.getUser().getId(), senderIgId);
+            Long contactId = contact != null ? contact.getId() : null;
+
+            // 트리거 진입 추적
+            trackNode(flow.getId(), "trigger", NodeExecution.Action.COMPLETED, contactId);
 
             // 1. 공개 댓글 답장
             if (commentId != null && flowData.has("commentReply")) {
+                trackNode(flow.getId(), "commentReply", NodeExecution.Action.ENTERED, contactId);
                 executeCommentReply(flowData.get("commentReply"), commentId, accessToken, contact, triggerText);
+                trackNode(flow.getId(), "commentReply", NodeExecution.Action.COMPLETED, contactId);
             }
 
             // 2. 오프닝 DM 발송
             boolean hasOpeningDm = false;
             if (flowData.has("openingDm")) {
+                trackNode(flow.getId(), "openingDm", NodeExecution.Action.ENTERED, contactId);
                 hasOpeningDm = executeOpeningDm(flowData.get("openingDm"), botIgId, senderIgId, accessToken, contact, triggerText);
+                if (hasOpeningDm) {
+                    trackNode(flow.getId(), "openingDm", NodeExecution.Action.COMPLETED, contactId);
+                }
             }
 
             // 3. requirements나 mainDm이 있는지 확인
@@ -224,18 +235,21 @@ public class FlowExecutionService {
 
         // 변수 치환을 위한 Contact 조회
         Contact contact = findContact(igAccount.getUser().getId(), senderIgId);
+        Long cId = contact != null ? contact.getId() : null;
 
         // 1. 팔로우 확인
         if (requirements != null) {
             JsonNode followCheck = requirements.get("followCheck");
             if (followCheck != null && followCheck.path("enabled").asBoolean(false)) {
+                trackNode(flow.getId(), "followCheck", NodeExecution.Action.ENTERED, cId);
                 boolean isFollower = instagramApiService.isFollower(botIgId, senderIgId, accessToken);
                 if (!isFollower) {
                     sendFollowRequestMessage(followCheck, botIgId, senderIgId, accessToken, igAccount, flow, contact);
                     savePendingAction(flow, igAccount, senderIgId, null, PendingStep.AWAITING_FOLLOW, triggerKeyword);
                     log.info("팔로우 대기 상태 저장: flowId={}, sender={}", flow.getId(), senderIgId);
-                    return;
+                    return;  // 팔로우 완료 시 handleFollowCheckPostback에서 COMPLETED 추적
                 }
+                trackNode(flow.getId(), "followCheck", NodeExecution.Action.COMPLETED, cId);
             }
         }
 
@@ -243,6 +257,7 @@ public class FlowExecutionService {
         if (requirements != null) {
             JsonNode emailCollection = requirements.get("emailCollection");
             if (emailCollection != null && emailCollection.path("enabled").asBoolean(false)) {
+                trackNode(flow.getId(), "emailCollection", NodeExecution.Action.ENTERED, cId);
                 boolean hasEmail = contactHasEmail(igAccount.getUser().getId(), senderIgId);
                 if (!hasEmail) {
                     String emailMsg = replaceVariables(
@@ -291,6 +306,15 @@ public class FlowExecutionService {
             // 현재 pending 완료 처리
             pending.setPendingStep(PendingStep.COMPLETED);
             pendingFlowActionRepository.save(pending);
+
+            // 충족된 requirement 완료 추적
+            Contact contact = findContact(igAccount.getUser().getId(), senderIgId);
+            Long cId = contact != null ? contact.getId() : null;
+            if (fulfilledStep == PendingStep.AWAITING_FOLLOW) {
+                trackNode(flow.getId(), "followCheck", NodeExecution.Action.COMPLETED, cId);
+            } else if (fulfilledStep == PendingStep.AWAITING_EMAIL) {
+                trackNode(flow.getId(), "emailCollection", NodeExecution.Action.COMPLETED, cId);
+            }
 
             // 다음 requirements부터 이어서 진행
             if (fulfilledStep == PendingStep.AWAITING_FOLLOW) {
@@ -359,6 +383,7 @@ public class FlowExecutionService {
 
         // 변수 치환을 위한 Contact 조회
         Contact contact = findContact(igAccount.getUser().getId(), senderIgId);
+        Long contactId = contact != null ? contact.getId() : null;
 
         // 고급 조건 평가 (즉시 평가형 — 실패 시 플로우 중단)
         if (flowData.has("conditions")) {
@@ -366,38 +391,51 @@ public class FlowExecutionService {
             if (conditions.isArray()) {
                 for (JsonNode cond : conditions) {
                     if (!cond.path("enabled").asBoolean(false)) continue;
+                    String condType = cond.path("type").asText("condition");
+                    trackNode(flow.getId(), "condition_" + condType, NodeExecution.Action.ENTERED, contactId);
                     if (!evaluateCondition(cond, contact)) {
+                        trackNode(flow.getId(), "condition_" + condType, NodeExecution.Action.DROPPED, contactId,
+                                "{\"reason\":\"condition_not_met\"}");
                         log.info("고급 조건 미충족, 플로우 중단: flowId={}, type={}, sender={}",
-                                flow.getId(), cond.path("type").asText(), senderIgId);
+                                flow.getId(), condType, senderIgId);
                         return;
                     }
+                    trackNode(flow.getId(), "condition_" + condType, NodeExecution.Action.COMPLETED, contactId);
                 }
             }
         }
 
         // 메인 DM 발송
         if (flowData.has("mainDm")) {
+            trackNode(flow.getId(), "mainDm", NodeExecution.Action.ENTERED, contactId);
             executeMainDm(flowData.get("mainDm"), botIgId, senderIgId, accessToken, contact, triggerKeyword);
             String processedMessage = replaceVariables(
                     flowData.get("mainDm").path("message").asText(""), contact, triggerKeyword);
             conversationService.saveOutboundMessage(
                     igAccount.getUser(), senderIgId, processedMessage, true, flow.getName());
+            trackNode(flow.getId(), "mainDm", NodeExecution.Action.COMPLETED, contactId);
         }
 
         // 캐러셀 메시지 발송
         if (flowData.has("carousel")) {
+            trackNode(flow.getId(), "carousel", NodeExecution.Action.ENTERED, contactId);
             executeCarousel(flowData.get("carousel"), botIgId, senderIgId, accessToken,
                     igAccount.getUser(), flow.getName(), contact, triggerKeyword);
+            trackNode(flow.getId(), "carousel", NodeExecution.Action.COMPLETED, contactId);
         }
 
         // AI 자동 응답 실행
         if (flowData.has("aiResponse")) {
+            trackNode(flow.getId(), "aiResponse", NodeExecution.Action.ENTERED, contactId);
             executeAIResponse(flowData.get("aiResponse"), flow, igAccount, senderIgId, triggerKeyword, contact);
+            trackNode(flow.getId(), "aiResponse", NodeExecution.Action.COMPLETED, contactId);
         }
 
         // 팔로업 메시지 스케줄링 (DB에 영구 저장, 변수는 발송 시점에 치환)
         if (flowData.has("followUp")) {
+            trackNode(flow.getId(), "followUp", NodeExecution.Action.ENTERED, contactId);
             scheduleFollowUp(flowData.get("followUp"), igAccount, senderIgId);
+            trackNode(flow.getId(), "followUp", NodeExecution.Action.COMPLETED, contactId);
         }
 
         log.info("메인DM + 팔로업 완료: flowId={}, sender={}", flow.getId(), senderIgId);
@@ -893,5 +931,27 @@ public class FlowExecutionService {
     public void incrementSentCount(Flow flow) {
         flow.setSentCount(flow.getSentCount() == null ? 1 : flow.getSentCount() + 1);
         flowRepository.save(flow);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 노드별 실행 추적 (퍼널 분석용)
+    // ═══════════════════════════════════════════════════════════
+
+    private void trackNode(Long flowId, String nodeType, NodeExecution.Action action, Long contactId, String metadata) {
+        try {
+            nodeExecutionRepository.save(NodeExecution.builder()
+                    .flowId(flowId)
+                    .nodeType(nodeType)
+                    .action(action)
+                    .contactId(contactId)
+                    .metadata(metadata)
+                    .build());
+        } catch (Exception e) {
+            log.warn("노드 실행 추적 실패 (무시): nodeType={}, error={}", nodeType, e.getMessage());
+        }
+    }
+
+    private void trackNode(Long flowId, String nodeType, NodeExecution.Action action, Long contactId) {
+        trackNode(flowId, nodeType, action, contactId, null);
     }
 }

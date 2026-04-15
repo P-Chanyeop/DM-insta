@@ -1,6 +1,7 @@
 package com.instabot.backend.service;
 
 import com.instabot.backend.entity.Flow;
+import com.instabot.backend.entity.NodeExecution;
 import com.instabot.backend.repository.*;
 import lombok.Builder;
 import lombok.Data;
@@ -9,9 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -29,6 +28,7 @@ public class AnalyticsService {
     private final FlowRepository flowRepository;
     private final ConversationRepository conversationRepository;
     private final BroadcastRepository broadcastRepository;
+    private final NodeExecutionRepository nodeExecutionRepository;
 
     @Data
     @Builder
@@ -172,5 +172,131 @@ public class AnalyticsService {
                     .build());
         }
         return stats;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 플로우 퍼널 분석
+    // ═══════════════════════════════════════════════════════════
+
+    @Data
+    @Builder
+    public static class FunnelResponse {
+        private Long flowId;
+        private String flowName;
+        private int days;
+        private List<FunnelStep> steps;
+        private double overallConversionRate;
+    }
+
+    @Data
+    @Builder
+    public static class FunnelStep {
+        private String nodeType;
+        private String label;
+        private long entered;
+        private long completed;
+        private long dropped;
+        private double completionRate;
+        private double dropRate;
+    }
+
+    /**
+     * 플로우 퍼널 데이터 조회
+     * 노드별 entered/completed/dropped 집계
+     */
+    public FunnelResponse getFlowFunnel(Long userId, Long flowId, int days) {
+        Flow flow = flowRepository.findById(flowId)
+                .orElseThrow(() -> new RuntimeException("플로우를 찾을 수 없습니다."));
+
+        if (!flow.getUser().getId().equals(userId)) {
+            throw new RuntimeException("접근 권한이 없습니다.");
+        }
+
+        LocalDateTime since = LocalDateTime.now().minusDays(days);
+        List<Object[]> rawData = nodeExecutionRepository.countByFlowIdGroupByNodeTypeAndAction(flowId, since);
+
+        // nodeType → { action → count } 맵 구축
+        Map<String, Map<NodeExecution.Action, Long>> nodeStats = new LinkedHashMap<>();
+        for (Object[] row : rawData) {
+            String nodeType = (String) row[0];
+            NodeExecution.Action action = (NodeExecution.Action) row[1];
+            long count = (Long) row[2];
+            nodeStats.computeIfAbsent(nodeType, k -> new EnumMap<>(NodeExecution.Action.class)).put(action, count);
+        }
+
+        // 노드 순서 정의 (플로우 실행 흐름 순)
+        List<String> orderedNodes = List.of(
+                "trigger", "commentReply", "openingDm", "followCheck", "emailCollection",
+                "mainDm", "carousel", "aiResponse", "followUp"
+        );
+
+        // 노드 레이블 맵
+        Map<String, String> labelMap = Map.of(
+                "trigger", "트리거",
+                "commentReply", "댓글 답장",
+                "openingDm", "오프닝 DM",
+                "followCheck", "팔로우 확인",
+                "emailCollection", "이메일 수집",
+                "mainDm", "메인 DM",
+                "carousel", "캐러셀",
+                "aiResponse", "AI 응답",
+                "followUp", "팔로업"
+        );
+
+        List<FunnelStep> steps = new ArrayList<>();
+
+        // 기본 노드 + condition_ 프리픽스 동적 포함
+        Set<String> allNodes = new LinkedHashSet<>(orderedNodes);
+        for (String key : nodeStats.keySet()) {
+            if (key.startsWith("condition_")) {
+                allNodes.add(key);
+            }
+        }
+
+        for (String nodeType : allNodes) {
+            Map<NodeExecution.Action, Long> counts = nodeStats.get(nodeType);
+            if (counts == null) continue;
+
+            long entered = counts.getOrDefault(NodeExecution.Action.ENTERED, 0L);
+            long completed = counts.getOrDefault(NodeExecution.Action.COMPLETED, 0L);
+            long dropped = counts.getOrDefault(NodeExecution.Action.DROPPED, 0L);
+
+            // trigger는 COMPLETED만 기록
+            if ("trigger".equals(nodeType)) {
+                entered = completed;
+            }
+
+            double completionRate = entered > 0 ? Math.round(completed * 1000.0 / entered) / 10.0 : 0;
+            double dropRate = entered > 0 ? Math.round((entered - completed) * 1000.0 / entered) / 10.0 : 0;
+
+            String label = labelMap.getOrDefault(nodeType,
+                    nodeType.startsWith("condition_") ? "조건: " + nodeType.substring(10) : nodeType);
+
+            steps.add(FunnelStep.builder()
+                    .nodeType(nodeType)
+                    .label(label)
+                    .entered(entered)
+                    .completed(completed)
+                    .dropped(dropped)
+                    .completionRate(completionRate)
+                    .dropRate(dropRate)
+                    .build());
+        }
+
+        // 전체 전환율: 첫 노드 entered → 마지막 노드 completed
+        double overallRate = 0;
+        if (!steps.isEmpty()) {
+            long firstEntered = steps.get(0).getEntered();
+            long lastCompleted = steps.get(steps.size() - 1).getCompleted();
+            overallRate = firstEntered > 0 ? Math.round(lastCompleted * 1000.0 / firstEntered) / 10.0 : 0;
+        }
+
+        return FunnelResponse.builder()
+                .flowId(flowId)
+                .flowName(flow.getName())
+                .days(days)
+                .steps(steps)
+                .overallConversionRate(overallRate)
+                .build();
     }
 }

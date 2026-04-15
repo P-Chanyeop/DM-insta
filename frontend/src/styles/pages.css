@@ -2299,3 +2299,44 @@ label.ne-radio {
   color: var(--gray-600, #4B5563); line-height: 1.7;
 }
 .messaging-info-box li { margin-bottom: 2px; }
+
+/* ===== Node Funnel Analysis ===== */
+.node-funnel { padding: 8px 0; }
+.nf-step { margin-bottom: 12px; }
+.nf-step:last-of-type { margin-bottom: 0; }
+.nf-step-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;
+}
+.nf-step-label {
+  font-size: 14px; font-weight: 600; color: var(--gray-800, #1F2937);
+}
+.nf-step-count {
+  font-size: 12px; color: var(--gray-500, #6B7280);
+}
+.nf-bar-wrap {
+  background: var(--gray-100, #F3F4F6); border-radius: 8px; height: 32px; overflow: hidden;
+}
+.nf-bar {
+  height: 100%; border-radius: 8px; display: flex; align-items: center; padding: 0 12px;
+  transition: width 0.4s ease; min-width: 80px;
+}
+.nf-bar-text {
+  font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap;
+}
+.nf-drop {
+  display: flex; align-items: center; gap: 4px; padding: 2px 0 2px 12px;
+  font-size: 11px; color: #EF4444; font-weight: 500; position: relative;
+}
+.nf-drop i { font-size: 14px; }
+.nf-drop-line {
+  position: absolute; left: 5px; top: 14px; bottom: -12px;
+  width: 1px; background: var(--gray-200, #E5E7EB);
+}
+.nf-overall {
+  margin-top: 16px; padding: 12px 16px; border-radius: 10px;
+  background: linear-gradient(135deg, #EFF6FF, #F0FDF4);
+  font-size: 14px; color: var(--gray-700, #374151);
+  display: flex; align-items: center; gap: 8px;
+}
+.nf-overall i { font-size: 18px; color: var(--primary, #3B82F6); }
+.nf-overall strong { color: var(--primary, #3B82F6); font-size: 18px; }

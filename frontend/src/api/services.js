@@ -111,6 +111,7 @@ export const analyticsService = {
     const days = period === '7d' ? 7 : period === '30d' ? 30 : 90
     return api.get(`/analytics?days=${days}`)
   },
+  getFlowFunnel: (flowId, days = 7) => api.get(`/analytics/flows/${flowId}/funnel?days=${days}`),
 }
 
 export const billingService = {

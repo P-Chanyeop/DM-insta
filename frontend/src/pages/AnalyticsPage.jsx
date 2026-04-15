@@ -378,6 +378,58 @@ function FunnelChart({ data }) {
   )
 }
 
+/* ── Node Funnel Chart ── */
+function NodeFunnelChart({ steps, overallRate }) {
+  if (!steps || steps.length === 0) return (
+    <EmptyState compact icon="ri-filter-3-line" title="퍼널 데이터가 없습니다" description="플로우가 실행되면 노드별 퍼널이 표시됩니다" />
+  )
+
+  const maxEntered = Math.max(...steps.map(s => s.entered), 1)
+
+  const getColor = (rate) => {
+    if (rate >= 70) return '#10B981'
+    if (rate >= 30) return '#F59E0B'
+    return '#EF4444'
+  }
+
+  return (
+    <div className="node-funnel">
+      {steps.map((step, i) => {
+        const widthPct = Math.max(20, (step.entered / maxEntered) * 100)
+        return (
+          <div className="nf-step" key={step.nodeType}>
+            <div className="nf-step-header">
+              <span className="nf-step-label">{step.label}</span>
+              <span className="nf-step-count">{step.entered.toLocaleString()}명 도달</span>
+            </div>
+            <div className="nf-bar-wrap">
+              <div
+                className="nf-bar"
+                style={{ width: `${widthPct}%`, backgroundColor: getColor(step.completionRate) }}
+              >
+                <span className="nf-bar-text">
+                  {step.completed.toLocaleString()} 완료 ({step.completionRate}%)
+                </span>
+              </div>
+            </div>
+            {step.dropRate > 0 && (
+              <div className="nf-drop">
+                <i className="ri-arrow-down-s-line" />
+                이탈 {step.dropRate}%
+                {i < steps.length - 1 && <span className="nf-drop-line" />}
+              </div>
+            )}
+          </div>
+        )
+      })}
+      <div className="nf-overall">
+        <i className="ri-flag-line" />
+        전체 전환율: <strong>{overallRate}%</strong>
+      </div>
+    </div>
+  )
+}
+
 /* ── Main Page ── */
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState('7d')
@@ -386,6 +438,9 @@ export default function AnalyticsPage() {
   const [downloading, setDownloading] = useState(false)
   const [apiData, setApiData] = useState(null)
   const [selectedFlow, setSelectedFlow] = useState(null)
+  const [funnelFlowId, setFunnelFlowId] = useState('')
+  const [funnelData, setFunnelData] = useState(null)
+  const [funnelLoading, setFunnelLoading] = useState(false)
   const toast = useToast()
 
   const overview = useMemo(() => apiData ? mapOverviewData(apiData) : mapOverviewData({}), [apiData])
@@ -417,6 +472,29 @@ export default function AnalyticsPage() {
 
   const handlePeriodChange = (newPeriod) => {
     setPeriod(newPeriod)
+    // 퍼널 선택된 플로우가 있으면 재조회
+    if (funnelFlowId) {
+      loadFunnelData(funnelFlowId, newPeriod)
+    }
+  }
+
+  const loadFunnelData = async (flowId, p = period) => {
+    if (!flowId) { setFunnelData(null); return }
+    setFunnelLoading(true)
+    try {
+      const days = p === '7d' ? 7 : p === '30d' ? 30 : 90
+      const data = await analyticsService.getFlowFunnel(flowId, days)
+      setFunnelData(data)
+    } catch {
+      setFunnelData(null)
+    } finally {
+      setFunnelLoading(false)
+    }
+  }
+
+  const handleFunnelFlowChange = (flowId) => {
+    setFunnelFlowId(flowId)
+    loadFunnelData(flowId)
   }
 
   const handleDownloadReport = useCallback(() => {
@@ -570,6 +648,40 @@ export default function AnalyticsPage() {
         <div className="dash-card">
           <div className="dash-card-header"><h3>전환 퍼널</h3></div>
           <FunnelChart data={funnel} />
+        </div>
+
+        {/* Node-level Funnel */}
+        <div className="dash-card full-width">
+          <div className="dash-card-header">
+            <h3><i className="ri-git-branch-line" style={{ marginRight: 6 }} />노드별 퍼널 분석</h3>
+            <select
+              className="filter-select"
+              value={funnelFlowId}
+              onChange={(e) => handleFunnelFlowChange(e.target.value)}
+              style={{ minWidth: 200 }}
+            >
+              <option value="">플로우 선택...</option>
+              {topFlows.map(f => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+              {apiData?.flowPerformances?.filter(f => !topFlows.find(t => t.id === f.id)).map(f => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+          </div>
+          {funnelLoading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>
+              <i className="ri-loader-4-line spin" style={{ fontSize: 24 }} />
+              <p style={{ marginTop: 8, fontSize: 13 }}>퍼널 데이터 로딩 중...</p>
+            </div>
+          ) : !funnelFlowId ? (
+            <EmptyState compact icon="ri-git-branch-line" title="플로우를 선택하세요" description="플로우를 선택하면 노드별 전환율과 이탈율을 확인할 수 있습니다" />
+          ) : (
+            <NodeFunnelChart
+              steps={funnelData?.steps}
+              overallRate={funnelData?.overallConversionRate || 0}
+            />
+          )}
         </div>
 
         {/* Engagement Hours */}

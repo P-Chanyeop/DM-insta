@@ -19,4 +19,12 @@ public class AnalyticsController {
         Long userId = SecurityUtils.currentUserId();
         return ResponseEntity.ok(analyticsService.getAnalytics(userId, days));
     }
+
+    @GetMapping("/flows/{flowId}/funnel")
+    public ResponseEntity<?> getFlowFunnel(
+            @PathVariable Long flowId,
+            @RequestParam(defaultValue = "7") int days) {
+        Long userId = SecurityUtils.currentUserId();
+        return ResponseEntity.ok(analyticsService.getFlowFunnel(userId, flowId, days));
+    }
 }
