@@ -165,8 +165,7 @@ export default function AuthPage() {
       <div className="auth-page">
         <div className="auth-container">
           <Link to="/" className="auth-logo">
-            <div className="logo-icon"><i className="ri-send-plane-fill" /></div>
-            <span className="logo-text">센드잇</span>
+            <img src="/images/logo-full.png" alt="센드잇" className="auth-logo-img" />
           </Link>
 
           <div className="auth-card">
@@ -245,8 +244,7 @@ export default function AuthPage() {
       <div className="auth-page">
         <div className="auth-container">
           <Link to="/" className="auth-logo">
-            <div className="logo-icon"><i className="ri-send-plane-fill" /></div>
-            <span className="logo-text">센드잇</span>
+            <img src="/images/logo-full.png" alt="센드잇" className="auth-logo-img" />
           </Link>
 
           <div className="auth-card">
@@ -368,8 +366,7 @@ export default function AuthPage() {
     <div className="auth-page">
       <div className="auth-container">
         <Link to="/" className="auth-logo">
-          <div className="logo-icon"><i className="ri-send-plane-fill" /></div>
-          <span className="logo-text">센드잇</span>
+          <img src="/images/logo-full.png" alt="센드잇" className="auth-logo-img" />
         </Link>
 
         <div className="auth-card">

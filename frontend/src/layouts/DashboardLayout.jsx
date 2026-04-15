@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../api/client'
+import { authService } from '../api/services'
 import { usePlan } from '../components/PlanContext'
 import { useAccount } from '../components/AccountContext'
 import IndustrySelectModal from '../components/IndustrySelectModal'
@@ -113,9 +114,11 @@ export default function DashboardLayout() {
   const [notifications, setNotifications] = useState(DEMO_NOTIFICATIONS)
   const [showIndustryModal, setShowIndustryModal] = useState(false)
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
   const { planLabel, getUsage, getLimit } = usePlan()
   const { accounts, activeAccount, switchAccount } = useAccount()
   const accountDropdownRef = useRef(null)
+  const userMenuRef = useRef(null)
 
   const location = useLocation()
   const navigate = useNavigate()
@@ -142,6 +145,7 @@ export default function DashboardLayout() {
       if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false)
       if (helpRef.current && !helpRef.current.contains(e.target)) setHelpOpen(false)
       if (accountDropdownRef.current && !accountDropdownRef.current.contains(e.target)) setAccountDropdownOpen(false)
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenuOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
@@ -250,6 +254,11 @@ export default function DashboardLayout() {
     }
   }
 
+  const handleLogout = () => {
+    authService.logout()
+    navigate('/login')
+  }
+
   // Flow builder & Sequence builder have their own full-screen layout
   if (location.pathname.startsWith('/app/flows/builder') || location.pathname.startsWith('/app/sequences/builder') || location.pathname.startsWith('/app/broadcast/builder')) {
     return <Outlet />
@@ -264,7 +273,7 @@ export default function DashboardLayout() {
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <a href="/" className="logo">
-            <div className="logo-icon"><i className="ri-send-plane-fill" /></div>
+            <img src="/images/logo-icon.png" alt="센드잇" className="logo-img" />
             <span className="logo-text">센드잇</span>
           </a>
           {/* Mobile close button */}
@@ -516,9 +525,23 @@ export default function DashboardLayout() {
               )}
             </div>
 
-            <div className="user-menu">
-              <div className="user-avatar">{userInitial}</div>
-              <span>{userName}</span>
+            <div className="user-menu-wrap" ref={userMenuRef} style={{ position: 'relative' }}>
+              <div className="user-menu" onClick={() => setUserMenuOpen(prev => !prev)}>
+                <div className="user-avatar">{userInitial}</div>
+                <span>{userName}</span>
+                <i className={`ri-arrow-${userMenuOpen ? 'up' : 'down'}-s-line`} style={{ fontSize: 14, color: 'var(--text-secondary, #999)' }} />
+              </div>
+              {userMenuOpen && (
+                <div className="user-menu-dropdown">
+                  <button onClick={() => { navigate('/app/settings'); setUserMenuOpen(false) }}>
+                    <i className="ri-settings-3-line" /> 계정 설정
+                  </button>
+                  <div className="user-menu-divider" />
+                  <button className="user-menu-logout" onClick={handleLogout}>
+                    <i className="ri-logout-box-r-line" /> 로그아웃
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
