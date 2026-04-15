@@ -82,6 +82,13 @@ export const groupBuyService = {
   getStats: (id) => api.get(`/group-buys/${id}/stats`),
 }
 
+export const abTestService = {
+  getByFlow: (flowId) => api.get(`/ab-tests/flow/${flowId}`),
+  end: (id) => api.patch(`/ab-tests/${id}/end`),
+  reset: (id) => api.patch(`/ab-tests/${id}/reset`),
+  delete: (id) => api.delete(`/ab-tests/${id}`),
+}
+
 export const dashboardService = {
   get: () => api.get('/dashboard'),
 }

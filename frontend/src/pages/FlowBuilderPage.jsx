@@ -15,6 +15,7 @@ import '@xyflow/react/dist/style.css'
 import { flowService } from '../api/services'
 import { nodeTypeMap } from '../components/flow-builder/nodeTypes'
 import NodeEditor from '../components/flow-builder/NodeEditor'
+import ABTestPanel from '../components/flow-builder/ABTestPanel'
 import {
   flowDataToGraph,
   graphToFlowData,
@@ -60,6 +61,7 @@ export default function FlowBuilderPage() {
 
   // DM 미리보기 패널 열림 상태
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [abTestOpen, setAbTestOpen] = useState(false)
 
   // 기존 플로우 로드
   useEffect(() => {
@@ -263,8 +265,15 @@ export default function FlowBuilderPage() {
             <i className="ri-question-line" />
           </button>
           <button
+            className={`fb-preview-toggle-btn ${abTestOpen ? 'active' : ''}`}
+            onClick={() => { setAbTestOpen(!abTestOpen); if (!abTestOpen) setPreviewOpen(false) }}
+            title="A/B 테스트 결과"
+          >
+            <i className="ri-flask-line" />
+          </button>
+          <button
             className={`fb-preview-toggle-btn ${previewOpen ? 'active' : ''}`}
-            onClick={() => setPreviewOpen(!previewOpen)}
+            onClick={() => { setPreviewOpen(!previewOpen); if (!previewOpen) setAbTestOpen(false) }}
             title="DM 미리보기"
           >
             <i className="ri-smartphone-line" />
@@ -414,6 +423,11 @@ export default function FlowBuilderPage() {
         {/* DM 미리보기 패널 (우측) */}
         {previewOpen && (
           <PhonePreview nodes={nodes} />
+        )}
+
+        {/* A/B 테스트 결과 패널 (우측) */}
+        {abTestOpen && (
+          <ABTestPanel flowId={currentFlowId} />
         )}
       </div>
 

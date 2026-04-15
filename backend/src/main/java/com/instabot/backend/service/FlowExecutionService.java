@@ -54,6 +54,7 @@ public class FlowExecutionService {
     private final PendingFlowActionRepository pendingFlowActionRepository;
     private final ScheduledFollowUpRepository scheduledFollowUpRepository;
     private final NodeExecutionRepository nodeExecutionRepository;
+    private final ABTestService abTestService;
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
@@ -424,6 +425,21 @@ public class FlowExecutionService {
             }
         }
 
+        // A/B 테스트 분기
+        String abVariant = null;
+        if (flowData.has("abtest")) {
+            JsonNode abtestNode = flowData.get("abtest");
+            if (abtestNode.path("enabled").asBoolean(false)) {
+                String testName = abtestNode.path("testName").asText("기본 테스트");
+                int variantA = abtestNode.path("variantA").asInt(50);
+                trackNode(flow.getId(), "abtest", NodeExecution.Action.ENTERED, contactId);
+                abVariant = abTestService.assignVariant(flow.getId(), testName, variantA);
+                trackNode(flow.getId(), "abtest", NodeExecution.Action.COMPLETED, contactId,
+                        "{\"variant\":\"" + abVariant + "\",\"testName\":\"" + testName + "\"}");
+                log.info("A/B 테스트 분기: flow={}, test={}, variant={}", flow.getId(), testName, abVariant);
+            }
+        }
+
         // 메인 DM 발송
         if (flowData.has("mainDm")) {
             trackNode(flow.getId(), "mainDm", NodeExecution.Action.ENTERED, contactId);
@@ -433,6 +449,12 @@ public class FlowExecutionService {
             conversationService.saveOutboundMessage(
                     igAccount.getUser(), senderIgId, processedMessage, true, flow.getName());
             trackNode(flow.getId(), "mainDm", NodeExecution.Action.COMPLETED, contactId);
+
+            // A/B 테스트 완료 추적
+            if (abVariant != null && flowData.has("abtest")) {
+                String testName = flowData.get("abtest").path("testName").asText("기본 테스트");
+                abTestService.markCompleted(flow.getId(), testName, abVariant);
+            }
         }
 
         // 캐러셀 메시지 발송
