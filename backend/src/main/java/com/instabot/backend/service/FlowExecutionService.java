@@ -369,6 +369,12 @@ public class FlowExecutionService {
                     igAccount.getUser(), senderIgId, processedMessage, true, flow.getName());
         }
 
+        // 캐러셀 메시지 발송
+        if (flowData.has("carousel")) {
+            executeCarousel(flowData.get("carousel"), botIgId, senderIgId, accessToken,
+                    igAccount.getUser(), flow.getName(), contact, triggerKeyword);
+        }
+
         // AI 자동 응답 실행
         if (flowData.has("aiResponse")) {
             executeAIResponse(flowData.get("aiResponse"), flow, igAccount, senderIgId, triggerKeyword, contact);
@@ -476,6 +482,48 @@ public class FlowExecutionService {
             log.debug("메인 DM 발송 완료: recipient={}", recipientId);
         } catch (Exception e) {
             log.error("메인 DM 발송 실패: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 캐러셀(다중 카드) 메시지 발송
+     * Instagram Generic Template elements로 변환하여 전송
+     */
+    private void executeCarousel(JsonNode carouselNode, String botIgId, String recipientId,
+                                  String accessToken, User user, String flowName,
+                                  Contact contact, String triggerKeyword) {
+        if (!carouselNode.path("enabled").asBoolean(false)) return;
+
+        JsonNode cards = carouselNode.get("cards");
+        if (cards == null || !cards.isArray() || cards.isEmpty()) return;
+
+        try {
+            List<Map<String, Object>> cardList = new ArrayList<>();
+            for (JsonNode card : cards) {
+                String title = replaceVariables(card.path("title").asText(""), contact, triggerKeyword);
+                if (title.isBlank()) continue; // title은 필수
+
+                Map<String, Object> cardMap = new LinkedHashMap<>();
+                cardMap.put("title", title);
+                cardMap.put("subtitle", replaceVariables(card.path("subtitle").asText(""), contact, triggerKeyword));
+                cardMap.put("imageUrl", card.path("imageUrl").asText(""));
+                cardMap.put("buttonText", replaceVariables(card.path("buttonText").asText(""), contact, triggerKeyword));
+                cardMap.put("buttonUrl", card.path("buttonUrl").asText(""));
+                cardList.add(cardMap);
+            }
+
+            if (cardList.isEmpty()) return;
+
+            instagramApiService.sendCarouselMessage(botIgId, recipientId, cardList, accessToken);
+
+            // 대화 기록 저장 (첫 번째 카드 제목을 요약으로)
+            String summary = "[캐러셀] " + cardList.get(0).get("title")
+                    + (cardList.size() > 1 ? " 외 " + (cardList.size() - 1) + "장" : "");
+            conversationService.saveOutboundMessage(user, recipientId, summary, true, flowName);
+
+            log.debug("캐러셀 발송 완료: recipient={}, cards={}", recipientId, cardList.size());
+        } catch (Exception e) {
+            log.error("캐러셀 발송 실패: {}", e.getMessage());
         }
     }
 

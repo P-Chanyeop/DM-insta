@@ -14,8 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Instagram Graph API 연동 서비스
@@ -163,6 +162,72 @@ public class InstagramApiService {
                                                         ))
                                                         .toList()
                                         ))
+                                )
+                        )
+                )
+        );
+
+        return postToInstagram(url, body, accessToken);
+    }
+
+    /**
+     * 캐러셀 (다중 카드 Generic Template) DM 발송
+     * Instagram Generic Template은 elements 배열로 여러 카드를 스와이프 형태로 표시
+     */
+    public JsonNode sendCarouselMessage(String igUserId, String recipientId,
+                                         List<Map<String, Object>> cards, String accessToken) {
+        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messages";
+
+        List<Map<String, Object>> elements = new ArrayList<>();
+        for (Map<String, Object> card : cards) {
+            // title은 필수 — 빈 title 카드는 건너뜀
+            String title = Objects.toString(card.getOrDefault("title", ""), "");
+            if (title.isBlank()) continue;
+
+            Map<String, Object> element = new LinkedHashMap<>();
+            element.put("title", title);
+
+            String subtitle = Objects.toString(card.getOrDefault("subtitle", ""), "");
+            if (!subtitle.isBlank()) {
+                element.put("subtitle", subtitle);
+            }
+
+            String imageUrl = Objects.toString(card.getOrDefault("imageUrl", ""), "");
+            if (!imageUrl.isBlank()) {
+                element.put("image_url", imageUrl);
+            }
+
+            String btnText = Objects.toString(card.getOrDefault("buttonText", ""), "");
+            String btnUrl = Objects.toString(card.getOrDefault("buttonUrl", ""), "");
+            if (!btnText.isBlank() && !btnUrl.isBlank()) {
+                element.put("buttons", List.of(Map.of(
+                        "type", "web_url",
+                        "url", btnUrl,
+                        "title", btnText
+                )));
+            }
+
+            elements.add(element);
+        }
+
+        // Instagram Generic Template은 최소 1개, 최대 10개 elements 필요
+        if (elements.isEmpty()) {
+            log.warn("캐러셀 발송 실패: 유효한 카드가 없습니다");
+            return null;
+        }
+        if (elements.size() > 10) {
+            log.warn("캐러셀 카드 수 초과 ({}개), 10개로 제한합니다", elements.size());
+            elements = elements.subList(0, 10);
+        }
+
+        Map<String, Object> body = Map.of(
+                "recipient", Map.of("id", recipientId),
+                "message", Map.of(
+                        "attachment", Map.of(
+                                "type", "template",
+                                "payload", Map.of(
+                                        "template_type", "generic",
+                                        "elements", elements
                                 )
                         )
                 )
