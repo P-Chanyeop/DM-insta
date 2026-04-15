@@ -3,6 +3,7 @@ package com.instabot.backend.controller;
 import com.instabot.backend.config.EncryptionUtil;
 import com.instabot.backend.config.SecurityUtils;
 import com.instabot.backend.entity.InstagramAccount;
+import com.instabot.backend.exception.BadRequestException;
 import com.instabot.backend.service.InstagramApiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -91,7 +92,7 @@ public class InstagramProfileController {
         Long userId = SecurityUtils.currentUserId();
         InstagramAccount account = instagramApiService.getConnectedAccount(userId);
         if (account == null) {
-            throw new RuntimeException("연결된 Instagram 계정이 없습니다.");
+            throw new BadRequestException("연결된 Instagram 계정이 없습니다.");
         }
         return account;
     }

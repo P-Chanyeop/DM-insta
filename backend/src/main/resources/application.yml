@@ -81,3 +81,12 @@ app:
 # CORS
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+
+# Sentry (production error tracking — set DSN to enable)
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SPRING_PROFILES_ACTIVE:dev}
+
+# Rate Limiting
+rate-limit:
+  enabled: ${RATE_LIMIT_ENABLED:true}

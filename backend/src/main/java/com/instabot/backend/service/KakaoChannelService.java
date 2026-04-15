@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.instabot.backend.dto.KakaoChannelDto.*;
 import com.instabot.backend.entity.Integration;
 import com.instabot.backend.entity.User;
+import com.instabot.backend.exception.BadRequestException;
 import com.instabot.backend.repository.IntegrationRepository;
 import com.instabot.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,12 +36,12 @@ public class KakaoChannelService {
     @Transactional
     public ChannelResponse connectChannel(Long userId, ConnectRequest req) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
+                .orElseThrow(() -> new BadRequestException("사용자를 찾을 수 없습니다"));
 
         // 기존 카카오 채널 연동 확인
         integrationRepository.findByUserIdAndType(userId, Integration.IntegrationType.KAKAO_CHANNEL)
                 .ifPresent(existing -> {
-                    throw new RuntimeException("이미 카카오 채널이 연결되어 있습니다. 기존 연결을 해제 후 다시 시도하세요.");
+                    throw new BadRequestException("이미 카카오 채널이 연결되어 있습니다. 기존 연결을 해제 후 다시 시도하세요.");
                 });
 
         Map<String, String> config = new HashMap<>();
@@ -63,7 +64,7 @@ public class KakaoChannelService {
             integration = integrationRepository.save(integration);
             return toResponse(integration, config);
         } catch (Exception e) {
-            throw new RuntimeException("카카오 채널 연결 실패: " + e.getMessage());
+            throw new BadRequestException("카카오 채널 연결 실패: " + e.getMessage());
         }
     }
 
@@ -177,16 +178,16 @@ public class KakaoChannelService {
     private Map<String, String> getKakaoConfig(Long userId) {
         Integration integration = integrationRepository
                 .findByUserIdAndType(userId, Integration.IntegrationType.KAKAO_CHANNEL)
-                .orElseThrow(() -> new RuntimeException("카카오 채널이 연결되어 있지 않습니다"));
+                .orElseThrow(() -> new BadRequestException("카카오 채널이 연결되어 있지 않습니다"));
 
         if (!integration.isActive()) {
-            throw new RuntimeException("카카오 채널 연동이 비활성화되어 있습니다");
+            throw new BadRequestException("카카오 채널 연동이 비활성화되어 있습니다");
         }
 
         try {
             return objectMapper.readValue(integration.getConfig(), new TypeReference<>() {});
         } catch (Exception e) {
-            throw new RuntimeException("카카오 설정을 읽을 수 없습니다");
+            throw new BadRequestException("카카오 설정을 읽을 수 없습니다");
         }
     }
 

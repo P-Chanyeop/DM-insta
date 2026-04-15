@@ -3,6 +3,8 @@ package com.instabot.backend.controller;
 import com.instabot.backend.config.SecurityUtils;
 import com.instabot.backend.dto.UserDto;
 import com.instabot.backend.entity.User;
+import com.instabot.backend.exception.BadRequestException;
+import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +27,7 @@ public class UserController {
     public ResponseEntity<UserDto.UserResponse> getMe() {
         Long userId = SecurityUtils.currentUserId();
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
         return ResponseEntity.ok(UserDto.UserResponse.builder()
                 .id(user.getId())
@@ -41,7 +43,7 @@ public class UserController {
     public ResponseEntity<UserDto.UserResponse> updateMe(@Valid @RequestBody UserDto.UpdateProfileRequest request) {
         Long userId = SecurityUtils.currentUserId();
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
         user.setName(request.getName());
         if (request.getIndustry() != null) {
@@ -64,11 +66,10 @@ public class UserController {
     public ResponseEntity<Map<String, String>> changePassword(@Valid @RequestBody UserDto.ChangePasswordRequest request) {
         Long userId = SecurityUtils.currentUserId();
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("message", "현재 비밀번호가 올바르지 않습니다."));
+            throw new BadRequestException("현재 비밀번호가 올바르지 않습니다.");
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));

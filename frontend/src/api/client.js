@@ -34,11 +34,26 @@ async function request(path, { method = 'GET', body, headers = {} } = {}) {
 
   if (!res.ok) {
     let errorMessage = `요청 실패 (${res.status})`
+    let errorCode = null
     try {
       const errorBody = await res.json()
       errorMessage = errorBody.message || errorBody.error || errorMessage
+      errorCode = errorBody.code || null
     } catch {}
-    throw new Error(errorMessage)
+
+    // 401 인증 만료 시 자동 로그아웃
+    if (res.status === 401) {
+      localStorage.removeItem('authToken')
+      localStorage.removeItem('authUser')
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+    }
+
+    const err = new Error(errorMessage)
+    err.status = res.status
+    err.code = errorCode
+    throw err
   }
 
   if (res.status === 204) return null

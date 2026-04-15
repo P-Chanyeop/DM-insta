@@ -92,9 +92,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.setCharacterEncoding("UTF-8");
 
         Map<String, Object> body = Map.of(
+                "timestamp", java.time.LocalDateTime.now().toString(),
                 "status", 429,
                 "error", "Too Many Requests",
-                "message", "Rate limit exceeded. Maximum " + limit + " requests per minute."
+                "code", "RATE_LIMIT_EXCEEDED",
+                "message", "요청이 너무 많습니다. 분당 최대 " + limit + "회까지 가능합니다."
         );
 
         response.getWriter().write(objectMapper.writeValueAsString(body));

@@ -3,6 +3,8 @@ package com.instabot.backend.service;
 import com.instabot.backend.dto.InstagramAccountDto.*;
 import com.instabot.backend.entity.InstagramAccount;
 import com.instabot.backend.entity.User;
+import com.instabot.backend.exception.BadRequestException;
+import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,20 +35,20 @@ public class InstagramAccountManagementService {
     @Transactional
     public AccountResponse connectAccount(Long userId, ConnectRequest req) {
         User user = userRepo.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다"));
 
         int limit = getAccountLimit(user.getPlan());
         long current = accountRepo.countByUserId(userId);
         if (current >= limit) {
-            throw new RuntimeException("계정 연결 한도에 도달했습니다. (현재 " + current + "/" + limit + ") 플랜을 업그레이드하세요.");
+            throw new BadRequestException("계정 연결 한도에 도달했습니다. (현재 " + current + "/" + limit + ") 플랜을 업그레이드하세요.");
         }
 
         // 이미 연결된 IG 계정 체크
         accountRepo.findByIgUserId(req.getIgUserId()).ifPresent(existing -> {
             if (!existing.getUser().getId().equals(userId)) {
-                throw new RuntimeException("이미 다른 사용자가 연결한 계정입니다");
+                throw new BadRequestException("이미 다른 사용자가 연결한 계정입니다");
             }
-            throw new RuntimeException("이미 연결된 계정입니다");
+            throw new BadRequestException("이미 연결된 계정입니다");
         });
 
         boolean isFirst = current == 0;
@@ -68,10 +70,10 @@ public class InstagramAccountManagementService {
     @Transactional
     public AccountResponse switchAccount(Long userId, Long accountId) {
         InstagramAccount target = accountRepo.findByIdAndUserId(accountId, userId)
-                .orElseThrow(() -> new RuntimeException("계정을 찾을 수 없습니다"));
+                .orElseThrow(() -> new ResourceNotFoundException("계정을 찾을 수 없습니다"));
 
         if (!target.isConnected()) {
-            throw new RuntimeException("연결이 해제된 계정입니다. 재연결 후 사용하세요.");
+            throw new BadRequestException("연결이 해제된 계정입니다. 재연결 후 사용하세요.");
         }
 
         // 기존 활성 계정 비활성화

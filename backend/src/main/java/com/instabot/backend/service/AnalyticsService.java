@@ -2,6 +2,8 @@ package com.instabot.backend.service;
 
 import com.instabot.backend.entity.Flow;
 import com.instabot.backend.entity.NodeExecution;
+import com.instabot.backend.exception.ResourceNotFoundException;
+import com.instabot.backend.exception.UnauthorizedException;
 import com.instabot.backend.repository.*;
 import lombok.Builder;
 import lombok.Data;
@@ -206,10 +208,10 @@ public class AnalyticsService {
      */
     public FunnelResponse getFlowFunnel(Long userId, Long flowId, int days) {
         Flow flow = flowRepository.findById(flowId)
-                .orElseThrow(() -> new RuntimeException("플로우를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("플로우를 찾을 수 없습니다."));
 
         if (!flow.getUser().getId().equals(userId)) {
-            throw new RuntimeException("접근 권한이 없습니다.");
+            throw new UnauthorizedException("접근 권한이 없습니다.");
         }
 
         LocalDateTime since = LocalDateTime.now().minusDays(days);

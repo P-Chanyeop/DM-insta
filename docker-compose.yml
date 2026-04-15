@@ -1,0 +1,99 @@
+services:
+  # ── Frontend (Nginx + React SPA) ──
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api
+        VITE_WS_BASE_URL: /ws
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - sendit-network
+
+  # ── Backend (Spring Boot) ──
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=sendit
+      - MYSQL_USER=${MYSQL_USER:-sendit}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-changeme}
+      - JWT_SECRET=${JWT_SECRET:-change-me-jwt-secret-key-must-be-at-least-256-bits-long}
+      - ENCRYPTION_SECRET=${ENCRYPTION_SECRET:-change-me-encryption-secret-key}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost}
+      - APP_BASE_URL=${APP_BASE_URL:-http://localhost}
+      - INSTAGRAM_APP_ID=${INSTAGRAM_APP_ID:-}
+      - INSTAGRAM_APP_SECRET=${INSTAGRAM_APP_SECRET:-}
+      - INSTAGRAM_OAUTH_REDIRECT_URI=${INSTAGRAM_OAUTH_REDIRECT_URI:-http://localhost:8080/api/auth/instagram/callback}
+      - INSTAGRAM_WEBHOOK_VERIFY_TOKEN=${INSTAGRAM_WEBHOOK_VERIFY_TOKEN:-}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - STRIPE_PRICE_PRO=${STRIPE_PRICE_PRO:-}
+      - STRIPE_PRICE_ENTERPRISE=${STRIPE_PRICE_ENTERPRISE:-}
+      - MAIL_HOST=${MAIL_HOST:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+    volumes:
+      - backend-logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - sendit-network
+
+  # ── MySQL ──
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootchangeme}
+      - MYSQL_DATABASE=sendit
+      - MYSQL_USER=${MYSQL_USER:-sendit}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-changeme}
+      - MYSQL_CHARACTER_SET_SERVER=utf8mb4
+      - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - sendit-network
+
+  # ── Redis (세션 캐시, 추후 활용) ──
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - sendit-network
+
+volumes:
+  mysql-data:
+  redis-data:
+  backend-logs:
+
+networks:
+  sendit-network:
+    driver: bridge

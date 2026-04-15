@@ -1,25 +1,31 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
+import { AccountProvider } from './components/AccountContext'
+import PageLoader from './components/PageLoader'
+
+// Eager: 랜딩/인증은 첫 화면이므로 즉시 로드
 import LandingPage from './pages/LandingPage'
 import AuthPage from './pages/AuthPage'
 import DashboardLayout from './layouts/DashboardLayout'
-import DashboardPage from './pages/DashboardPage'
-import FlowsPage from './pages/FlowsPage'
-import AutomationPage from './pages/AutomationPage'
-import LiveChatPage from './pages/LiveChatPage'
-import BroadcastPage from './pages/BroadcastPage'
-import SequencesPage from './pages/SequencesPage'
-import ContactsPage from './pages/ContactsPage'
-import GrowthPage from './pages/GrowthPage'
-import AnalyticsPage from './pages/AnalyticsPage'
-import TemplatesPage from './pages/TemplatesPage'
-import SettingsPage from './pages/SettingsPage'
-import FlowBuilderPage from './pages/FlowBuilderPage'
-import SequenceBuilderPage from './pages/SequenceBuilderPage'
-import BroadcastBuilderPage from './pages/BroadcastBuilderPage'
-import LegalPage from './pages/LegalPage'
-import GroupBuyPage from './pages/GroupBuyPage'
-import AgencyPage from './pages/AgencyPage'
-import { AccountProvider } from './components/AccountContext'
+
+// Lazy: 대시보드 내부 페이지들은 코드 스플리팅
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const FlowsPage = lazy(() => import('./pages/FlowsPage'))
+const FlowBuilderPage = lazy(() => import('./pages/FlowBuilderPage'))
+const AutomationPage = lazy(() => import('./pages/AutomationPage'))
+const LiveChatPage = lazy(() => import('./pages/LiveChatPage'))
+const BroadcastPage = lazy(() => import('./pages/BroadcastPage'))
+const BroadcastBuilderPage = lazy(() => import('./pages/BroadcastBuilderPage'))
+const SequencesPage = lazy(() => import('./pages/SequencesPage'))
+const SequenceBuilderPage = lazy(() => import('./pages/SequenceBuilderPage'))
+const ContactsPage = lazy(() => import('./pages/ContactsPage'))
+const GrowthPage = lazy(() => import('./pages/GrowthPage'))
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'))
+const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
+const GroupBuyPage = lazy(() => import('./pages/GroupBuyPage'))
+const AgencyPage = lazy(() => import('./pages/AgencyPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const LegalPage = lazy(() => import('./pages/LegalPage'))
 
 export default function App() {
   return (
@@ -27,28 +33,28 @@ export default function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<AuthPage />} />
-      <Route path="/terms" element={<LegalPage />} />
-      <Route path="/privacy" element={<LegalPage />} />
+      <Route path="/terms" element={<Suspense fallback={<PageLoader />}><LegalPage /></Suspense>} />
+      <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><LegalPage /></Suspense>} />
       <Route path="/signup" element={<AuthPage />} />
       <Route path="/app" element={<DashboardLayout />}>
-        <Route index element={<DashboardPage />} />
-        <Route path="flows" element={<FlowsPage />} />
-        <Route path="flows/builder" element={<FlowBuilderPage />} />
-        <Route path="flows/builder/:id" element={<FlowBuilderPage />} />
-        <Route path="automation" element={<AutomationPage />} />
-        <Route path="livechat" element={<LiveChatPage />} />
-        <Route path="broadcast" element={<BroadcastPage />} />
-        <Route path="broadcast/builder" element={<BroadcastBuilderPage />} />
-        <Route path="sequences" element={<SequencesPage />} />
-        <Route path="sequences/builder" element={<SequenceBuilderPage />} />
-        <Route path="sequences/builder/:id" element={<SequenceBuilderPage />} />
-        <Route path="contacts" element={<ContactsPage />} />
-        <Route path="growth" element={<GrowthPage />} />
-        <Route path="analytics" element={<AnalyticsPage />} />
-        <Route path="templates" element={<TemplatesPage />} />
-        <Route path="group-buys" element={<GroupBuyPage />} />
-        <Route path="agency" element={<AgencyPage />} />
-        <Route path="settings" element={<SettingsPage />} />
+        <Route index element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />
+        <Route path="flows" element={<Suspense fallback={<PageLoader />}><FlowsPage /></Suspense>} />
+        <Route path="flows/builder" element={<Suspense fallback={<PageLoader />}><FlowBuilderPage /></Suspense>} />
+        <Route path="flows/builder/:id" element={<Suspense fallback={<PageLoader />}><FlowBuilderPage /></Suspense>} />
+        <Route path="automation" element={<Suspense fallback={<PageLoader />}><AutomationPage /></Suspense>} />
+        <Route path="livechat" element={<Suspense fallback={<PageLoader />}><LiveChatPage /></Suspense>} />
+        <Route path="broadcast" element={<Suspense fallback={<PageLoader />}><BroadcastPage /></Suspense>} />
+        <Route path="broadcast/builder" element={<Suspense fallback={<PageLoader />}><BroadcastBuilderPage /></Suspense>} />
+        <Route path="sequences" element={<Suspense fallback={<PageLoader />}><SequencesPage /></Suspense>} />
+        <Route path="sequences/builder" element={<Suspense fallback={<PageLoader />}><SequenceBuilderPage /></Suspense>} />
+        <Route path="sequences/builder/:id" element={<Suspense fallback={<PageLoader />}><SequenceBuilderPage /></Suspense>} />
+        <Route path="contacts" element={<Suspense fallback={<PageLoader />}><ContactsPage /></Suspense>} />
+        <Route path="growth" element={<Suspense fallback={<PageLoader />}><GrowthPage /></Suspense>} />
+        <Route path="analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsPage /></Suspense>} />
+        <Route path="templates" element={<Suspense fallback={<PageLoader />}><TemplatesPage /></Suspense>} />
+        <Route path="group-buys" element={<Suspense fallback={<PageLoader />}><GroupBuyPage /></Suspense>} />
+        <Route path="agency" element={<Suspense fallback={<PageLoader />}><AgencyPage /></Suspense>} />
+        <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
       </Route>
     </Routes>
     </AccountProvider>
