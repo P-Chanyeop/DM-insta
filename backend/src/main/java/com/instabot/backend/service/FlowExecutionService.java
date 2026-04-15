@@ -45,9 +45,11 @@ public class FlowExecutionService {
     private final InstagramApiService instagramApiService;
     private final ConversationService conversationService;
     private final AIService aiService;
+    private final GroupBuyService groupBuyService;
     private final ObjectMapper objectMapper;
     private final FlowRepository flowRepository;
     private final ContactRepository contactRepository;
+    private final GroupBuyRepository groupBuyRepository;
     private final PendingFlowActionRepository pendingFlowActionRepository;
     private final ScheduledFollowUpRepository scheduledFollowUpRepository;
     private final NodeExecutionRepository nodeExecutionRepository;
@@ -405,6 +407,22 @@ public class FlowExecutionService {
             }
         }
 
+        // 재고 확인 (공동구매 인벤토리 노드)
+        if (flowData.has("inventory")) {
+            JsonNode inventoryNode = flowData.get("inventory");
+            if (inventoryNode.path("enabled").asBoolean(false)) {
+                trackNode(flow.getId(), "inventory", NodeExecution.Action.ENTERED, contactId);
+                boolean stockOk = executeInventoryCheck(inventoryNode, flow, igAccount,
+                        senderIgId, accessToken, botIgId, contact, contactId, triggerKeyword);
+                if (!stockOk) {
+                    trackNode(flow.getId(), "inventory", NodeExecution.Action.DROPPED, contactId,
+                            "{\"reason\":\"sold_out\"}");
+                    return; // 매진 → 플로우 중단
+                }
+                trackNode(flow.getId(), "inventory", NodeExecution.Action.COMPLETED, contactId);
+            }
+        }
+
         // 메인 DM 발송
         if (flowData.has("mainDm")) {
             trackNode(flow.getId(), "mainDm", NodeExecution.Action.ENTERED, contactId);
@@ -738,6 +756,68 @@ public class FlowExecutionService {
                 .expiresAt(LocalDateTime.now().plusHours(24))
                 .build();
         pendingFlowActionRepository.save(action);
+    }
+
+    // ─── 재고 확인 (인벤토리 노드) ───
+
+    /**
+     * 공동구매 재고 확인 노드 실행
+     * - 재고 있으면 참여자 등록 후 true 반환
+     * - 매진이면 매진 메시지 발송 후 false 반환
+     */
+    private boolean executeInventoryCheck(JsonNode inventoryNode, Flow flow, InstagramAccount igAccount,
+                                           String senderIgId, String accessToken, String botIgId,
+                                           Contact contact, Long contactId, String triggerKeyword) {
+        long groupBuyId = inventoryNode.path("groupBuyId").asLong(0);
+        if (groupBuyId == 0) {
+            log.warn("인벤토리 노드에 groupBuyId가 없음: flowId={}", flow.getId());
+            return true; // groupBuyId 없으면 통과
+        }
+
+        try {
+            GroupBuy groupBuy = groupBuyRepository.findById(groupBuyId).orElse(null);
+            if (groupBuy == null) {
+                log.warn("공동구매를 찾을 수 없음: groupBuyId={}", groupBuyId);
+                return true;
+            }
+
+            // 재고 확인
+            if (!groupBuy.hasStock()) {
+                // 매진 메시지 발송
+                String soldOutMsg = replaceVariables(
+                        inventoryNode.path("soldOutMessage").asText("죄송합니다, 이 상품은 매진되었습니다. 😢"),
+                        contact, triggerKeyword);
+                try {
+                    instagramApiService.sendTextMessage(botIgId, senderIgId, soldOutMsg, accessToken);
+                    conversationService.saveOutboundMessage(
+                            igAccount.getUser(), senderIgId, soldOutMsg, true, flow.getName());
+                } catch (Exception e) {
+                    log.error("매진 메시지 발송 실패: {}", e.getMessage());
+                }
+                log.info("공동구매 매진: groupBuyId={}, sender={}", groupBuyId, senderIgId);
+                return false;
+            }
+
+            // 참여자 등록 (기본 수량 1, 옵션은 나중에 선택)
+            if (contactId != null) {
+                try {
+                    groupBuyService.addParticipant(groupBuyId, contactId, null, 1);
+                    log.info("공동구매 참여 등록: groupBuyId={}, contactId={}", groupBuyId, contactId);
+                } catch (Exception e) {
+                    // 이미 참여한 경우 등 → 플로우는 계속 진행
+                    log.info("공동구매 참여 등록 스킵: {}", e.getMessage());
+                }
+            }
+
+            // 결제 링크가 있으면 메인DM 링크로 자동 삽입 (flowData의 mainDm.links에 반영됨)
+            // → 결제 링크는 프론트엔드에서 flowData 저장 시 mainDm.links에 포함하므로 여기서는 별도 처리 불필요
+
+            return true;
+
+        } catch (Exception e) {
+            log.error("인벤토리 노드 실행 실패: {}", e.getMessage());
+            return true; // 오류 시 통과 (플로우 중단 방지)
+        }
     }
 
     // ─── 메시지 변수 치환 ───

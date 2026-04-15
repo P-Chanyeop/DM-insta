@@ -17,6 +17,7 @@ import FlowBuilderPage from './pages/FlowBuilderPage'
 import SequenceBuilderPage from './pages/SequenceBuilderPage'
 import BroadcastBuilderPage from './pages/BroadcastBuilderPage'
 import LegalPage from './pages/LegalPage'
+import GroupBuyPage from './pages/GroupBuyPage'
 
 export default function App() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="growth" element={<GrowthPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="templates" element={<TemplatesPage />} />
+        <Route path="group-buys" element={<GroupBuyPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>

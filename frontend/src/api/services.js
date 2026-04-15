@@ -62,6 +62,18 @@ export const broadcastService = {
   cancel: (id) => api.patch(`/broadcasts/${id}/cancel`),
 }
 
+export const groupBuyService = {
+  list: () => api.get('/group-buys'),
+  get: (id) => api.get(`/group-buys/${id}`),
+  create: (data) => api.post('/group-buys', data),
+  update: (id, data) => api.put(`/group-buys/${id}`, data),
+  updateStatus: (id, status) => api.patch(`/group-buys/${id}/status`, { status }),
+  delete: (id) => api.delete(`/group-buys/${id}`),
+  getParticipants: (id) => api.get(`/group-buys/${id}/participants`),
+  updateParticipant: (id, participantId, data) => api.patch(`/group-buys/${id}/participants/${participantId}`, data),
+  getStats: (id) => api.get(`/group-buys/${id}/stats`),
+}
+
 export const dashboardService = {
   get: () => api.get('/dashboard'),
 }

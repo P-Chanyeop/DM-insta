@@ -17,6 +17,7 @@ const nodeColors = {
   carousel: '#EC4899',
   abtest: '#F97316',
   aiResponse: '#0EA5E9',
+  inventory: '#EF4444',
 }
 
 /* ── 트리거 노드 ── */
@@ -394,6 +395,31 @@ export const AIResponseNode = memo(({ data, selected }) => {
 })
 AIResponseNode.displayName = 'AIResponseNode'
 
+/* ── 재고 확인(인벤토리) 노드 ── */
+export const InventoryNode = memo(({ data, selected }) => (
+  <div className={`flow-node inventory-node ${selected ? 'selected' : ''}`}>
+    <Handle type="target" position={Position.Top} className="flow-handle" />
+    <div className="flow-node-header" style={{ background: nodeColors.inventory }}>
+      <i className="ri-shopping-bag-line" />
+      <span>재고 확인</span>
+    </div>
+    <div className="flow-node-body">
+      {data.groupBuyId ? (
+        <div className="flow-node-detail">
+          <i className="ri-store-2-line" /> 공동구매 #{data.groupBuyId}
+        </div>
+      ) : (
+        <div className="flow-node-placeholder">공동구매를 연결하세요</div>
+      )}
+      <div className="flow-node-detail" style={{ marginTop: 4 }}>
+        <i className="ri-close-circle-line" /> 매진 시 플로우 중단
+      </div>
+    </div>
+    <Handle type="source" position={Position.Bottom} className="flow-handle" />
+  </div>
+))
+InventoryNode.displayName = 'InventoryNode'
+
 /* ── 노드 타입 등록 맵 ── */
 export const nodeTypeMap = {
   trigger: TriggerNode,
@@ -406,4 +432,5 @@ export const nodeTypeMap = {
   carousel: CarouselNode,
   abtest: ABTestNode,
   aiResponse: AIResponseNode,
+  inventory: InventoryNode,
 }

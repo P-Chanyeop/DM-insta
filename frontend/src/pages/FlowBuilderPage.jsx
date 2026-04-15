@@ -513,6 +513,13 @@ function PhonePreview({ nodes }) {
   })
 
   // 캐러셀 노드
+  // 재고 확인 노드
+  const inventoryNode = nodes.find(n => n.type === 'inventory')
+  if (inventoryNode) {
+    const gbId = inventoryNode.data.groupBuyId
+    msgs.push({ type: 'system-note', text: `📦 재고 확인 ${gbId ? `(공동구매 #${gbId})` : '(미연결)'}`, step: '재고 확인' })
+  }
+
   const carouselNode = nodes.find(n => n.type === 'carousel')
   if (carouselNode) {
     const cards = carouselNode.data.cards || []

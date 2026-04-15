@@ -78,6 +78,17 @@ public class TemplateSeedData implements CommandLineRunner {
                 .rating(4.7)
                 .build());
 
-        log.info("기본 템플릿 5개 생성 완료");
+        templateRepository.save(Template.builder()
+                .name("공동구매 풀사이클 자동화")
+                .description("댓글 신청 → DM 캐러셀 → 옵션 선택 → 재고 확인 → 결제 링크 → 배송 안내까지 자동화합니다.")
+                .category("SHOPPING")
+                .icon("ri-shopping-bag-line")
+                .gradientColors("#EF4444,#F97316")
+                .flowData("{\"trigger\":{\"type\":\"comment\",\"keywords\":[\"신청\",\"구매\",\"공구\"],\"excludeKeywords\":[],\"matchType\":\"CONTAINS\",\"postTarget\":\"any\"},\"commentReply\":{\"enabled\":true,\"replies\":[\"신청 감사합니다! DM으로 상세 정보 보내드릴게요\",\"참여 확인! DM을 확인해주세요\"]},\"openingDm\":{\"enabled\":true,\"message\":\"공동구매에 관심 가져주셔서 감사합니다! 아래 버튼을 눌러 상품을 확인하세요.\",\"buttonText\":\"상품 보기\"},\"requirements\":{\"followCheck\":{\"enabled\":true,\"message\":\"공동구매 참여를 위해 먼저 팔로우해 주세요!\"},\"emailCollection\":{\"enabled\":false,\"message\":\"\"}},\"inventory\":{\"enabled\":true,\"groupBuyId\":null,\"soldOutMessage\":\"죄송합니다, 이번 공동구매는 매진되었습니다. 다음 공구를 기대해주세요!\"},\"mainDm\":{\"message\":\"공동구매 상품 안내입니다! 아래 링크에서 결제해주세요.\",\"links\":[{\"text\":\"결제하기\",\"url\":\"https://example.com/pay\"}]},\"carousel\":{\"enabled\":true,\"cards\":[{\"title\":\"상품명\",\"subtitle\":\"공동구매 특가\",\"imageUrl\":\"\",\"buttonText\":\"상세 보기\",\"buttonUrl\":\"https://example.com\"},{\"title\":\"옵션 A\",\"subtitle\":\"블랙 / FREE\",\"imageUrl\":\"\",\"buttonText\":\"선택\",\"buttonUrl\":\"https://example.com/a\"},{\"title\":\"옵션 B\",\"subtitle\":\"화이트 / FREE\",\"imageUrl\":\"\",\"buttonText\":\"선택\",\"buttonUrl\":\"https://example.com/b\"}]},\"followUp\":{\"enabled\":true,\"delay\":1,\"unit\":\"일\",\"message\":\"안녕하세요! 혹시 결제가 완료되셨나요? 궁금한 점이 있으시면 편하게 물어보세요!\"}}")
+                .usageCount(680L)
+                .rating(4.9)
+                .build());
+
+        log.info("기본 템플릿 6개 생성 완료");
     }
 }

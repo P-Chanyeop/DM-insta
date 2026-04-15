@@ -192,7 +192,24 @@ export function flowDataToGraph(fd) {
     })
   }
 
-  // 9. 캐러셀 노드
+  // 9. 재고 확인(인벤토리) 노드
+  if (fd.inventory?.enabled) {
+    const id = 'inventory-1'
+    nodes.push({
+      id,
+      type: 'inventory',
+      position: { x: X_CENTER, y },
+      data: {
+        groupBuyId: fd.inventory.groupBuyId || null,
+        soldOutMessage: fd.inventory.soldOutMessage || '죄송합니다, 이 상품은 매진되었습니다. 😢',
+      },
+    })
+    edges.push(makeEdge(prevNodeId, id))
+    prevNodeId = id
+    y += Y_SPACING
+  }
+
+  // 10. 캐러셀 노드
   if (fd.carousel?.enabled) {
     const id = 'carousel-1'
     nodes.push({
@@ -298,6 +315,7 @@ export function graphToFlowData(nodes, edges) {
   const followUpNode = nodes.find(n => n.type === 'message' && n.data.role === 'followup')
   const actionNodes = nodes.filter(n => n.type === 'action')
   const webhookNodes = nodes.filter(n => n.type === 'webhook')
+  const inventoryNode = nodes.find(n => n.type === 'inventory')
   const carouselNode = nodes.find(n => n.type === 'carousel')
   const abtestNode = nodes.find(n => n.type === 'abtest')
   const aiResponseNode = nodes.find(n => n.type === 'aiResponse')
@@ -362,6 +380,11 @@ export function graphToFlowData(nodes, edges) {
       headers: n.data.headers || '{}',
       body: n.data.body || '',
     })),
+    inventory: {
+      enabled: !!inventoryNode,
+      groupBuyId: inventoryNode?.data.groupBuyId || null,
+      soldOutMessage: inventoryNode?.data.soldOutMessage || '죄송합니다, 이 상품은 매진되었습니다. 😢',
+    },
     carousel: {
       enabled: !!carouselNode,
       cards: carouselNode?.data.cards || [],
@@ -470,8 +493,8 @@ export const NODE_PALETTE = [
     defaultData: { cards: [{ title: '', subtitle: '', imageUrl: '', buttonText: '', buttonUrl: '' }] } },
   { type: 'abtest', label: 'A/B 테스트', icon: 'ri-split-cells-horizontal', color: '#F97316',
     defaultData: { testName: '', variantA: 50 } },
-  { type: '_payment', label: '결제 연동', icon: 'ri-bank-card-line', color: '#10B981',
-    comingSoon: true },
+  { type: 'inventory', label: '재고 확인', icon: 'ri-shopping-bag-line', color: '#EF4444',
+    defaultData: { groupBuyId: null, soldOutMessage: '죄송합니다, 이 상품은 매진되었습니다. 😢' } },
   { type: 'aiResponse', label: 'AI 자동 응답', icon: 'ri-robot-line', color: '#0EA5E9',
     defaultData: {
       mode: 'faq',

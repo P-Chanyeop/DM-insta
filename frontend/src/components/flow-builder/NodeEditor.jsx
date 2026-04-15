@@ -31,6 +31,7 @@ export default function NodeEditor({ node, onUpdate, onClose }) {
         {node.type === 'carousel' && <CarouselEditor data={data} update={update} />}
         {node.type === 'abtest' && <ABTestEditor data={data} update={update} />}
         {node.type === 'aiResponse' && <AIResponseEditor data={data} update={update} />}
+        {node.type === 'inventory' && <InventoryEditor data={data} update={update} />}
       </div>
     </div>
   )
@@ -48,6 +49,7 @@ function getNodeTitle(node) {
     carousel: '캐러셀 설정',
     abtest: 'A/B 테스트 설정',
     aiResponse: 'AI 자동 응답 설정',
+    inventory: '재고 확인 설정',
   }
   return titles[node.type] || '설정'
 }
@@ -772,6 +774,36 @@ function AIResponseEditor({ data, update }) {
           <span>사용자에게 질문을 다시 입력해달라는 안내 메시지가 발송됩니다.</span>
         </div>
       )}
+    </>
+  )
+}
+
+/* ── 재고 확인(인벤토리) 편집기 ── */
+function InventoryEditor({ data, update }) {
+  return (
+    <>
+      <div className="ne-field">
+        <label>공동구매 ID</label>
+        <input className="ne-input" type="number"
+          value={data.groupBuyId || ''}
+          onChange={e => update({ groupBuyId: e.target.value ? Number(e.target.value) : null })}
+          placeholder="공동구매 관리 페이지에서 ID를 확인하세요" />
+        <span className="ne-help-text">공동구매 관리에서 생성한 공동구매의 ID를 입력합니다</span>
+      </div>
+
+      <div className="ne-field">
+        <label>매진 메시지</label>
+        <textarea className="ne-textarea" rows={3}
+          value={data.soldOutMessage || ''}
+          onChange={e => update({ soldOutMessage: e.target.value })}
+          placeholder="죄송합니다, 이 상품은 매진되었습니다." />
+        <span className="ne-help-text">재고가 소진되면 이 메시지가 발송되고 플로우가 중단됩니다</span>
+      </div>
+
+      <div className="ne-info-box">
+        <i className="ri-shopping-bag-line" />
+        <span>재고 확인 노드는 공동구매의 재고를 확인하고, 자동으로 참여자를 등록합니다. 매진 시 플로우가 중단되어 더 이상 DM이 발송되지 않습니다.</span>
+      </div>
     </>
   )
 }

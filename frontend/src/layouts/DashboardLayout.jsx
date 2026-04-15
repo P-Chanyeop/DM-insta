@@ -19,6 +19,7 @@ const NAV_SECTIONS = [
       { to: '/app/livechat', icon: 'ri-chat-3-line', label: '라이브 채팅', badge: '5', badgeType: 'red' },
       { to: '/app/broadcast', icon: 'ri-broadcast-line', label: '브로드캐스팅' },
       { to: '/app/sequences', icon: 'ri-time-line', label: '시퀀스' },
+      { to: '/app/group-buys', icon: 'ri-shopping-bag-line', label: '공동구매' },
     ]
   },
   {
@@ -45,6 +46,7 @@ const PAGE_TITLES = {
   '/app/livechat': '라이브 채팅',
   '/app/broadcast': '브로드캐스팅',
   '/app/sequences': '시퀀스',
+  '/app/group-buys': '공동구매',
   '/app/contacts': '연락처',
   '/app/growth': '성장 도구',
   '/app/analytics': '분석',
@@ -84,6 +86,7 @@ const SEARCHABLE_ITEMS = [
   { type: 'page', label: '라이브 채팅', path: '/app/livechat', icon: 'ri-chat-3-line', keywords: ['채팅', 'chat', '라이브', '메시지', 'DM'] },
   { type: 'page', label: '브로드캐스팅', path: '/app/broadcast', icon: 'ri-broadcast-line', keywords: ['브로드캐스트', 'broadcast', '대량', '발송'] },
   { type: 'page', label: '시퀀스', path: '/app/sequences', icon: 'ri-time-line', keywords: ['시퀀스', 'sequence', '드립', '캠페인'] },
+  { type: 'page', label: '공동구매', path: '/app/group-buys', icon: 'ri-shopping-bag-line', keywords: ['공동구매', 'group buy', '공구', '재고', '인벤토리'] },
   { type: 'page', label: '연락처', path: '/app/contacts', icon: 'ri-contacts-book-2-line', keywords: ['연락처', 'contact', '구독자', 'CRM'] },
   { type: 'page', label: '성장 도구', path: '/app/growth', icon: 'ri-seedling-line', keywords: ['성장', 'growth', '도구'] },
   { type: 'page', label: '분석 & 통계', path: '/app/analytics', icon: 'ri-line-chart-line', keywords: ['분석', 'analytics', '통계', '리포트'] },
