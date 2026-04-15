@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../api/client'
 import { usePlan } from '../components/PlanContext'
+import { useAccount } from '../components/AccountContext'
 import IndustrySelectModal from '../components/IndustrySelectModal'
 
 const NAV_SECTIONS = [
@@ -33,6 +34,7 @@ const NAV_SECTIONS = [
   {
     title: '설정',
     items: [
+      { to: '/app/agency', icon: 'ri-building-2-line', label: '에이전시' },
       { to: '/app/templates', icon: 'ri-file-copy-2-line', label: '템플릿' },
       { to: '/app/settings', icon: 'ri-settings-3-line', label: '설정' },
     ]
@@ -50,6 +52,7 @@ const PAGE_TITLES = {
   '/app/contacts': '연락처',
   '/app/growth': '성장 도구',
   '/app/analytics': '분석',
+  '/app/agency': '에이전시',
   '/app/templates': '템플릿',
   '/app/settings': '설정',
   '/app/flows/builder': '플로우 빌더',
@@ -90,6 +93,7 @@ const SEARCHABLE_ITEMS = [
   { type: 'page', label: '연락처', path: '/app/contacts', icon: 'ri-contacts-book-2-line', keywords: ['연락처', 'contact', '구독자', 'CRM'] },
   { type: 'page', label: '성장 도구', path: '/app/growth', icon: 'ri-seedling-line', keywords: ['성장', 'growth', '도구'] },
   { type: 'page', label: '분석 & 통계', path: '/app/analytics', icon: 'ri-line-chart-line', keywords: ['분석', 'analytics', '통계', '리포트'] },
+  { type: 'page', label: '에이전시', path: '/app/agency', icon: 'ri-building-2-line', keywords: ['에이전시', 'agency', '멀티', '계정', '관리'] },
   { type: 'page', label: '템플릿', path: '/app/templates', icon: 'ri-file-copy-2-line', keywords: ['템플릿', 'template', '양식'] },
   { type: 'page', label: '설정', path: '/app/settings', icon: 'ri-settings-3-line', keywords: ['설정', 'settings', '계정', '연동', 'API'] },
   // 빠른 액션
@@ -108,7 +112,10 @@ export default function DashboardLayout() {
   const [cmdIndex, setCmdIndex] = useState(0)
   const [notifications, setNotifications] = useState(DEMO_NOTIFICATIONS)
   const [showIndustryModal, setShowIndustryModal] = useState(false)
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
   const { planLabel, getUsage, getLimit } = usePlan()
+  const { accounts, activeAccount, switchAccount } = useAccount()
+  const accountDropdownRef = useRef(null)
 
   const location = useLocation()
   const navigate = useNavigate()
@@ -134,6 +141,7 @@ export default function DashboardLayout() {
     function handleClick(e) {
       if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false)
       if (helpRef.current && !helpRef.current.contains(e.target)) setHelpOpen(false)
+      if (accountDropdownRef.current && !accountDropdownRef.current.contains(e.target)) setAccountDropdownOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
@@ -269,13 +277,82 @@ export default function DashboardLayout() {
           </button>
         </div>
 
-        <div className="account-selector">
-          <div className="account-avatar">M</div>
-          <div className="account-details">
-            <span className="account-name">@my_brand_kr</span>
-            <span className="account-type">비즈니스 계정</span>
+        <div className="account-selector-wrap" ref={accountDropdownRef}>
+          <div
+            className="account-selector"
+            onClick={() => setAccountDropdownOpen(prev => !prev)}
+            style={{ cursor: 'pointer' }}
+          >
+            {activeAccount ? (
+              <>
+                <div className="account-avatar">
+                  {activeAccount.profilePictureUrl
+                    ? <img src={activeAccount.profilePictureUrl} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                    : activeAccount.username?.[0]?.toUpperCase() || '?'}
+                </div>
+                <div className="account-details">
+                  <span className="account-name">@{activeAccount.username}</span>
+                  <span className="account-type">{activeAccount.accountType || '비즈니스 계정'}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="account-avatar">+</div>
+                <div className="account-details">
+                  <span className="account-name">계정 연결하기</span>
+                  <span className="account-type">Instagram 계정을 연결하세요</span>
+                </div>
+              </>
+            )}
+            <i className={`ri-arrow-${accountDropdownOpen ? 'up' : 'down'}-s-line`} />
           </div>
-          <i className="ri-arrow-down-s-line" />
+
+          {accountDropdownOpen && (
+            <div className="account-dropdown">
+              <div className="account-dropdown-header">계정 전환</div>
+              {accounts.length > 0 ? (
+                <div className="account-dropdown-list">
+                  {accounts.map(acc => (
+                    <button
+                      key={acc.id}
+                      className={`account-dropdown-item${acc.active ? ' active' : ''}${!acc.connected ? ' disconnected' : ''}`}
+                      onClick={() => {
+                        if (acc.connected && !acc.active) {
+                          switchAccount(acc.id)
+                        }
+                        setAccountDropdownOpen(false)
+                      }}
+                    >
+                      <div className="account-dropdown-avatar">
+                        {acc.profilePictureUrl
+                          ? <img src={acc.profilePictureUrl} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                          : acc.username?.[0]?.toUpperCase() || '?'}
+                      </div>
+                      <div className="account-dropdown-info">
+                        <span className="account-dropdown-name">@{acc.username}</span>
+                        <span className="account-dropdown-type">
+                          {!acc.connected ? '연결 해제됨' : acc.accountType || '비즈니스 계정'}
+                        </span>
+                      </div>
+                      {acc.active && <i className="ri-check-line" style={{ color: '#7c3aed', fontSize: 18 }} />}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="account-dropdown-empty">
+                  연결된 계정이 없습니다
+                </div>
+              )}
+              <div className="account-dropdown-footer">
+                <button onClick={() => { navigate('/app/settings'); setAccountDropdownOpen(false) }}>
+                  <i className="ri-settings-3-line" /> 계정 관리
+                </button>
+                <button onClick={() => { navigate('/app/agency'); setAccountDropdownOpen(false) }}>
+                  <i className="ri-building-2-line" /> 에이전시
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <nav className="sidebar-nav">

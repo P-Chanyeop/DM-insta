@@ -18,9 +18,12 @@ import SequenceBuilderPage from './pages/SequenceBuilderPage'
 import BroadcastBuilderPage from './pages/BroadcastBuilderPage'
 import LegalPage from './pages/LegalPage'
 import GroupBuyPage from './pages/GroupBuyPage'
+import AgencyPage from './pages/AgencyPage'
+import { AccountProvider } from './components/AccountContext'
 
 export default function App() {
   return (
+    <AccountProvider>
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<AuthPage />} />
@@ -44,8 +47,10 @@ export default function App() {
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="templates" element={<TemplatesPage />} />
         <Route path="group-buys" element={<GroupBuyPage />} />
+        <Route path="agency" element={<AgencyPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
+    </AccountProvider>
   )
 }

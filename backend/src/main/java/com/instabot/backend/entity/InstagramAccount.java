@@ -30,6 +30,9 @@ public class InstagramAccount {
     private boolean connected = true;
 
     @Builder.Default
+    private boolean active = false;
+
+    @Builder.Default
     private LocalDateTime connectedAt = LocalDateTime.now();
 
     private LocalDateTime tokenExpiresAt;

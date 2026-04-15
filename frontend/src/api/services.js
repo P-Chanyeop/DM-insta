@@ -140,6 +140,16 @@ export const billingService = {
   createPortal: () => api.post('/billing/portal'),
 }
 
+export const accountService = {
+  list: () => api.get('/accounts'),
+  connect: (data) => api.post('/accounts', data),
+  switch: (id) => api.patch(`/accounts/${id}/switch`),
+  update: (id, data) => api.put(`/accounts/${id}`, data),
+  disconnect: (id) => api.patch(`/accounts/${id}/disconnect`),
+  remove: (id) => api.delete(`/accounts/${id}`),
+  getOverview: () => api.get('/accounts/overview'),
+}
+
 export const instagramProfileService = {
   setIceBreakers: (items) => api.post('/instagram/ice-breakers', { items }),
   deleteIceBreakers: () => api.delete('/instagram/ice-breakers'),
