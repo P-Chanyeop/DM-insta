@@ -12,6 +12,7 @@ public class UserDto {
         private String email;
         private String name;
         private String plan;
+        private String industry;
         private String createdAt;
     }
 
@@ -19,6 +20,7 @@ public class UserDto {
     public static class UpdateProfileRequest {
         @NotBlank(message = "이름을 입력해 주세요.")
         private String name;
+        private String industry;
     }
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor

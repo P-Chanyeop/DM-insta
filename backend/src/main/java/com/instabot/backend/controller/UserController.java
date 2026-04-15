@@ -32,6 +32,7 @@ public class UserController {
                 .email(user.getEmail())
                 .name(user.getName())
                 .plan(user.getPlan().name())
+                .industry(user.getIndustry())
                 .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null)
                 .build());
     }
@@ -43,6 +44,9 @@ public class UserController {
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
         user.setName(request.getName());
+        if (request.getIndustry() != null) {
+            user.setIndustry(request.getIndustry());
+        }
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
@@ -51,6 +55,7 @@ public class UserController {
                 .email(user.getEmail())
                 .name(user.getName())
                 .plan(user.getPlan().name())
+                .industry(user.getIndustry())
                 .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null)
                 .build());
     }

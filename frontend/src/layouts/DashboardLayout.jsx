@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../api/client'
 import { usePlan } from '../components/PlanContext'
+import IndustrySelectModal from '../components/IndustrySelectModal'
 
 const NAV_SECTIONS = [
   {
@@ -103,6 +104,7 @@ export default function DashboardLayout() {
   const [cmdQuery, setCmdQuery] = useState('')
   const [cmdIndex, setCmdIndex] = useState(0)
   const [notifications, setNotifications] = useState(DEMO_NOTIFICATIONS)
+  const [showIndustryModal, setShowIndustryModal] = useState(false)
   const { planLabel, getUsage, getLimit } = usePlan()
 
   const location = useLocation()
@@ -112,6 +114,13 @@ export default function DashboardLayout() {
   const storedUser = useMemo(() => getStoredUser(), [])
   const userName = storedUser?.name || '사용자'
   const userInitial = userName[0] || '?'
+
+  // 업종 미선택 시 모달 표시
+  useEffect(() => {
+    if (storedUser && !storedUser.industry) {
+      setShowIndustryModal(true)
+    }
+  }, [])
 
   const notifRef = useRef(null)
   const helpRef = useRef(null)
@@ -544,6 +553,11 @@ export default function DashboardLayout() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 업종 선택 모달 */}
+      {showIndustryModal && (
+        <IndustrySelectModal onComplete={() => setShowIndustryModal(false)} />
       )}
     </div>
   )

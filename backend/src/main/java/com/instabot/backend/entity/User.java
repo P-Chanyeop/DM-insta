@@ -23,6 +23,9 @@ public class User {
     @Builder.Default
     private PlanType plan = PlanType.FREE;
 
+    // 업종 (온보딩 시 선택)
+    private String industry;
+
     // 이메일 인증
     @Builder.Default
     private boolean emailVerified = false;

@@ -1,11 +1,24 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import PageLoader from '../components/PageLoader'
 import { templateService } from '../api/services'
+import { getStoredUser } from '../api/client'
+import { INDUSTRIES } from '../components/IndustrySelectModal'
 
 const CATEGORIES = ['전체', '쇼핑몰', '예약/서비스', '이벤트', '리드수집', '고객지원']
 
+// 업종별 추천 카테고리 매핑
+const INDUSTRY_CATEGORY_MAP = {
+  shopping: ['쇼핑몰', '이벤트'],
+  food: ['쇼핑몰', '이벤트', '고객지원'],
+  beauty: ['예약/서비스', '쇼핑몰'],
+  education: ['리드수집', '고객지원'],
+  service: ['예약/서비스', '고객지원'],
+  content: ['리드수집', '이벤트'],
+  realestate: ['리드수집', '고객지원'],
+  other: [],
+}
 
 export default function TemplatesPage() {
   const navigate = useNavigate()
@@ -14,6 +27,18 @@ export default function TemplatesPage() {
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const storedUser = useMemo(() => getStoredUser(), [])
+  const userIndustry = storedUser?.industry || null
+  const industryLabel = useMemo(() => {
+    if (!userIndustry || userIndustry === 'skipped') return null
+    const found = INDUSTRIES.find((i) => i.id === userIndustry)
+    return found ? found.label : null
+  }, [userIndustry])
+  const recommendedCategories = useMemo(() => {
+    if (!userIndustry || userIndustry === 'skipped') return []
+    return INDUSTRY_CATEGORY_MAP[userIndustry] || []
+  }, [userIndustry])
 
   useEffect(() => {
     loadTemplates()
@@ -56,6 +81,11 @@ export default function TemplatesPage() {
     return matchesCat && matchesSearch
   })
 
+  const recommended = useMemo(() => {
+    if (recommendedCategories.length === 0) return []
+    return templates.filter((t) => recommendedCategories.includes(t.category))
+  }, [templates, recommendedCategories])
+
   return (
     <>
       <div className="page-header">
@@ -93,6 +123,46 @@ export default function TemplatesPage() {
           </button>
         ))}
       </div>
+
+      {/* 업종별 추천 섹션 */}
+      {!loading && !error && recommended.length > 0 && activeCat === '전체' && !search.trim() && (
+        <div className="template-recommend-section">
+          <div className="template-recommend-header">
+            <i className="ri-sparkling-line" />
+            <span>{industryLabel} 추천 템플릿</span>
+          </div>
+          <div className="templates-app-grid" style={{ marginBottom: 32 }}>
+            {recommended.slice(0, 4).map((t) => (
+              <div className="template-app-card recommended" key={`rec-${t.id}`}>
+                <div className="recommend-badge">
+                  <i className="ri-thumb-up-fill" /> 추천
+                </div>
+                <div className="tac-preview">
+                  <div className="tac-icon" style={{ background: t.bg }}>
+                    <i className={t.icon} />
+                  </div>
+                </div>
+                <div className="tac-body">
+                  <h4>{t.title}</h4>
+                  <p>{t.desc}</p>
+                  <div className="tac-meta">
+                    <span>
+                      <i className="ri-download-2-line" /> {formatNumber(t.uses)}
+                    </span>
+                    <span>
+                      <i className="ri-star-fill" /> {t.rating}
+                    </span>
+                  </div>
+                  <button className="btn-primary small" onClick={() => handleUse(t)}>
+                    사용하기
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-700)', marginBottom: 16 }}>전체 템플릿</h3>
+        </div>
+      )}
 
       {error ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#ef4444' }}>
