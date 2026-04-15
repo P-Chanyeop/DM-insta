@@ -38,7 +38,6 @@ export default function FlowBuilderPage() {
   const location = useLocation()
   const reactFlowWrapper = useRef(null)
   const tourRef = useRef(null)
-  const previewEndRef = useRef(null)
   const [reactFlowInstance, setReactFlowInstance] = useState(null)
 
   const [currentFlowId, setCurrentFlowId] = useState(location.state?.flowId || null)
@@ -83,11 +82,6 @@ export default function FlowBuilderPage() {
       }
     })()
   }, [currentFlowId])
-
-  // 폰 프리뷰 자동 스크롤
-  useEffect(() => {
-    previewEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [nodes])
 
   // 엣지 연결
   const onConnect = useCallback(
@@ -359,7 +353,12 @@ export default function FlowBuilderPage() {
                   commentReply: '#06B6D4',
                   message: '#3B82F6',
                   condition: '#8B5CF6',
+                  action: '#10B981',
                   delay: '#F59E0B',
+                  webhook: '#6366F1',
+                  carousel: '#EC4899',
+                  abtest: '#F97316',
+                  aiResponse: '#0EA5E9',
                 }
                 return colors[n.type] || '#94A3B8'
               }}
@@ -425,6 +424,11 @@ export default function FlowBuilderPage() {
 
 /* ── 인스타그램 DM 폰 프리뷰 (다크모드) ── */
 function PhonePreview({ nodes }) {
+  const previewEndRef = useRef(null)
+  useEffect(() => {
+    previewEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [nodes])
+
   const msgs = []
 
   // 노드 데이터에서 메시지 목록 생성
@@ -507,6 +511,31 @@ function PhonePreview({ nodes }) {
   if (abtestNode) {
     const pct = abtestNode.data.variantA ?? 50
     msgs.push({ type: 'system-note', text: `🔀 A/B 테스트 (A:${pct}% / B:${100 - pct}%) — ${abtestNode.data.testName || '테스트'}`, step: 'A/B 테스트' })
+  }
+
+  // AI 자동 응답 노드
+  const aiNode = nodes.find(n => n.type === 'aiResponse')
+  if (aiNode) {
+    const aiData = aiNode.data
+    if (aiData.mode === 'faq') {
+      const validFaqs = (aiData.faqItems || []).filter(f => f.keyword && f.answer)
+      if (validFaqs.length > 0) {
+        // 첫 번째 FAQ를 시뮬레이션
+        msgs.push({ type: 'user-text', text: validFaqs[0].keyword.split(',')[0]?.trim() || '질문' })
+        msgs.push({ type: 'bot-bubble', text: preview(validFaqs[0].answer), hasVars: hasVariables(validFaqs[0].answer), buttons: [], step: 'AI FAQ 응답' })
+      } else {
+        msgs.push({ type: 'system-note', text: '🤖 AI FAQ 응답 (항목 미설정)', step: 'AI 응답' })
+      }
+    } else {
+      // 스마트 모드
+      const toneLabel = { friendly: '친근한', professional: '전문적', casual: '캐주얼' }[aiData.brandTone?.style] || '친근한'
+      msgs.push({ type: 'user-text', text: '이 상품 가격이 어떻게 되나요?' })
+      msgs.push({
+        type: 'ai-response',
+        text: `안녕하세요! ${aiData.brandTone?.emoji !== false ? '😊 ' : ''}문의 주셔서 감사합니다. AI가 ${toneLabel} 톤으로 자동 응답합니다.`,
+        step: 'AI 스마트 응답',
+      })
+    }
   }
 
   // 팔로업
@@ -617,6 +646,22 @@ function PhonePreview({ nodes }) {
                   <div key={i}>
                     {msg.step && <div className="ig-step-label"><i className="ri-arrow-right-s-fill" /> {msg.step}</div>}
                     <div className="ig-system-note">{msg.text}</div>
+                  </div>
+                )
+              }
+              if (msg.type === 'ai-response') {
+                return (
+                  <div key={i}>
+                    {msg.step && <div className="ig-step-label"><i className="ri-arrow-right-s-fill" /> {msg.step}</div>}
+                    <div className="ig-msg-row received">
+                      <div className="ig-avatar-small ai">
+                        <i className="ri-robot-line" style={{ fontSize: 10, color: '#fff' }} />
+                      </div>
+                      <div className="ig-bubble-received ig-ai-bubble">
+                        <div className="ig-bubble-text">{msg.text}</div>
+                        <div className="ig-ai-badge"><i className="ri-robot-line" /> AI 생성</div>
+                      </div>
+                    </div>
                   </div>
                 )
               }

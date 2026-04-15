@@ -44,6 +44,7 @@ public class FlowExecutionService {
 
     private final InstagramApiService instagramApiService;
     private final ConversationService conversationService;
+    private final AIService aiService;
     private final ObjectMapper objectMapper;
     private final FlowRepository flowRepository;
     private final ContactRepository contactRepository;
@@ -368,6 +369,11 @@ public class FlowExecutionService {
                     igAccount.getUser(), senderIgId, processedMessage, true, flow.getName());
         }
 
+        // AI 자동 응답 실행
+        if (flowData.has("aiResponse")) {
+            executeAIResponse(flowData.get("aiResponse"), flow, igAccount, senderIgId, triggerKeyword, contact);
+        }
+
         // 팔로업 메시지 스케줄링 (DB에 영구 저장, 변수는 발송 시점에 치환)
         if (flowData.has("followUp")) {
             scheduleFollowUp(flowData.get("followUp"), igAccount, senderIgId);
@@ -502,6 +508,53 @@ public class FlowExecutionService {
 
         scheduledFollowUpRepository.save(followUp);
         log.info("팔로업 스케줄 저장: recipient={}, scheduledAt={}", recipientId, followUp.getScheduledAt());
+    }
+
+    /**
+     * AI 자동 응답 노드 실행
+     * FAQ 키워드 매칭 또는 OpenAI 스마트 응답 생성 후 DM 발송
+     */
+    private void executeAIResponse(JsonNode aiResponseNode, Flow flow, InstagramAccount igAccount,
+                                    String senderIgId, String triggerKeyword, Contact contact) {
+        if (!aiResponseNode.path("enabled").asBoolean(false)) return;
+
+        String accessToken = instagramApiService.getDecryptedToken(igAccount);
+        String botIgId = igAccount.getIgUserId();
+        Long userId = igAccount.getUser().getId();
+
+        // 트리거 키워드를 사용자 메시지로 활용
+        String userMessage = triggerKeyword != null ? triggerKeyword : "";
+        if (userMessage.isBlank()) return;
+
+        // 이전 대화 기록 조회 (컨텍스트용)
+        List<String> history = Collections.emptyList();
+        try {
+            history = conversationService.getRecentMessages(userId, senderIgId,
+                    aiResponseNode.path("contextWindow").asInt(3));
+        } catch (Exception e) {
+            log.debug("대화 기록 조회 실패: {}", e.getMessage());
+        }
+
+        // AI 응답 생성
+        String response = aiService.executeAIResponse(userId, userMessage, aiResponseNode, history, contact);
+
+        // 실패 시 fallback
+        if (response == null || response.isBlank()) {
+            response = aiService.getFallbackResponse(aiResponseNode);
+        }
+
+        // 변수 치환 후 발송
+        response = replaceVariables(response, contact, triggerKeyword);
+
+        try {
+            instagramApiService.sendTextMessage(botIgId, senderIgId, response, accessToken);
+            conversationService.saveOutboundMessage(
+                    igAccount.getUser(), senderIgId, response, true, flow.getName() + " (AI)");
+            log.info("AI 응답 발송 완료: flowId={}, sender={}, mode={}",
+                    flow.getId(), senderIgId, aiResponseNode.path("mode").asText("faq"));
+        } catch (Exception e) {
+            log.error("AI 응답 발송 실패: {}", e.getMessage());
+        }
     }
 
     // ═══════════════════════════════════════════════════════════

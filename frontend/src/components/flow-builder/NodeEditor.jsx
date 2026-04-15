@@ -30,6 +30,7 @@ export default function NodeEditor({ node, onUpdate, onClose }) {
         {node.type === 'webhook' && <WebhookEditor data={data} update={update} />}
         {node.type === 'carousel' && <CarouselEditor data={data} update={update} />}
         {node.type === 'abtest' && <ABTestEditor data={data} update={update} />}
+        {node.type === 'aiResponse' && <AIResponseEditor data={data} update={update} />}
       </div>
     </div>
   )
@@ -46,6 +47,7 @@ function getNodeTitle(node) {
     webhook: '웹훅 설정',
     carousel: '캐러셀 설정',
     abtest: 'A/B 테스트 설정',
+    aiResponse: 'AI 자동 응답 설정',
   }
   return titles[node.type] || '설정'
 }
@@ -484,6 +486,179 @@ function ABTestEditor({ data, update }) {
         <i className="ri-information-line" />
         <span>A/B 테스트 노드의 두 출력 핸들(A, B)에 각각 다른 노드를 연결하면 트래픽이 설정 비율로 분기됩니다.</span>
       </div>
+    </>
+  )
+}
+
+/* ── AI 자동 응답 편집기 ── */
+function AIResponseEditor({ data, update }) {
+  const mode = data.mode || 'faq'
+  const faqItems = data.faqItems || [{ keyword: '', answer: '' }]
+  const brandTone = data.brandTone || { style: 'friendly', emoji: true, formality: 3 }
+
+  const updateFaq = (i, patch) => {
+    const arr = [...faqItems]
+    arr[i] = { ...arr[i], ...patch }
+    update({ faqItems: arr })
+  }
+
+  const updateTone = (patch) => {
+    update({ brandTone: { ...brandTone, ...patch } })
+  }
+
+  return (
+    <>
+      {/* 모드 선택 */}
+      <div className="ne-field">
+        <label>응답 모드</label>
+        <div className="ne-trigger-cards">
+          {[
+            { value: 'faq', icon: 'ri-questionnaire-line', label: 'FAQ 자동 응답', color: '#10B981', desc: '키워드 매칭 (무료)' },
+            { value: 'smart', icon: 'ri-robot-line', label: '스마트 AI', color: '#06B6D4', desc: 'GPT 기반 (Pro)' },
+          ].map(m => (
+            <button
+              key={m.value}
+              className={`ne-trigger-card ${mode === m.value ? 'active' : ''}`}
+              onClick={() => update({ mode: m.value })}
+              style={{ flex: 1 }}
+            >
+              <i className={m.icon} style={{ color: m.color }} />
+              <span>{m.label}</span>
+              <span style={{ fontSize: 10, color: '#9CA3AF', display: 'block' }}>{m.desc}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* FAQ 모드: 키워드 → 답변 쌍 관리 */}
+      {mode === 'faq' && (
+        <div className="ne-field">
+          <label>FAQ 항목 (키워드 매칭)</label>
+          {faqItems.map((item, i) => (
+            <div key={i} className="ne-card-block">
+              <div className="ne-card-block-header">
+                <span>FAQ {i + 1}</span>
+                {faqItems.length > 1 && (
+                  <button className="ne-remove-btn" onClick={() => update({ faqItems: faqItems.filter((_, j) => j !== i) })}>
+                    <i className="ri-close-line" />
+                  </button>
+                )}
+              </div>
+              <input className="ne-input" placeholder="키워드 (쉼표로 구분, 예: 배송, 배달, 택배)"
+                value={item.keyword || ''} onChange={e => updateFaq(i, { keyword: e.target.value })} />
+              <textarea className="ne-textarea" rows={2} placeholder="자동 응답 메시지"
+                value={item.answer || ''} onChange={e => updateFaq(i, { answer: e.target.value })} />
+            </div>
+          ))}
+          {faqItems.length < 20 && (
+            <button className="ne-add-btn" onClick={() => update({ faqItems: [...faqItems, { keyword: '', answer: '' }] })}>
+              + FAQ 추가
+            </button>
+          )}
+          <div className="ne-hint">사용자 메시지에 키워드가 포함되면 해당 답변을 자동 발송합니다. 변수 사용 가능: {'{이름}'}, {'{username}'}</div>
+        </div>
+      )}
+
+      {/* 스마트 모드: 브랜드 톤 설정 */}
+      {mode === 'smart' && (
+        <>
+          <div className="ne-field">
+            <label>브랜드 톤</label>
+            <div className="ne-trigger-cards">
+              {[
+                { value: 'friendly', label: '친근한', icon: 'ri-emotion-happy-line', color: '#F59E0B' },
+                { value: 'professional', label: '전문적', icon: 'ri-briefcase-line', color: '#3B82F6' },
+                { value: 'casual', label: '캐주얼', icon: 'ri-chat-smile-3-line', color: '#EC4899' },
+              ].map(t => (
+                <button
+                  key={t.value}
+                  className={`ne-trigger-card ${brandTone.style === t.value ? 'active' : ''}`}
+                  onClick={() => updateTone({ style: t.value })}
+                >
+                  <i className={t.icon} style={{ color: t.color }} />
+                  <span>{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="ne-field">
+            <label>이모지 사용</label>
+            <label className="ne-radio" style={{ cursor: 'pointer' }}>
+              <input type="checkbox" checked={brandTone.emoji !== false}
+                onChange={e => updateTone({ emoji: e.target.checked })}
+                style={{ marginRight: 8 }} />
+              응답에 이모지를 포함합니다 (예: 안녕하세요! 😊)
+            </label>
+          </div>
+
+          <div className="ne-field">
+            <label>격식 수준 ({brandTone.formality || 3}/5)</label>
+            <input type="range" min={1} max={5} step={1}
+              value={brandTone.formality || 3}
+              onChange={e => updateTone({ formality: Number(e.target.value) })}
+              style={{ width: '100%', accentColor: '#06B6D4' }} />
+            <div className="ne-abtest-labels">
+              <span style={{ color: '#9CA3AF', fontSize: 11 }}>반말</span>
+              <span style={{ color: '#9CA3AF', fontSize: 11 }}>존댓말</span>
+            </div>
+          </div>
+
+          <div className="ne-field">
+            <label>이전 대화 참고 수</label>
+            <div className="ne-delay-row">
+              <input type="number" className="ne-input" value={data.contextWindow || 3}
+                onChange={e => update({ contextWindow: Number(e.target.value) })} min={0} max={10} style={{ width: 80 }} />
+              <span className="ne-hint" style={{ margin: 0 }}>최근 메시지</span>
+            </div>
+          </div>
+
+          <div className="ne-field">
+            <label>최대 토큰 (비용 제어)</label>
+            <div className="ne-delay-row">
+              <input type="number" className="ne-input" value={data.maxTokens || 200}
+                onChange={e => update({ maxTokens: Number(e.target.value) })} min={50} max={1000} step={50} style={{ width: 80 }} />
+              <span className="ne-hint" style={{ margin: 0 }}>토큰</span>
+            </div>
+            <div className="ne-hint">높을수록 긴 답변 가능, 비용 증가. 추천: 150~300</div>
+          </div>
+        </>
+      )}
+
+      {/* 공통: Fallback 설정 */}
+      <div className="ne-field">
+        <label>매칭 실패 시 처리</label>
+        <select className="ne-select" value={data.fallbackAction || 'default_message'}
+          onChange={e => update({ fallbackAction: e.target.value })}>
+          <option value="default_message">기본 메시지 발송</option>
+          <option value="human_handoff">상담원에게 전환</option>
+          <option value="retry">재시도 요청</option>
+        </select>
+      </div>
+
+      {data.fallbackAction === 'default_message' && (
+        <div className="ne-field">
+          <label>기본 응답 메시지</label>
+          <textarea className="ne-textarea" rows={2}
+            value={data.fallbackMessage || ''}
+            onChange={e => update({ fallbackMessage: e.target.value })}
+            placeholder="죄송합니다. 해당 문의는 상담원이 확인 후 답변 드리겠습니다." />
+        </div>
+      )}
+
+      {data.fallbackAction === 'human_handoff' && (
+        <div className="ne-info-box">
+          <i className="ri-customer-service-2-line" />
+          <span>AI가 답변할 수 없는 질문이 감지되면 라이브챗으로 자동 전환되며, 팀에게 알림이 발송됩니다.</span>
+        </div>
+      )}
+
+      {data.fallbackAction === 'retry' && (
+        <div className="ne-info-box">
+          <i className="ri-refresh-line" />
+          <span>사용자에게 질문을 다시 입력해달라는 안내 메시지가 발송됩니다.</span>
+        </div>
+      )}
     </>
   )
 }

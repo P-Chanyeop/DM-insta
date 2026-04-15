@@ -39,7 +39,7 @@ const INTEGRATION_DEFS = [
   { id: 'tosspay', name: '토스페이', icon: 'ri-bank-card-line', color: '#0064FF', description: '토스 결제/송금 링크 자동 발송', comingSoon: true },
   { id: 'stripe', name: 'Stripe', icon: 'ri-bank-card-line', color: '#635BFF', description: '결제 이벤트 기반 자동화 트리거', comingSoon: true },
   { id: 'klaviyo', name: 'Klaviyo', icon: 'ri-mail-send-line', color: '#000000', description: '이메일 마케팅 연동 및 세그먼트 동기화', comingSoon: true },
-  { id: 'openai', name: 'OpenAI / ChatGPT', icon: 'ri-robot-line', color: '#10A37F', description: 'AI 기반 자동 응답 생성', comingSoon: true },
+  { id: 'openai', name: 'OpenAI / ChatGPT', icon: 'ri-robot-line', color: '#10A37F', description: 'AI 기반 자동 응답 생성 (Flow Builder AI 노드에서 사용)' },
   { id: 'webhook', name: 'Webhook', icon: 'ri-link', color: '#6366F1', description: '외부 시스템과 커스텀 연동' },
 ]
 
@@ -229,6 +229,8 @@ export default function SettingsPage() {
   const [apiKeys, setApiKeys] = useState({})
   const [visibleKeys, setVisibleKeys] = useState({})
   const [integrationLoading, setIntegrationLoading] = useState({})
+  const [openaiTestResult, setOpenaiTestResult] = useState(null) // 'success' | 'error' | null
+  const [openaiTestLoading, setOpenaiTestLoading] = useState(false)
 
   // Billing state — plan comes from PlanContext (currentUserPlan)
   const [planUpgrading, setPlanUpgrading] = useState(null)
@@ -582,6 +584,36 @@ export default function SettingsPage() {
         showToast(`${defName} 연동이 해제되었습니다.`)
       },
     })
+  }
+
+  // OpenAI 연결 테스트
+  const handleOpenaiTest = async () => {
+    const key = apiKeys['openai'] || ''
+    if (!key) {
+      showToast('API Key를 입력해 주세요.', 'warning')
+      return
+    }
+    setOpenaiTestLoading(true)
+    setOpenaiTestResult(null)
+    try {
+      const res = await fetch('https://api.openai.com/v1/models', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${key}` },
+      })
+      if (res.ok) {
+        setOpenaiTestResult('success')
+        showToast('OpenAI API 연결이 정상입니다!', 'success')
+      } else {
+        setOpenaiTestResult('error')
+        const body = await res.json().catch(() => ({}))
+        showToast(body?.error?.message || `API 오류: ${res.status}`, 'error')
+      }
+    } catch {
+      setOpenaiTestResult('error')
+      showToast('네트워크 오류: OpenAI 서버에 연결할 수 없습니다.', 'error')
+    } finally {
+      setOpenaiTestLoading(false)
+    }
   }
 
   // Instagram OAuth — 백엔드에서 URL을 동적으로 가져옴
@@ -1164,7 +1196,7 @@ export default function SettingsPage() {
                     <input
                       type={isKeyVisible ? 'text' : 'password'}
                       className="setting-input"
-                      placeholder="API Key 입력"
+                      placeholder={def.id === 'openai' ? 'sk-... 형식의 API Key 입력' : 'API Key 입력'}
                       value={apiKeys[def.id] || ''}
                       onChange={(e) => handleApiKeyChange(def.id, e.target.value)}
                     />
@@ -1176,6 +1208,60 @@ export default function SettingsPage() {
                       <i className={isKeyVisible ? 'ri-eye-off-line' : 'ri-eye-line'} />
                     </button>
                   </div>
+                  {def.id === 'openai' && (
+                    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button
+                        className="btn-outline small"
+                        disabled={openaiTestLoading || !apiKeys['openai']}
+                        onClick={handleOpenaiTest}
+                        style={{ fontSize: 12 }}
+                      >
+                        {openaiTestLoading ? (
+                          <><i className="ri-loader-4-line spin" /> 테스트 중...</>
+                        ) : (
+                          <><i className="ri-flask-line" /> 연결 테스트</>
+                        )}
+                      </button>
+                      {openaiTestResult === 'success' && (
+                        <span style={{ color: '#10B981', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <i className="ri-checkbox-circle-fill" /> 연결 정상
+                        </span>
+                      )}
+                      {openaiTestResult === 'error' && (
+                        <span style={{ color: '#EF4444', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <i className="ri-error-warning-fill" /> 연결 실패
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {def.id === 'openai' && (
+                    <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6, lineHeight: 1.5 }}>
+                      <i className="ri-information-line" /> Flow Builder의 AI 자동 응답 노드 (스마트 모드)에서 사용됩니다.
+                      API 키는 암호화하여 저장되며, 사용량은 OpenAI 대시보드에서 확인하세요.
+                    </p>
+                  )}
+                </div>
+              )}
+              {/* OpenAI 연결됨 상태: 사용 정보 표시 */}
+              {def.id === 'openai' && isConnected && (
+                <div className="settings-openai-usage">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#F0FDF4', borderRadius: 8, border: '1px solid #BBF7D0' }}>
+                    <i className="ri-checkbox-circle-fill" style={{ color: '#10B981', fontSize: 16 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#065F46' }}>API 연결 활성</div>
+                      <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                        모델: gpt-4o-mini &middot; Flow Builder AI 노드에서 사용 가능
+                      </div>
+                    </div>
+                  </div>
+                  <a
+                    href="https://platform.openai.com/usage"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#10A37F', marginTop: 8, textDecoration: 'none' }}
+                  >
+                    <i className="ri-external-link-line" /> OpenAI 사용량 대시보드 열기
+                  </a>
                 </div>
               )}
               {!def.comingSoon && (

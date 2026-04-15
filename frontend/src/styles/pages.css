@@ -1373,6 +1373,25 @@ label.ne-radio {
   text-align: center; font-size: 11px; font-weight: 600; color: #fff;
 }
 
+/* AI 응답 노드 */
+.flow-node-ai-badge {
+  margin-left: auto; padding: 2px 6px; background: rgba(255,255,255,0.25);
+  border-radius: 4px; font-size: 9px; font-weight: 800; letter-spacing: 0.5px;
+}
+.ig-avatar-small.ai {
+  background: linear-gradient(135deg, #06B6D4, #8B5CF6) !important;
+  display: flex; align-items: center; justify-content: center;
+}
+.ig-ai-bubble {
+  border: 1px solid rgba(6,182,212,0.3);
+  background: linear-gradient(135deg, #262626, #1a2e35) !important;
+}
+.ig-ai-badge {
+  display: flex; align-items: center; gap: 3px; margin-top: 6px;
+  font-size: 9px; color: #06B6D4; font-weight: 600;
+}
+.ig-ai-badge i { font-size: 10px; }
+
 .ig-empty-hint { text-align: center; color: #666; padding: 30px 16px; }
 .ig-empty-hint p { font-size: 12px; line-height: 1.5; margin: 0; }
 .ig-input-bar {
@@ -1720,6 +1739,11 @@ label.ne-radio {
   font-size: 13px; color: var(--gray-400, #9CA3AF);
   display: flex; align-items: center; gap: 6px;
   padding: 8px 0; font-style: italic;
+}
+
+/* ===== OpenAI Integration Usage ===== */
+.settings-openai-usage {
+  margin-top: 10px;
 }
 
 /* ===== Enhanced Growth ===== */

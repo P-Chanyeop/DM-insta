@@ -203,7 +203,29 @@ export function flowDataToGraph(fd) {
     y += Y_SPACING
   }
 
-  // 11. 팔로업
+  // 11. AI 자동 응답 노드
+  if (fd.aiResponse?.enabled) {
+    const id = 'aiResponse-1'
+    nodes.push({
+      id,
+      type: 'aiResponse',
+      position: { x: X_CENTER, y },
+      data: {
+        mode: fd.aiResponse.mode || 'faq',
+        faqItems: fd.aiResponse.faqItems || [],
+        brandTone: fd.aiResponse.brandTone || { style: 'friendly', emoji: true, formality: 3 },
+        fallbackAction: fd.aiResponse.fallbackAction || 'default_message',
+        fallbackMessage: fd.aiResponse.fallbackMessage || '',
+        maxTokens: fd.aiResponse.maxTokens || 200,
+        contextWindow: fd.aiResponse.contextWindow || 3,
+      },
+    })
+    edges.push(makeEdge(prevNodeId, id))
+    prevNodeId = id
+    y += Y_SPACING
+  }
+
+  // 12. 팔로업
   if (fd.followUp?.enabled) {
     const unitMap = { '분': 'minutes', '시간': 'hours', '일': 'days' }
     const delayId = 'delay-1'
@@ -255,6 +277,7 @@ export function graphToFlowData(nodes, edges) {
   const webhookNodes = nodes.filter(n => n.type === 'webhook')
   const carouselNode = nodes.find(n => n.type === 'carousel')
   const abtestNode = nodes.find(n => n.type === 'abtest')
+  const aiResponseNode = nodes.find(n => n.type === 'aiResponse')
 
   const td = triggerNode?.data || {}
 
@@ -308,6 +331,16 @@ export function graphToFlowData(nodes, edges) {
       enabled: !!abtestNode,
       testName: abtestNode?.data.testName || '',
       variantA: abtestNode?.data.variantA ?? 50,
+    },
+    aiResponse: {
+      enabled: !!aiResponseNode,
+      mode: aiResponseNode?.data.mode || 'faq',
+      faqItems: aiResponseNode?.data.faqItems || [],
+      brandTone: aiResponseNode?.data.brandTone || { style: 'friendly', emoji: true, formality: 3 },
+      fallbackAction: aiResponseNode?.data.fallbackAction || 'default_message',
+      fallbackMessage: aiResponseNode?.data.fallbackMessage || '',
+      maxTokens: aiResponseNode?.data.maxTokens || 200,
+      contextWindow: aiResponseNode?.data.contextWindow || 3,
     },
     followUp: {
       enabled: !!followUpNode,
@@ -392,8 +425,16 @@ export const NODE_PALETTE = [
     defaultData: { testName: '', variantA: 50 } },
   { type: '_payment', label: '결제 연동', icon: 'ri-bank-card-line', color: '#10B981',
     comingSoon: true },
-  { type: '_ai', label: 'AI 자동 응답', icon: 'ri-robot-line', color: '#06B6D4',
-    comingSoon: true },
+  { type: 'aiResponse', label: 'AI 자동 응답', icon: 'ri-robot-line', color: '#0EA5E9',
+    defaultData: {
+      mode: 'faq',
+      faqItems: [{ keyword: '', answer: '' }],
+      brandTone: { style: 'friendly', emoji: true, formality: 3 },
+      fallbackAction: 'default_message',
+      fallbackMessage: '죄송합니다. 해당 문의는 상담원이 확인 후 답변 드리겠습니다.',
+      maxTokens: 200,
+      contextWindow: 3,
+    } },
 ]
 
 /* ── 유틸리티 ── */

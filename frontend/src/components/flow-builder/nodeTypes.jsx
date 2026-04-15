@@ -16,6 +16,7 @@ const nodeColors = {
   webhook: '#6366F1',
   carousel: '#EC4899',
   abtest: '#F97316',
+  aiResponse: '#0EA5E9',
 }
 
 /* ── 트리거 노드 ── */
@@ -335,6 +336,46 @@ export const ABTestNode = memo(({ data, selected }) => {
 })
 ABTestNode.displayName = 'ABTestNode'
 
+/* ── AI 자동 응답 노드 ── */
+export const AIResponseNode = memo(({ data, selected }) => {
+  const modeLabels = { faq: 'FAQ 자동 응답', smart: '스마트 AI 응답' }
+  const modeIcons = { faq: 'ri-questionnaire-line', smart: 'ri-robot-line' }
+  const toneLabels = { friendly: '친근한', professional: '전문적', casual: '캐주얼' }
+  const faqCount = (data.faqItems || []).filter(f => f.keyword && f.answer).length
+
+  return (
+    <div className={`flow-node ai-response-node ${selected ? 'selected' : ''}`}>
+      <Handle type="target" position={Position.Top} className="flow-handle" />
+      <div className="flow-node-header" style={{ background: nodeColors.aiResponse }}>
+        <i className={modeIcons[data.mode] || 'ri-robot-line'} />
+        <span>AI 응답</span>
+        <span className="flow-node-ai-badge">{data.mode === 'faq' ? 'FAQ' : 'GPT'}</span>
+      </div>
+      <div className="flow-node-body">
+        <div className="flow-node-label">{modeLabels[data.mode] || 'AI 응답'}</div>
+        {data.mode === 'faq' && faqCount > 0 && (
+          <div className="flow-node-detail">
+            <i className="ri-list-check-2" /> {faqCount}개 FAQ 항목
+          </div>
+        )}
+        {data.mode === 'smart' && (
+          <div className="flow-node-detail">
+            <i className="ri-palette-line" /> {toneLabels[data.brandTone?.style] || '친근한'} 톤
+          </div>
+        )}
+        {data.mode === 'faq' && faqCount === 0 && (
+          <div className="flow-node-placeholder">FAQ 항목을 추가하세요</div>
+        )}
+        <div className="flow-node-detail" style={{ marginTop: 4 }}>
+          <i className="ri-arrow-go-back-line" /> {data.fallbackAction === 'human_handoff' ? '상담원 전환' : data.fallbackAction === 'retry' ? '재시도 요청' : '기본 메시지'}
+        </div>
+      </div>
+      <Handle type="source" position={Position.Bottom} className="flow-handle" />
+    </div>
+  )
+})
+AIResponseNode.displayName = 'AIResponseNode'
+
 /* ── 노드 타입 등록 맵 ── */
 export const nodeTypeMap = {
   trigger: TriggerNode,
@@ -346,4 +387,5 @@ export const nodeTypeMap = {
   webhook: WebhookNode,
   carousel: CarouselNode,
   abtest: ABTestNode,
+  aiResponse: AIResponseNode,
 }

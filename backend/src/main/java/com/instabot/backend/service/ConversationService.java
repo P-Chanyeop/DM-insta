@@ -8,7 +8,11 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.PageRequest;
+
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -96,6 +100,41 @@ public class ConversationService {
         pushToWebSocket(user.getId(), conversation, message);
 
         return message;
+    }
+
+    /**
+     * AI 컨텍스트용 최근 대화 메시지 조회 (역할 정보 포함)
+     * @param userId 사용자 ID
+     * @param senderIgId 상대방 Instagram ID
+     * @param limit 조회할 메시지 수
+     * @return 시간순 정렬된 "role:content" 형식 리스트 (role = user 또는 assistant)
+     */
+    @Transactional(readOnly = true)
+    public List<String> getRecentMessages(Long userId, String senderIgId, int limit) {
+        Contact contact = contactRepository.findByUserIdAndIgUserId(userId, senderIgId)
+                .orElse(null);
+        if (contact == null) return List.of();
+
+        // 해당 Contact의 Conversation 조회
+        Conversation conversation = conversationRepository.findByUserIdAndContactId(userId, contact.getId())
+                .orElse(null);
+        if (conversation == null) return List.of();
+
+        // 최근 메시지를 역순으로 가져온 뒤 시간순으로 정렬
+        List<Message> messages = messageRepository.findRecentByConversationId(
+                conversation.getId(), PageRequest.of(0, limit));
+
+        List<String> result = new ArrayList<>();
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            Message msg = messages.get(i);
+            String content = msg.getContent();
+            if (content != null && !content.isBlank()) {
+                // "user:" or "assistant:" prefix로 역할 정보 전달
+                String role = msg.getDirection() == Message.Direction.INBOUND ? "user" : "assistant";
+                result.add(role + ":" + content);
+            }
+        }
+        return result;
     }
 
     private Conversation getOrCreateConversation(User user, Contact contact) {
