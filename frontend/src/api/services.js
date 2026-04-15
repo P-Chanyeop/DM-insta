@@ -157,6 +157,14 @@ export const accountService = {
   getOverview: () => api.get('/accounts/overview'),
 }
 
+export const kakaoService = {
+  getChannel: () => api.get('/kakao/channel'),
+  connectChannel: (data) => api.post('/kakao/channel', data),
+  disconnectChannel: () => api.delete('/kakao/channel'),
+  sendAlimtalk: (data) => api.post('/kakao/alimtalk', data),
+  sendFriendtalk: (data) => api.post('/kakao/friendtalk', data),
+}
+
 export const instagramProfileService = {
   setIceBreakers: (items) => api.post('/instagram/ice-breakers', { items }),
   deleteIceBreakers: () => api.delete('/instagram/ice-breakers'),

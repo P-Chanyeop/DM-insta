@@ -33,6 +33,7 @@ export default function NodeEditor({ node, onUpdate, onClose }) {
         {node.type === 'aiResponse' && <AIResponseEditor data={data} update={update} />}
         {node.type === 'optIn' && <OptInEditor data={data} update={update} />}
         {node.type === 'inventory' && <InventoryEditor data={data} update={update} />}
+        {node.type === 'kakao' && <KakaoEditor data={data} update={update} />}
       </div>
     </div>
   )
@@ -52,6 +53,7 @@ function getNodeTitle(node) {
     aiResponse: 'AI 자동 응답 설정',
     optIn: '알림 구독 설정',
     inventory: '재고 확인 설정',
+    kakao: '카카오톡 발송 설정',
   }
   return titles[node.type] || '설정'
 }
@@ -853,6 +855,120 @@ function OptInEditor({ data, update }) {
       <div className="ne-info-box">
         <i className="ri-notification-3-line" />
         <span>Instagram Recurring Notification API를 사용합니다. 사용자가 옵트인하면 24시간 외에도 마케팅 메시지를 보낼 수 있습니다. 설정 &gt; 알림 구독 탭에서 구독자를 관리하고 메시지를 발송하세요.</span>
+      </div>
+    </>
+  )
+}
+
+/* ── 카카오톡 편집기 ── */
+function KakaoEditor({ data, update }) {
+  const kakaoType = data.kakaoType || 'alimtalk'
+  const buttons = data.buttons || []
+
+  const updateButton = (i, patch) => {
+    const arr = [...buttons]
+    arr[i] = { ...arr[i], ...patch }
+    update({ buttons: arr })
+  }
+
+  return (
+    <>
+      <div className="ne-field">
+        <label>발송 유형</label>
+        <div className="ne-trigger-cards">
+          {[
+            { value: 'alimtalk', icon: 'ri-notification-line', label: '알림톡', color: '#FEE500', desc: '템플릿 기반 (심사 필요)' },
+            { value: 'friendtalk', icon: 'ri-chat-smile-3-line', label: '친구톡', color: '#3C1E1E', desc: '자유 메시지 (친구만)' },
+          ].map(t => (
+            <button
+              key={t.value}
+              className={`ne-trigger-card ${kakaoType === t.value ? 'active' : ''}`}
+              onClick={() => update({ kakaoType: t.value })}
+              style={{ flex: 1 }}
+            >
+              <i className={t.icon} style={{ color: t.color }} />
+              <span>{t.label}</span>
+              <span style={{ fontSize: 10, color: '#9CA3AF', display: 'block' }}>{t.desc}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {kakaoType === 'alimtalk' && (
+        <div className="ne-field">
+          <label>템플릿 코드</label>
+          <input className="ne-input"
+            value={data.templateCode || ''}
+            onChange={e => update({ templateCode: e.target.value })}
+            placeholder="예: order_confirm, delivery_start" />
+          <span className="ne-help-text">카카오 비즈니스 센터에서 승인받은 템플릿 코드를 입력하세요</span>
+        </div>
+      )}
+
+      <div className="ne-field">
+        <label>메시지 내용</label>
+        <textarea className="ne-textarea" rows={4}
+          value={data.message || ''}
+          onChange={e => update({ message: e.target.value })}
+          placeholder={kakaoType === 'alimtalk'
+            ? '#{이름}님, 주문이 확인되었습니다.\n주문번호: #{orderNo}'
+            : '안녕하세요! 새로운 프로모션 소식을 알려드립니다.'} />
+        <span className="ne-help-text">
+          {kakaoType === 'alimtalk'
+            ? '템플릿에 등록된 변수 형식(#{변수명})을 사용하세요'
+            : '자유롭게 메시지를 작성할 수 있습니다'}
+        </span>
+      </div>
+
+      {kakaoType === 'friendtalk' && (
+        <div className="ne-field">
+          <label>이미지 URL (선택)</label>
+          <input className="ne-input"
+            value={data.imageUrl || ''}
+            onChange={e => update({ imageUrl: e.target.value })}
+            placeholder="https://example.com/image.jpg" />
+          <span className="ne-help-text">친구톡에 첨부할 이미지 URL (720x720 권장)</span>
+        </div>
+      )}
+
+      <div className="ne-field">
+        <label>버튼 (선택, 최대 5개)</label>
+        {buttons.map((btn, i) => (
+          <div key={i} className="ne-card-block">
+            <div className="ne-card-block-header">
+              <span>버튼 {i + 1}</span>
+              <button className="ne-remove-btn" onClick={() => update({ buttons: buttons.filter((_, j) => j !== i) })}>
+                <i className="ri-close-line" />
+              </button>
+            </div>
+            <select className="ne-select" value={btn.type || 'WL'}
+              onChange={e => updateButton(i, { type: e.target.value })}>
+              <option value="WL">웹 링크</option>
+              <option value="AL">앱 링크</option>
+              <option value="DS">배송 조회</option>
+              <option value="BK">봇 키워드</option>
+              <option value="MD">메시지 전달</option>
+            </select>
+            <input className="ne-input" placeholder="버튼 텍스트"
+              value={btn.name || ''} onChange={e => updateButton(i, { name: e.target.value })} />
+            {(btn.type === 'WL' || btn.type === 'AL') && (
+              <input className="ne-input" placeholder="URL"
+                value={btn.linkUrl || ''} onChange={e => updateButton(i, { linkUrl: e.target.value })} />
+            )}
+          </div>
+        ))}
+        {buttons.length < 5 && (
+          <button className="ne-add-btn" onClick={() => update({
+            buttons: [...buttons, { type: 'WL', name: '', linkUrl: '' }]
+          })}>
+            + 버튼 추가
+          </button>
+        )}
+      </div>
+
+      <div className="ne-info-box" style={{ background: '#FFFDE7' }}>
+        <i className="ri-kakao-talk-fill" style={{ color: '#3C1E1E' }} />
+        <span>카카오톡 발송은 설정 &gt; 카카오 채널 탭에서 채널을 먼저 연동해야 합니다. 연락처의 전화번호(customFields.phone) 필드가 필요합니다.</span>
       </div>
     </>
   )

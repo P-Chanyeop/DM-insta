@@ -19,6 +19,7 @@ const nodeColors = {
   aiResponse: '#0EA5E9',
   inventory: '#EF4444',
   optIn: '#8B5CF6',
+  kakao: '#FEE500',
 }
 
 /* ── 트리거 노드 ── */
@@ -446,6 +447,53 @@ export const InventoryNode = memo(({ data, selected }) => (
 ))
 InventoryNode.displayName = 'InventoryNode'
 
+/* ── 카카오 알림톡/친구톡 노드 ── */
+export const KakaoNode = memo(({ data, selected }) => {
+  const typeLabels = { alimtalk: '알림톡', friendtalk: '친구톡' }
+  return (
+    <div className={`flow-node kakao-node ${selected ? 'selected' : ''}`}>
+      <Handle type="target" position={Position.Top} className="flow-handle" />
+      <div className="flow-node-header" style={{ background: nodeColors.kakao, color: '#3C1E1E' }}>
+        <i className="ri-kakao-talk-fill" />
+        <span>카카오 {typeLabels[data.kakaoType] || '알림톡'}</span>
+      </div>
+      <div className="flow-node-body">
+        {data.kakaoType === 'alimtalk' ? (
+          <>
+            {data.templateCode ? (
+              <div className="flow-node-detail">
+                <i className="ri-file-text-line" /> 템플릿: {data.templateCode}
+              </div>
+            ) : (
+              <div className="flow-node-placeholder">템플릿 코드를 설정하세요</div>
+            )}
+          </>
+        ) : (
+          <>
+            {data.message ? (
+              <div className="flow-node-preview">"{data.message.slice(0, 40)}{data.message.length > 40 ? '...' : ''}"</div>
+            ) : (
+              <div className="flow-node-placeholder">메시지를 입력하세요</div>
+            )}
+            {data.imageUrl && (
+              <div className="flow-node-detail">
+                <i className="ri-image-line" /> 이미지 첨부
+              </div>
+            )}
+          </>
+        )}
+        {(data.buttons || []).length > 0 && (
+          <div className="flow-node-detail">
+            <i className="ri-cursor-line" /> {data.buttons.length}개 버튼
+          </div>
+        )}
+      </div>
+      <Handle type="source" position={Position.Bottom} className="flow-handle" />
+    </div>
+  )
+})
+KakaoNode.displayName = 'KakaoNode'
+
 /* ── 노드 타입 등록 맵 ── */
 export const nodeTypeMap = {
   trigger: TriggerNode,
@@ -460,4 +508,5 @@ export const nodeTypeMap = {
   aiResponse: AIResponseNode,
   inventory: InventoryNode,
   optIn: OptInNode,
+  kakao: KakaoNode,
 }

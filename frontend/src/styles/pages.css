@@ -2709,3 +2709,53 @@ label.ne-radio {
 }
 .abt-test-actions .btn-sm:hover { border-color: #7C3AED; color: #7C3AED; }
 .abt-test-actions .btn-sm.danger:hover { border-color: #DC2626; color: #DC2626; }
+
+/* ── 카카오 채널 설정 ── */
+.kakao-channel-connected { display: flex; flex-direction: column; gap: 20px; }
+.kakao-channel-card {
+  display: flex; align-items: center; gap: 16px; padding: 20px;
+  background: #FFFDE7; border-radius: 12px; border: 1px solid #FEE500;
+}
+.kakao-channel-icon {
+  width: 56px; height: 56px; border-radius: 50%; background: #FEE500;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; color: #3C1E1E; flex-shrink: 0; overflow: hidden;
+}
+.kakao-channel-icon img { width: 100%; height: 100%; object-fit: cover; }
+.kakao-channel-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.kakao-channel-info strong { font-size: 16px; color: var(--text-primary, #1a1a1a); }
+.kakao-channel-id { font-size: 13px; color: var(--text-secondary, #666); }
+.kakao-channel-meta { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.kakao-channel-meta .text-muted { font-size: 12px; color: var(--text-tertiary, #999); }
+
+.kakao-features-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.kakao-feature-card {
+  padding: 16px; border-radius: 10px; background: var(--bg-secondary, #f9fafb);
+  border: 1px solid var(--border-color, #e5e7eb); display: flex; flex-direction: column; gap: 6px;
+}
+.kakao-feature-card i { font-size: 24px; }
+.kakao-feature-card strong { font-size: 14px; color: var(--text-primary, #1a1a1a); }
+.kakao-feature-card p { font-size: 12px; color: var(--text-secondary, #666); margin: 0; line-height: 1.5; }
+
+.kakao-connect-form { display: flex; flex-direction: column; gap: 16px; }
+.kakao-connect-guide {
+  padding: 16px; background: #F0FDF4; border-radius: 10px; border: 1px solid #BBF7D0;
+}
+.kakao-connect-guide h4 { font-size: 14px; color: #166534; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.kakao-connect-guide ol { margin: 0; padding-left: 20px; }
+.kakao-connect-guide li { font-size: 13px; color: #15803D; line-height: 1.8; }
+.kakao-connect-guide a { color: #2563EB; text-decoration: underline; }
+
+.form-grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.kakao-notice-list { display: flex; flex-direction: column; gap: 16px; }
+.kakao-notice-item {
+  display: flex; gap: 12px; padding: 14px; border-radius: 10px;
+  background: var(--bg-secondary, #f9fafb); border: 1px solid var(--border-color, #e5e7eb);
+}
+.kakao-notice-item > i { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+.kakao-notice-item strong { font-size: 14px; color: var(--text-primary, #1a1a1a); display: block; margin-bottom: 4px; }
+.kakao-notice-item p { font-size: 12px; color: var(--text-secondary, #666); margin: 0; line-height: 1.6; }
+
+/* 카카오 노드 (플로우 빌더) */
+.kakao-node .flow-node-header { color: #3C1E1E !important; }

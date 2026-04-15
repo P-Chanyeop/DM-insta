@@ -55,6 +55,7 @@ public class FlowExecutionService {
     private final ScheduledFollowUpRepository scheduledFollowUpRepository;
     private final NodeExecutionRepository nodeExecutionRepository;
     private final ABTestService abTestService;
+    private final KakaoChannelService kakaoChannelService;
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
@@ -489,6 +490,16 @@ public class FlowExecutionService {
             trackNode(flow.getId(), "followUp", NodeExecution.Action.COMPLETED, contactId);
         }
 
+        // 카카오 알림톡/친구톡 발송
+        if (flowData.has("kakao")) {
+            JsonNode kakaoNode = flowData.get("kakao");
+            if (kakaoNode.path("enabled").asBoolean(false)) {
+                trackNode(flow.getId(), "kakao", NodeExecution.Action.ENTERED, contactId);
+                executeKakao(kakaoNode, igAccount.getUser().getId(), contact, triggerKeyword);
+                trackNode(flow.getId(), "kakao", NodeExecution.Action.COMPLETED, contactId);
+            }
+        }
+
         log.info("메인DM + 팔로업 완료: flowId={}, sender={}", flow.getId(), senderIgId);
     }
 
@@ -814,6 +825,38 @@ public class FlowExecutionService {
     }
 
     // ─── 재고 확인 (인벤토리 노드) ───
+
+    /**
+     * 카카오 알림톡/친구톡 발송 노드 실행
+     */
+    private void executeKakao(JsonNode kakaoNode, Long userId, Contact contact, String triggerKeyword) {
+        // customFields JSON에서 phone 추출
+        String phone = null;
+        if (contact.getCustomFields() != null) {
+            try {
+                JsonNode fields = objectMapper.readTree(contact.getCustomFields());
+                phone = fields.path("phone").asText(null);
+            } catch (Exception ignored) {}
+        }
+        if (phone == null || phone.isBlank()) {
+            log.warn("카카오 발송 실패: 연락처에 전화번호 없음, contactId={}", contact.getId());
+            return;
+        }
+
+        String kakaoType = kakaoNode.path("kakaoType").asText("alimtalk");
+        if ("alimtalk".equals(kakaoType)) {
+            String templateCode = kakaoNode.path("templateCode").asText("");
+            java.util.Map<String, String> vars = new java.util.HashMap<>();
+            vars.put("name", contact.getName() != null ? contact.getName() : "고객");
+            vars.put("keyword", triggerKeyword != null ? triggerKeyword : "");
+            kakaoChannelService.sendAlimtalk(userId, templateCode, phone, vars);
+        } else {
+            String message = replaceVariables(
+                    kakaoNode.path("message").asText(""), contact, triggerKeyword);
+            String imageUrl = kakaoNode.path("imageUrl").asText(null);
+            kakaoChannelService.sendFriendtalk(userId, phone, message, imageUrl);
+        }
+    }
 
     /**
      * 공동구매 재고 확인 노드 실행

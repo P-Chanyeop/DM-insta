@@ -579,6 +579,14 @@ function PhonePreview({ nodes }) {
     }
   }
 
+  // 카카오톡 노드
+  const kakaoNode = nodes.find(n => n.type === 'kakao')
+  if (kakaoNode) {
+    const kd = kakaoNode.data
+    const typeLabel = kd.kakaoType === 'friendtalk' ? '친구톡' : '알림톡'
+    msgs.push({ type: 'system-note', text: `💬 카카오 ${typeLabel}: ${kd.kakaoType === 'alimtalk' ? (kd.templateCode || '템플릿 미설정') : (kd.message?.slice(0, 30) || '메시지 미설정')}`, step: `카카오 ${typeLabel}` })
+  }
+
   // 팔로업
   if (followUpNode) {
     const d = delayNode?.data

@@ -264,7 +264,27 @@ export function flowDataToGraph(fd) {
     y += Y_SPACING
   }
 
-  // 12-1. 옵트인(Recurring Notification) 노드
+  // 12-1. 카카오 알림톡/친구톡 노드
+  if (fd.kakao?.enabled) {
+    const id = 'kakao-1'
+    nodes.push({
+      id,
+      type: 'kakao',
+      position: { x: X_CENTER, y },
+      data: {
+        kakaoType: fd.kakao.kakaoType || 'alimtalk',
+        templateCode: fd.kakao.templateCode || '',
+        message: fd.kakao.message || '',
+        imageUrl: fd.kakao.imageUrl || '',
+        buttons: fd.kakao.buttons || [],
+      },
+    })
+    edges.push(makeEdge(prevNodeId, id))
+    prevNodeId = id
+    y += Y_SPACING
+  }
+
+  // 12-2. 옵트인(Recurring Notification) 노드
   if (fd.optIn?.enabled) {
     const id = 'optIn-1'
     nodes.push({
@@ -339,6 +359,7 @@ export function graphToFlowData(nodes, edges) {
   const abtestNode = nodes.find(n => n.type === 'abtest')
   const aiResponseNode = nodes.find(n => n.type === 'aiResponse')
   const optInNode = nodes.find(n => n.type === 'optIn')
+  const kakaoNode = nodes.find(n => n.type === 'kakao')
 
   const td = triggerNode?.data || {}
 
@@ -423,6 +444,14 @@ export function graphToFlowData(nodes, edges) {
       fallbackMessage: aiResponseNode?.data.fallbackMessage || '',
       maxTokens: aiResponseNode?.data.maxTokens || 200,
       contextWindow: aiResponseNode?.data.contextWindow || 3,
+    },
+    kakao: {
+      enabled: !!kakaoNode,
+      kakaoType: kakaoNode?.data.kakaoType || 'alimtalk',
+      templateCode: kakaoNode?.data.templateCode || '',
+      message: kakaoNode?.data.message || '',
+      imageUrl: kakaoNode?.data.imageUrl || '',
+      buttons: kakaoNode?.data.buttons || [],
     },
     optIn: {
       enabled: !!optInNode,
@@ -524,6 +553,8 @@ export const NODE_PALETTE = [
     defaultData: { groupBuyId: null, soldOutMessage: '죄송합니다, 이 상품은 매진되었습니다. 😢' } },
   { type: 'optIn', label: '알림 구독', icon: 'ri-notification-3-line', color: '#8B5CF6',
     defaultData: { topic: 'general', topicLabel: '소식 알림', message: '새 소식을 받아보시겠어요?', frequency: 'WEEKLY' } },
+  { type: 'kakao', label: '카카오 알림톡', icon: 'ri-kakao-talk-fill', color: '#FEE500',
+    defaultData: { kakaoType: 'alimtalk', templateCode: '', message: '', imageUrl: '' } },
   { type: 'aiResponse', label: 'AI 자동 응답', icon: 'ri-robot-line', color: '#0EA5E9',
     defaultData: {
       mode: 'faq',

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import { api, getStoredUser, setStoredUser } from '../api/client'
-import { integrationService, userService, teamService, billingService, instagramProfileService, recurringService } from '../api/services'
+import { integrationService, userService, teamService, billingService, instagramProfileService, recurringService, kakaoService } from '../api/services'
 import { useToast } from '../components/Toast'
 import { usePlan } from '../components/PlanContext'
 
@@ -11,6 +11,7 @@ const TABS = [
   { key: 'profile', icon: 'ri-user-line', label: '프로필' },
   { key: 'team', icon: 'ri-team-line', label: '팀 멤버' },
   { key: 'recurring', icon: 'ri-repeat-line', label: '알림 구독' },
+  { key: 'kakao', icon: 'ri-kakao-talk-fill', label: '카카오 채널' },
   { key: 'notifications', icon: 'ri-notification-3-line', label: '알림' },
   { key: 'integrations', icon: 'ri-plug-line', label: '연동 (API)' },
   { key: 'billing', icon: 'ri-bank-card-line', label: '결제 & 요금제' },
@@ -250,6 +251,14 @@ export default function SettingsPage() {
   ])
   const [persistentMenuSaving, setPersistentMenuSaving] = useState(false)
 
+  // 카카오 채널 상태
+  const [kakaoChannel, setKakaoChannel] = useState(null)
+  const [kakaoLoading, setKakaoLoading] = useState(false)
+  const [kakaoForm, setKakaoForm] = useState({
+    channelId: '', searchId: '', senderKey: '', apiKey: '', channelName: '', profileImageUrl: '',
+  })
+  const [kakaoConnecting, setKakaoConnecting] = useState(false)
+
   // Recurring Notification 상태
   const [recurringTopics, setRecurringTopics] = useState([])
   const [recurringQuota, setRecurringQuota] = useState(null)
@@ -396,6 +405,12 @@ export default function SettingsPage() {
   useEffect(() => {
     if (activeTab === 'recurring') {
       loadRecurringData()
+    }
+  }, [activeTab])
+
+  useEffect(() => {
+    if (activeTab === 'kakao') {
+      loadKakaoChannel()
     }
   }, [activeTab])
 
@@ -1763,6 +1778,200 @@ export default function SettingsPage() {
     </div>
   )
 
+  // ── 카카오 채널 함수들 ──
+  const loadKakaoChannel = async () => {
+    setKakaoLoading(true)
+    try {
+      const data = await kakaoService.getChannel()
+      setKakaoChannel(data || null)
+    } catch {
+      setKakaoChannel(null)
+    } finally {
+      setKakaoLoading(false)
+    }
+  }
+
+  const handleKakaoConnect = async () => {
+    if (!kakaoForm.channelId || !kakaoForm.senderKey || !kakaoForm.apiKey) {
+      toast.error('채널 ID, 발신 프로필 키, API 키는 필수입니다')
+      return
+    }
+    setKakaoConnecting(true)
+    try {
+      const data = await kakaoService.connectChannel(kakaoForm)
+      setKakaoChannel(data)
+      setKakaoForm({ channelId: '', searchId: '', senderKey: '', apiKey: '', channelName: '', profileImageUrl: '' })
+      toast.success('카카오 채널이 연결되었습니다')
+    } catch (err) {
+      toast.error(err.message || '카카오 채널 연결 실패')
+    } finally {
+      setKakaoConnecting(false)
+    }
+  }
+
+  const handleKakaoDisconnect = async () => {
+    try {
+      await kakaoService.disconnectChannel()
+      setKakaoChannel(null)
+      toast.success('카카오 채널 연결이 해제되었습니다')
+    } catch (err) {
+      toast.error(err.message || '연결 해제 실패')
+    }
+  }
+
+  const renderKakaoTab = () => {
+    return (
+      <>
+        <div className="settings-section-card">
+          <div className="settings-section-header">
+            <div>
+              <h3><i className="ri-kakao-talk-fill" style={{ color: '#3C1E1E' }} /> 카카오톡 채널 연동</h3>
+              <p>카카오 비즈니스 채널을 연결하여 알림톡/친구톡을 자동 발송하세요</p>
+            </div>
+          </div>
+
+          {kakaoLoading ? (
+            <div className="loading-spinner" style={{ padding: 40 }}>
+              <div className="spinner" />
+              <p>로딩 중...</p>
+            </div>
+          ) : kakaoChannel ? (
+            <div className="kakao-channel-connected">
+              <div className="kakao-channel-card">
+                <div className="kakao-channel-icon">
+                  {kakaoChannel.profileImageUrl ? (
+                    <img src={kakaoChannel.profileImageUrl} alt="" />
+                  ) : (
+                    <i className="ri-kakao-talk-fill" />
+                  )}
+                </div>
+                <div className="kakao-channel-info">
+                  <strong>{kakaoChannel.channelName || '카카오 채널'}</strong>
+                  <span className="kakao-channel-id">@{kakaoChannel.searchId || kakaoChannel.channelId}</span>
+                  <div className="kakao-channel-meta">
+                    <span className={`badge ${kakaoChannel.active ? 'badge-success' : 'badge-warning'}`}>
+                      {kakaoChannel.active ? '활성' : '비활성'}
+                    </span>
+                    {kakaoChannel.connectedAt && (
+                      <span className="text-muted">연결일: {new Date(kakaoChannel.connectedAt).toLocaleDateString('ko-KR')}</span>
+                    )}
+                  </div>
+                </div>
+                <button className="btn btn-outline-danger" onClick={handleKakaoDisconnect}>
+                  <i className="ri-link-unlink-m" /> 연결 해제
+                </button>
+              </div>
+
+              <div className="kakao-features-grid">
+                <div className="kakao-feature-card">
+                  <i className="ri-notification-line" style={{ color: '#FEE500' }} />
+                  <strong>알림톡</strong>
+                  <p>승인된 템플릿 기반 발송. 주문확인, 배송알림 등에 사용.</p>
+                </div>
+                <div className="kakao-feature-card">
+                  <i className="ri-chat-smile-3-line" style={{ color: '#3C1E1E' }} />
+                  <strong>친구톡</strong>
+                  <p>채널 친구에게 자유 형식 메시지 발송. 마케팅, 프로모션에 활용.</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="kakao-connect-form">
+              <div className="kakao-connect-guide">
+                <h4><i className="ri-guide-line" /> 연동 가이드</h4>
+                <ol>
+                  <li><a href="https://center-pf.kakao.com" target="_blank" rel="noopener noreferrer">카카오톡 채널 관리자센터</a>에서 비즈니스 채널을 생성하세요</li>
+                  <li>비즈뿌리오 등 공식 발송 대행사에 가입하고 API 키를 발급받으세요</li>
+                  <li>아래 정보를 입력하여 채널을 연결하세요</li>
+                </ol>
+              </div>
+
+              <div className="form-grid-2col">
+                <div className="ne-field">
+                  <label>채널 ID *</label>
+                  <input className="ne-input" placeholder="@channel_id"
+                    value={kakaoForm.channelId}
+                    onChange={e => setKakaoForm(f => ({ ...f, channelId: e.target.value }))} />
+                </div>
+                <div className="ne-field">
+                  <label>검색용 ID</label>
+                  <input className="ne-input" placeholder="@search_id (선택)"
+                    value={kakaoForm.searchId}
+                    onChange={e => setKakaoForm(f => ({ ...f, searchId: e.target.value }))} />
+                </div>
+                <div className="ne-field">
+                  <label>발신 프로필 키 (Sender Key) *</label>
+                  <input className="ne-input" placeholder="카카오 비즈센터에서 발급"
+                    value={kakaoForm.senderKey}
+                    onChange={e => setKakaoForm(f => ({ ...f, senderKey: e.target.value }))} />
+                </div>
+                <div className="ne-field">
+                  <label>API 키 *</label>
+                  <input className="ne-input" type="password" placeholder="발송 대행사 API 키"
+                    value={kakaoForm.apiKey}
+                    onChange={e => setKakaoForm(f => ({ ...f, apiKey: e.target.value }))} />
+                </div>
+                <div className="ne-field">
+                  <label>채널 이름</label>
+                  <input className="ne-input" placeholder="표시될 채널 이름 (선택)"
+                    value={kakaoForm.channelName}
+                    onChange={e => setKakaoForm(f => ({ ...f, channelName: e.target.value }))} />
+                </div>
+                <div className="ne-field">
+                  <label>프로필 이미지 URL</label>
+                  <input className="ne-input" placeholder="https://... (선택)"
+                    value={kakaoForm.profileImageUrl}
+                    onChange={e => setKakaoForm(f => ({ ...f, profileImageUrl: e.target.value }))} />
+                </div>
+              </div>
+
+              <button className="btn btn-primary" style={{ marginTop: 16, background: '#FEE500', color: '#3C1E1E', border: 'none' }}
+                onClick={handleKakaoConnect} disabled={kakaoConnecting}>
+                {kakaoConnecting ? (
+                  <><div className="spinner" style={{ width: 16, height: 16 }} /> 연결 중...</>
+                ) : (
+                  <><i className="ri-kakao-talk-fill" /> 카카오 채널 연결하기</>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="settings-section-card">
+          <div className="settings-section-header">
+            <div>
+              <h3>발송 안내</h3>
+              <p>카카오톡 발송 시 유의사항</p>
+            </div>
+          </div>
+          <div className="kakao-notice-list">
+            <div className="kakao-notice-item">
+              <i className="ri-checkbox-circle-line" style={{ color: '#10B981' }} />
+              <div>
+                <strong>알림톡</strong>
+                <p>카카오 비즈센터에서 템플릿을 등록하고 승인을 받아야 발송할 수 있습니다. 변수(#{'{변수명}'})를 사용하여 개인화된 메시지를 보낼 수 있습니다.</p>
+              </div>
+            </div>
+            <div className="kakao-notice-item">
+              <i className="ri-checkbox-circle-line" style={{ color: '#10B981' }} />
+              <div>
+                <strong>친구톡</strong>
+                <p>카카오 채널의 친구(구독자)에게만 발송 가능합니다. 이미지를 첨부할 수 있으며, 버튼을 추가하여 웹 링크나 앱 링크를 연결할 수 있습니다.</p>
+              </div>
+            </div>
+            <div className="kakao-notice-item">
+              <i className="ri-information-line" style={{ color: '#F59E0B' }} />
+              <div>
+                <strong>전화번호 필수</strong>
+                <p>카카오톡 발송을 위해서는 연락처에 전화번호(phone) 정보가 필요합니다. 연락처 관리에서 커스텀 필드로 전화번호를 수집하세요.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
+
   const renderBillingTab = () => {
     const isSubscribed = billingInfo && billingInfo.plan && billingInfo.plan.toLowerCase() !== 'free'
     const isCancelPending = billingInfo?.cancelAtPeriodEnd
@@ -1971,6 +2180,7 @@ export default function SettingsPage() {
     account: renderAccountTab,
     messaging: renderMessagingTab,
     recurring: renderRecurringTab,
+    kakao: renderKakaoTab,
     profile: renderProfileTab,
     team: renderTeamTab,
     notifications: renderNotificationsTab,
