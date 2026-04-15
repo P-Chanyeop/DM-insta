@@ -62,6 +62,14 @@ export const broadcastService = {
   cancel: (id) => api.patch(`/broadcasts/${id}/cancel`),
 }
 
+export const recurringService = {
+  getTopics: () => api.get('/recurring/topics'),
+  getSubscribers: (topic) => api.get(`/recurring/topics/${topic}/subscribers`),
+  send: (topic, message) => api.post(`/recurring/topics/${topic}/send`, { message }),
+  unsubscribe: (id) => api.delete(`/recurring/subscriptions/${id}`),
+  getQuota: () => api.get('/recurring/quota'),
+}
+
 export const groupBuyService = {
   list: () => api.get('/group-buys'),
   get: (id) => api.get(`/group-buys/${id}`),

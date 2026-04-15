@@ -264,7 +264,26 @@ export function flowDataToGraph(fd) {
     y += Y_SPACING
   }
 
-  // 12. 팔로업
+  // 12-1. 옵트인(Recurring Notification) 노드
+  if (fd.optIn?.enabled) {
+    const id = 'optIn-1'
+    nodes.push({
+      id,
+      type: 'optIn',
+      position: { x: X_CENTER, y },
+      data: {
+        topic: fd.optIn.topic || 'general',
+        topicLabel: fd.optIn.topicLabel || '소식 알림',
+        message: fd.optIn.message || '새 소식을 받아보시겠어요?',
+        frequency: fd.optIn.frequency || 'WEEKLY',
+      },
+    })
+    edges.push(makeEdge(prevNodeId, id))
+    prevNodeId = id
+    y += Y_SPACING
+  }
+
+  // 13. 팔로업
   if (fd.followUp?.enabled) {
     const unitMap = { '분': 'minutes', '시간': 'hours', '일': 'days' }
     const delayId = 'delay-1'
@@ -319,6 +338,7 @@ export function graphToFlowData(nodes, edges) {
   const carouselNode = nodes.find(n => n.type === 'carousel')
   const abtestNode = nodes.find(n => n.type === 'abtest')
   const aiResponseNode = nodes.find(n => n.type === 'aiResponse')
+  const optInNode = nodes.find(n => n.type === 'optIn')
 
   const td = triggerNode?.data || {}
 
@@ -403,6 +423,13 @@ export function graphToFlowData(nodes, edges) {
       fallbackMessage: aiResponseNode?.data.fallbackMessage || '',
       maxTokens: aiResponseNode?.data.maxTokens || 200,
       contextWindow: aiResponseNode?.data.contextWindow || 3,
+    },
+    optIn: {
+      enabled: !!optInNode,
+      topic: optInNode?.data.topic || 'general',
+      topicLabel: optInNode?.data.topicLabel || '소식 알림',
+      message: optInNode?.data.message || '새 소식을 받아보시겠어요?',
+      frequency: optInNode?.data.frequency || 'WEEKLY',
     },
     followUp: {
       enabled: !!followUpNode,
@@ -495,6 +522,8 @@ export const NODE_PALETTE = [
     defaultData: { testName: '', variantA: 50 } },
   { type: 'inventory', label: '재고 확인', icon: 'ri-shopping-bag-line', color: '#EF4444',
     defaultData: { groupBuyId: null, soldOutMessage: '죄송합니다, 이 상품은 매진되었습니다. 😢' } },
+  { type: 'optIn', label: '알림 구독', icon: 'ri-notification-3-line', color: '#8B5CF6',
+    defaultData: { topic: 'general', topicLabel: '소식 알림', message: '새 소식을 받아보시겠어요?', frequency: 'WEEKLY' } },
   { type: 'aiResponse', label: 'AI 자동 응답', icon: 'ri-robot-line', color: '#0EA5E9',
     defaultData: {
       mode: 'faq',

@@ -46,6 +46,7 @@ public class FlowExecutionService {
     private final ConversationService conversationService;
     private final AIService aiService;
     private final GroupBuyService groupBuyService;
+    private final RecurringNotificationService recurringNotificationService;
     private final ObjectMapper objectMapper;
     private final FlowRepository flowRepository;
     private final ContactRepository contactRepository;
@@ -449,6 +450,16 @@ public class FlowExecutionService {
             trackNode(flow.getId(), "aiResponse", NodeExecution.Action.COMPLETED, contactId);
         }
 
+        // Recurring Notification 옵트인 요청
+        if (flowData.has("optIn")) {
+            JsonNode optInNode = flowData.get("optIn");
+            if (optInNode.path("enabled").asBoolean(false)) {
+                trackNode(flow.getId(), "optIn", NodeExecution.Action.ENTERED, contactId);
+                executeOptIn(optInNode, igAccount, senderIgId, contact, triggerKeyword);
+                trackNode(flow.getId(), "optIn", NodeExecution.Action.COMPLETED, contactId);
+            }
+        }
+
         // 팔로업 메시지 스케줄링 (DB에 영구 저장, 변수는 발송 시점에 치환)
         if (flowData.has("followUp")) {
             trackNode(flow.getId(), "followUp", NodeExecution.Action.ENTERED, contactId);
@@ -756,6 +767,28 @@ public class FlowExecutionService {
                 .expiresAt(LocalDateTime.now().plusHours(24))
                 .build();
         pendingFlowActionRepository.save(action);
+    }
+
+    // ─── Recurring Notification 옵트인 노드 ───
+
+    /**
+     * 사용자에게 Recurring Notification 옵트인 요청 DM 발송
+     */
+    private void executeOptIn(JsonNode optInNode, InstagramAccount igAccount,
+                               String senderIgId, Contact contact, String triggerKeyword) {
+        String topic = optInNode.path("topic").asText("general");
+        String topicLabel = optInNode.path("topicLabel").asText("소식 알림");
+        String message = replaceVariables(
+                optInNode.path("message").asText("새 소식을 받아보시겠어요?"), contact, triggerKeyword);
+        String frequency = optInNode.path("frequency").asText("WEEKLY");
+
+        try {
+            recurringNotificationService.requestOptIn(
+                    igAccount, senderIgId, message, topic, topicLabel, frequency);
+            log.info("OptIn 요청 발송: topic={}, sender={}", topic, senderIgId);
+        } catch (Exception e) {
+            log.error("OptIn 요청 실패: topic={}, error={}", topic, e.getMessage());
+        }
     }
 
     // ─── 재고 확인 (인벤토리 노드) ───

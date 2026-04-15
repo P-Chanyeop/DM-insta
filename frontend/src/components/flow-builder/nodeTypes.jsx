@@ -18,6 +18,7 @@ const nodeColors = {
   abtest: '#F97316',
   aiResponse: '#0EA5E9',
   inventory: '#EF4444',
+  optIn: '#8B5CF6',
 }
 
 /* ── 트리거 노드 ── */
@@ -395,6 +396,31 @@ export const AIResponseNode = memo(({ data, selected }) => {
 })
 AIResponseNode.displayName = 'AIResponseNode'
 
+/* ── 알림 구독(OptIn) 노드 ── */
+export const OptInNode = memo(({ data, selected }) => {
+  const freqLabels = { DAILY: '매일', WEEKLY: '매주', MONTHLY: '매월' }
+  return (
+    <div className={`flow-node optin-node ${selected ? 'selected' : ''}`}>
+      <Handle type="target" position={Position.Top} className="flow-handle" />
+      <div className="flow-node-header" style={{ background: nodeColors.optIn }}>
+        <i className="ri-notification-3-line" />
+        <span>알림 구독</span>
+      </div>
+      <div className="flow-node-body">
+        <div className="flow-node-label">{data.topicLabel || '소식 알림'}</div>
+        {data.message && (
+          <div className="flow-node-preview">"{data.message.slice(0, 40)}{data.message.length > 40 ? '...' : ''}"</div>
+        )}
+        <div className="flow-node-detail">
+          <i className="ri-time-line" /> {freqLabels[data.frequency] || '매주'} 발송
+        </div>
+      </div>
+      <Handle type="source" position={Position.Bottom} className="flow-handle" />
+    </div>
+  )
+})
+OptInNode.displayName = 'OptInNode'
+
 /* ── 재고 확인(인벤토리) 노드 ── */
 export const InventoryNode = memo(({ data, selected }) => (
   <div className={`flow-node inventory-node ${selected ? 'selected' : ''}`}>
@@ -433,4 +459,5 @@ export const nodeTypeMap = {
   abtest: ABTestNode,
   aiResponse: AIResponseNode,
   inventory: InventoryNode,
+  optIn: OptInNode,
 }

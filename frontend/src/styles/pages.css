@@ -2435,3 +2435,46 @@ label.ne-radio {
 /* 생성 모달 */
 .gb-create-modal { max-width: 560px; }
 .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ════════════════════════════════════════════
+   Recurring Notification (알림 구독) 설정
+   ════════════════════════════════════════════ */
+.recurring-quota-bar {
+  display: flex; gap: 24px; padding: 16px 20px;
+  background: linear-gradient(135deg, #EEF2FF, #F0FDF4);
+  border-radius: 10px;
+}
+.recurring-quota-item { display: flex; flex-direction: column; gap: 2px; }
+.recurring-quota-item span { font-size: 12px; color: var(--gray-500, #6B7280); }
+.recurring-quota-item strong { font-size: 20px; font-weight: 700; color: var(--gray-900, #111827); }
+
+.recurring-topics-list { display: flex; flex-direction: column; gap: 8px; }
+.recurring-topic-card {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 18px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--gray-200, #E5E7EB); transition: all 0.2s;
+}
+.recurring-topic-card:hover { border-color: var(--primary, #3B82F6); background: #F8FAFC; }
+.recurring-topic-card.active { border-color: var(--primary, #3B82F6); background: #EFF6FF; }
+.recurring-topic-info { display: flex; flex-direction: column; gap: 2px; }
+.recurring-topic-info strong { font-size: 14px; }
+.recurring-topic-id { font-size: 11px; color: var(--gray-400, #9CA3AF); font-family: monospace; }
+.recurring-topic-count {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 14px; font-weight: 600; color: var(--primary, #3B82F6);
+}
+
+.recurring-send-form { display: flex; flex-direction: column; gap: 10px; }
+.recurring-send-form .btn { align-self: flex-end; }
+
+.recurring-subscribers-list { display: flex; flex-direction: column; gap: 6px; }
+.recurring-subscriber-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-radius: 8px;
+  border: 1px solid var(--gray-100, #F3F4F6); background: white;
+}
+.recurring-subscriber-info { flex: 1; }
+.recurring-subscriber-info strong { font-size: 13px; display: block; }
+.recurring-subscriber-meta {
+  display: flex; gap: 10px; font-size: 12px; color: var(--gray-500, #6B7280);
+}

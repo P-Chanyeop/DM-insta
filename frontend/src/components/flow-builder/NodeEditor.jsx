@@ -31,6 +31,7 @@ export default function NodeEditor({ node, onUpdate, onClose }) {
         {node.type === 'carousel' && <CarouselEditor data={data} update={update} />}
         {node.type === 'abtest' && <ABTestEditor data={data} update={update} />}
         {node.type === 'aiResponse' && <AIResponseEditor data={data} update={update} />}
+        {node.type === 'optIn' && <OptInEditor data={data} update={update} />}
         {node.type === 'inventory' && <InventoryEditor data={data} update={update} />}
       </div>
     </div>
@@ -49,6 +50,7 @@ function getNodeTitle(node) {
     carousel: '캐러셀 설정',
     abtest: 'A/B 테스트 설정',
     aiResponse: 'AI 자동 응답 설정',
+    optIn: '알림 구독 설정',
     inventory: '재고 확인 설정',
   }
   return titles[node.type] || '설정'
@@ -803,6 +805,54 @@ function InventoryEditor({ data, update }) {
       <div className="ne-info-box">
         <i className="ri-shopping-bag-line" />
         <span>재고 확인 노드는 공동구매의 재고를 확인하고, 자동으로 참여자를 등록합니다. 매진 시 플로우가 중단되어 더 이상 DM이 발송되지 않습니다.</span>
+      </div>
+    </>
+  )
+}
+
+/* ── 알림 구독(OptIn) 편집기 ── */
+function OptInEditor({ data, update }) {
+  return (
+    <>
+      <div className="ne-field">
+        <label>토픽 ID</label>
+        <input className="ne-input" type="text"
+          value={data.topic || ''}
+          onChange={e => update({ topic: e.target.value.replace(/[^a-zA-Z0-9_]/g, '') })}
+          placeholder="예: new_products, sale, groupbuy" />
+        <span className="ne-help-text">영문, 숫자, 밑줄만 사용 가능합니다</span>
+      </div>
+
+      <div className="ne-field">
+        <label>토픽 표시명</label>
+        <input className="ne-input" type="text"
+          value={data.topicLabel || ''}
+          onChange={e => update({ topicLabel: e.target.value })}
+          placeholder="예: 신상품 소식, 할인 알림" />
+      </div>
+
+      <div className="ne-field">
+        <label>옵트인 메시지</label>
+        <textarea className="ne-textarea" rows={3}
+          value={data.message || ''}
+          onChange={e => update({ message: e.target.value })}
+          placeholder="새 소식을 받아보시겠어요?" />
+        <span className="ne-help-text">사용자에게 표시되는 알림 구독 요청 메시지</span>
+      </div>
+
+      <div className="ne-field">
+        <label>발송 빈도</label>
+        <select className="ne-select" value={data.frequency || 'WEEKLY'}
+          onChange={e => update({ frequency: e.target.value })}>
+          <option value="DAILY">매일</option>
+          <option value="WEEKLY">매주</option>
+          <option value="MONTHLY">매월</option>
+        </select>
+      </div>
+
+      <div className="ne-info-box">
+        <i className="ri-notification-3-line" />
+        <span>Instagram Recurring Notification API를 사용합니다. 사용자가 옵트인하면 24시간 외에도 마케팅 메시지를 보낼 수 있습니다. 설정 &gt; 알림 구독 탭에서 구독자를 관리하고 메시지를 발송하세요.</span>
       </div>
     </>
   )

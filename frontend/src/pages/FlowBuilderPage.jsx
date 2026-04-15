@@ -513,6 +513,13 @@ function PhonePreview({ nodes }) {
   })
 
   // 캐러셀 노드
+  // 알림 구독(OptIn) 노드
+  const optInNode = nodes.find(n => n.type === 'optIn')
+  if (optInNode) {
+    const od = optInNode.data
+    msgs.push({ type: 'bot-bubble', text: od.message || '새 소식을 받아보시겠어요?', buttons: [{ text: '알림 받기' }], step: '알림 구독' })
+  }
+
   // 재고 확인 노드
   const inventoryNode = nodes.find(n => n.type === 'inventory')
   if (inventoryNode) {

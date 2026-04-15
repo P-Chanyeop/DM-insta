@@ -399,6 +399,54 @@ public class InstagramApiService {
         }
     }
 
+    // ─── Recurring Notification API ───
+
+    /**
+     * 사용자에게 Recurring Notification 옵트인 요청 발송
+     * Meta 공식 API: POST /{ig-user-id}/messages
+     * notification_messages_token 을 응답으로 받음
+     */
+    public JsonNode requestRecurringOptIn(String igUserId, String recipientId,
+                                           String message, String topic,
+                                           String frequency, String accessToken) {
+        String url = "https://graph.instagram.com/v21.0/" + igUserId + "/messages";
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("recipient", Map.of("id", recipientId));
+        body.put("message", Map.of(
+                "attachment", Map.of(
+                        "type", "template",
+                        "payload", Map.of(
+                                "template_type", "notification_messages",
+                                "title", message,
+                                "notification_messages_frequency", frequency.toUpperCase(),
+                                "notification_messages_topic", topic,
+                                "notification_messages_cta_text", "알림 받기"
+                        )
+                )
+        ));
+
+        log.info("Recurring opt-in 요청: igUserId={}, recipient={}, topic={}", igUserId, recipientId, topic);
+        return postToInstagram(url, body, accessToken);
+    }
+
+    /**
+     * 24시간 외 Recurring Notification 메시지 발송
+     * notification_messages_token을 사용하여 발송
+     */
+    public JsonNode sendRecurringNotification(String igUserId, String recipientId,
+                                               String message, String notificationToken,
+                                               String accessToken) {
+        String url = "https://graph.instagram.com/v21.0/" + igUserId + "/messages";
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("recipient", Map.of("id", recipientId, "notification_messages_token", notificationToken));
+        body.put("message", Map.of("text", message));
+
+        log.info("Recurring notification 발송: igUserId={}, recipient={}", igUserId, recipientId);
+        return postToInstagram(url, body, accessToken);
+    }
+
     // ─── 내부 유틸 ───
 
     private JsonNode postToInstagram(String url, Map<String, Object> body, String accessToken) {

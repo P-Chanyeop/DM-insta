@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import { api, getStoredUser, setStoredUser } from '../api/client'
-import { integrationService, userService, teamService, billingService, instagramProfileService } from '../api/services'
+import { integrationService, userService, teamService, billingService, instagramProfileService, recurringService } from '../api/services'
 import { useToast } from '../components/Toast'
 import { usePlan } from '../components/PlanContext'
 
@@ -10,6 +10,7 @@ const TABS = [
   { key: 'messaging', icon: 'ri-message-3-line', label: '메시징 설정' },
   { key: 'profile', icon: 'ri-user-line', label: '프로필' },
   { key: 'team', icon: 'ri-team-line', label: '팀 멤버' },
+  { key: 'recurring', icon: 'ri-repeat-line', label: '알림 구독' },
   { key: 'notifications', icon: 'ri-notification-3-line', label: '알림' },
   { key: 'integrations', icon: 'ri-plug-line', label: '연동 (API)' },
   { key: 'billing', icon: 'ri-bank-card-line', label: '결제 & 요금제' },
@@ -249,6 +250,15 @@ export default function SettingsPage() {
   ])
   const [persistentMenuSaving, setPersistentMenuSaving] = useState(false)
 
+  // Recurring Notification 상태
+  const [recurringTopics, setRecurringTopics] = useState([])
+  const [recurringQuota, setRecurringQuota] = useState(null)
+  const [recurringLoading, setRecurringLoading] = useState(false)
+  const [selectedTopic, setSelectedTopic] = useState(null)
+  const [topicSubscribers, setTopicSubscribers] = useState([])
+  const [sendMessage, setSendMessage] = useState('')
+  const [sendingRecurring, setSendingRecurring] = useState(false)
+
   // Load user profile from backend
   useEffect(() => {
     let mounted = true
@@ -382,6 +392,12 @@ export default function SettingsPage() {
       fetchBillingInfo()
     }
   }, [activeTab, fetchBillingInfo])
+
+  useEffect(() => {
+    if (activeTab === 'recurring') {
+      loadRecurringData()
+    }
+  }, [activeTab])
 
   // Handle Stripe checkout success redirect — Fix #10: 폴링으로 webhook 처리 대기
   useEffect(() => {
@@ -1053,6 +1069,183 @@ export default function SettingsPage() {
       </div>
     </>
   )
+
+  // ═══════════════════════════════════════
+  // Recurring Notification 탭
+  // ═══════════════════════════════════════
+
+  const loadRecurringData = async () => {
+    setRecurringLoading(true)
+    try {
+      const [topics, quota] = await Promise.all([
+        recurringService.getTopics(),
+        recurringService.getQuota(),
+      ])
+      setRecurringTopics(topics)
+      setRecurringQuota(quota)
+    } catch (err) {
+      toast.error('알림 구독 데이터를 불러올 수 없습니다')
+    } finally {
+      setRecurringLoading(false)
+    }
+  }
+
+  const loadSubscribers = async (topic) => {
+    setSelectedTopic(topic)
+    try {
+      const subs = await recurringService.getSubscribers(topic.topic)
+      setTopicSubscribers(subs)
+    } catch (err) {
+      toast.error('구독자 목록을 불러올 수 없습니다')
+    }
+  }
+
+  const handleSendRecurring = async () => {
+    if (!selectedTopic || !sendMessage.trim()) return
+    setSendingRecurring(true)
+    try {
+      const result = await recurringService.send(selectedTopic.topic, sendMessage)
+      toast.success(`${result.sentCount}명에게 발송 완료 (실패: ${result.failedCount})`)
+      setSendMessage('')
+    } catch (err) {
+      toast.error(err.message || '발송 실패')
+    } finally {
+      setSendingRecurring(false)
+    }
+  }
+
+  const handleUnsubscribe = async (subId) => {
+    try {
+      await recurringService.unsubscribe(subId)
+      if (selectedTopic) loadSubscribers(selectedTopic)
+      loadRecurringData()
+      toast.success('구독이 해제되었습니다')
+    } catch (err) {
+      toast.error('구독 해제 실패')
+    }
+  }
+
+  const renderRecurringTab = () => {
+    return (
+      <>
+        {/* 쿼터 정보 */}
+        {recurringQuota && (
+          <div className="settings-section">
+            <div className="messaging-section-header">
+              <h3><i className="ri-bar-chart-box-line" /> 사용량</h3>
+            </div>
+            <div className="recurring-quota-bar">
+              <div className="recurring-quota-item">
+                <span>활성 토픽</span>
+                <strong>{recurringQuota.activeTopics} / {recurringQuota.maxTopics}</strong>
+              </div>
+              <div className="recurring-quota-item">
+                <span>전체 구독자</span>
+                <strong>{recurringQuota.totalSubscribers}명</strong>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 토픽 목록 */}
+        <div className="settings-section">
+          <div className="messaging-section-header">
+            <h3><i className="ri-notification-3-line" /> 토픽별 구독 현황</h3>
+          </div>
+
+          {recurringLoading ? (
+            <div className="loading-state"><div className="spinner" /> 로딩 중...</div>
+          ) : recurringTopics.length === 0 ? (
+            <div className="messaging-info-box">
+              <i className="ri-information-line" />
+              <div>
+                <strong>구독 토픽이 없습니다</strong>
+                <p style={{ margin: '4px 0 0', fontSize: 13 }}>
+                  플로우 빌더에서 "알림 구독" 노드를 추가하면 사용자가 옵트인할 수 있습니다.
+                  옵트인한 사용자에게는 24시간 외에도 메시지를 발송할 수 있습니다.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="recurring-topics-list">
+              {recurringTopics.map(t => (
+                <div key={t.topic}
+                  className={`recurring-topic-card ${selectedTopic?.topic === t.topic ? 'active' : ''}`}
+                  onClick={() => loadSubscribers(t)}>
+                  <div className="recurring-topic-info">
+                    <strong>{t.topicLabel || t.topic}</strong>
+                    <span className="recurring-topic-id">{t.topic}</span>
+                  </div>
+                  <div className="recurring-topic-count">
+                    <i className="ri-user-line" /> {t.subscriberCount}명
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 선택된 토픽 상세 */}
+        {selectedTopic && (
+          <div className="settings-section">
+            <div className="messaging-section-header">
+              <h3><i className="ri-send-plane-line" /> {selectedTopic.topicLabel || selectedTopic.topic} — 메시지 발송</h3>
+            </div>
+
+            <div className="recurring-send-form">
+              <textarea className="ne-textarea" rows={3}
+                value={sendMessage}
+                onChange={e => setSendMessage(e.target.value)}
+                placeholder="구독자에게 보낼 메시지를 입력하세요..." />
+              <button className="btn btn-primary"
+                disabled={sendingRecurring || !sendMessage.trim()}
+                onClick={handleSendRecurring}>
+                {sendingRecurring ? '발송 중...' : `${selectedTopic.subscriberCount}명에게 발송`}
+              </button>
+            </div>
+
+            <div className="messaging-section-header" style={{ marginTop: 20 }}>
+              <h3>구독자 목록 ({topicSubscribers.length}명)</h3>
+            </div>
+
+            {topicSubscribers.length === 0 ? (
+              <p style={{ color: '#6B7280', fontSize: 13 }}>구독자가 없습니다</p>
+            ) : (
+              <div className="recurring-subscribers-list">
+                {topicSubscribers.map(s => (
+                  <div key={s.id} className="recurring-subscriber-row">
+                    <div className="recurring-subscriber-info">
+                      <strong>{s.contactName || '알 수 없음'}</strong>
+                      {s.contactUsername && <span className="gb-username">@{s.contactUsername}</span>}
+                    </div>
+                    <div className="recurring-subscriber-meta">
+                      <span>{s.frequency === 'DAILY' ? '매일' : s.frequency === 'WEEKLY' ? '매주' : '매월'}</span>
+                      <span>발송 {s.sentCount}회</span>
+                    </div>
+                    <button className="btn btn-sm btn-ghost" onClick={() => handleUnsubscribe(s.id)}>
+                      구독 해제
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 안내 */}
+        <div className="messaging-info-box">
+          <i className="ri-information-line" />
+          <div>
+            <strong>Recurring Notification이란?</strong>
+            <p style={{ margin: '4px 0 0', fontSize: 13 }}>
+              Instagram의 24시간 메시징 윈도우 외에도 마케팅 메시지를 보낼 수 있는 기능입니다.
+              사용자가 명시적으로 옵트인해야 하며, Meta 정책에 따라 7일간 최대 10개 토픽, 일일 5개 토픽까지 사용할 수 있습니다.
+            </p>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   const renderProfileTab = () => (
     <>
@@ -1777,6 +1970,7 @@ export default function SettingsPage() {
   const TAB_RENDERERS = {
     account: renderAccountTab,
     messaging: renderMessagingTab,
+    recurring: renderRecurringTab,
     profile: renderProfileTab,
     team: renderTeamTab,
     notifications: renderNotificationsTab,
