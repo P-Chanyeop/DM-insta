@@ -182,6 +182,89 @@
 .ob-badge-done { background: #d1fae5; color: #059669; }
 .ob-badge-skip { background: #f3f4f6; color: #9ca3af; }
 
+/* 업종별 추천 (Step 2/3) */
+.ob-recommend {
+  width: 100%;
+  background: linear-gradient(135deg, #faf5ff 0%, #f5f3ff 100%);
+  border: 1px solid #ede9fe;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  text-align: left;
+}
+.ob-recommend-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #7c3aed;
+  margin-bottom: 10px;
+}
+.ob-recommend-header i { font-size: 14px; }
+.ob-recommend-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ob-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all .15s;
+}
+.ob-chip:hover { border-color: #c4b5fd; color: #7c3aed; }
+.ob-chip.selected {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #fff;
+}
+.ob-chip i { font-size: 13px; }
+
+.ob-recommend-msgs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ob-msg-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #374151;
+  text-align: left;
+  cursor: pointer;
+  transition: all .15s;
+}
+.ob-msg-card i {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: #c4b5fd;
+  margin-top: 2px;
+}
+.ob-msg-card:hover {
+  border-color: #c4b5fd;
+  background: #faf5ff;
+}
+.ob-msg-card.selected {
+  border-color: #7c3aed;
+  background: #f5f3ff;
+}
+.ob-msg-card.selected i { color: #7c3aed; }
+
 /* Responsive */
 @media (max-width: 640px) {
   .onboarding-page { padding: 16px; }
