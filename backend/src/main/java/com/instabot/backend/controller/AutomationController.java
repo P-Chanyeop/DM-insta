@@ -31,6 +31,12 @@ public class AutomationController {
         return ResponseEntity.ok(automationService.createAutomation(SecurityUtils.currentUserId(), request));
     }
 
+    /** 온보딩 등 반복 호출 시 중복 생성 방지 — 동일 (user, type[, keyword])면 업데이트, 없으면 생성 */
+    @PostMapping("/upsert")
+    public ResponseEntity<AutomationDto.Response> upsertAutomation(@Valid @RequestBody AutomationDto.CreateRequest request) {
+        return ResponseEntity.ok(automationService.upsertAutomation(SecurityUtils.currentUserId(), request));
+    }
+
     @PatchMapping("/{id}/toggle")
     public ResponseEntity<AutomationDto.Response> toggleAutomation(@PathVariable Long id) {
         return ResponseEntity.ok(automationService.toggleAutomation(SecurityUtils.currentUserId(), id));

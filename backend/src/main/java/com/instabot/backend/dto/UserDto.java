@@ -13,6 +13,7 @@ public class UserDto {
         private String name;
         private String plan;
         private String industry;
+        private boolean onboardingCompleted;
         private String createdAt;
     }
 

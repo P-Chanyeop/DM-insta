@@ -93,8 +93,13 @@ export default function AuthPage() {
           // 인증 코드 재발송
           authService.resendVerification({ email: form.email }).catch(() => {})
         } else {
-          // 이메일 범위 플래그만 인정 (다른 유저/DB 리셋 시 잘못된 스킵 방지)
-          const onboardingDone = localStorage.getItem(`onboarding_completed_${form.email}`) === 'true'
+          // 백엔드 값 우선 (모든 디바이스에 영속), localStorage 캐시는 fallback
+          const onboardingDone = res.onboardingCompleted
+            || localStorage.getItem(`onboarding_completed_${form.email}`) === 'true'
+          // 백엔드가 완료를 알려주면 캐시도 동기화
+          if (res.onboardingCompleted) {
+            localStorage.setItem(`onboarding_completed_${form.email}`, 'true')
+          }
           navigate(onboardingDone ? '/app' : '/app/onboarding')
         }
       }

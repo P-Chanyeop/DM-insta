@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -34,10 +35,19 @@ public class AutomationService {
             Map.entry("STORY_REPLY", Automation.AutomationType.STORY_REPLY),
             Map.entry("스토리 답장", Automation.AutomationType.STORY_REPLY),
             Map.entry("WELCOME_MESSAGE", Automation.AutomationType.WELCOME_MESSAGE),
+            Map.entry("WELCOME_DM", Automation.AutomationType.WELCOME_MESSAGE), // 프론트 alias 호환
             Map.entry("환영 메시지", Automation.AutomationType.WELCOME_MESSAGE),
             Map.entry("ICEBREAKER", Automation.AutomationType.ICEBREAKER),
             Map.entry("아이스브레이커", Automation.AutomationType.ICEBREAKER)
     );
+
+    // 키워드 없이 사용자당 1개만 존재하는 타입 (upsert 시 (user, type)만 매칭)
+    private static boolean isSingletonType(Automation.AutomationType type) {
+        return type == Automation.AutomationType.WELCOME_MESSAGE
+                || type == Automation.AutomationType.STORY_MENTION
+                || type == Automation.AutomationType.STORY_REPLY
+                || type == Automation.AutomationType.ICEBREAKER;
+    }
 
     private static final Map<String, Automation.MatchType> MATCH_LABELS = Map.ofEntries(
             Map.entry("CONTAINS", Automation.MatchType.CONTAINS),
@@ -94,6 +104,63 @@ public class AutomationService {
                 .name(request.getName())
                 .type(parseType(request.getType()))
                 .keyword(request.getKeyword())
+                .matchType(parseMatchType(request.getMatchType()))
+                .postId(request.getPostId())
+                .build();
+
+        if (request.getFlowId() != null) {
+            automation.setFlow(flowRepository.findById(request.getFlowId()).orElse(null));
+        }
+
+        return toResponse(automationRepository.save(automation));
+    }
+
+    /**
+     * 온보딩 등 반복 호출 환경에서 중복 생성 방지를 위한 upsert.
+     * - 싱글톤 타입(WELCOME_MESSAGE / STORY_MENTION / STORY_REPLY / ICEBREAKER): (user, type)로 기존 레코드 찾기
+     * - 키워드 타입(DM_KEYWORD / COMMENT_TRIGGER): (user, type, keyword)로 기존 레코드 찾기
+     * 기존 레코드 있으면 필드 업데이트, 없으면 신규 생성(Quota 검증 포함).
+     */
+    @Transactional
+    public AutomationDto.Response upsertAutomation(Long userId, AutomationDto.CreateRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+
+        Automation.AutomationType type = parseType(request.getType());
+        String keyword = request.getKeyword();
+
+        Optional<Automation> existing;
+        if (isSingletonType(type)) {
+            existing = automationRepository.findFirstByUserIdAndType(userId, type);
+        } else if (keyword != null && !keyword.isBlank()) {
+            existing = automationRepository.findFirstByUserIdAndTypeAndKeyword(userId, type, keyword);
+        } else if (request.getName() != null && !request.getName().isBlank()) {
+            // 키워드 없는 COMMENT_TRIGGER 등 — name으로 매칭 (온보딩 성장 도구 시나리오)
+            existing = automationRepository.findFirstByUserIdAndTypeAndName(userId, type, request.getName());
+        } else {
+            existing = Optional.empty();
+        }
+
+        if (existing.isPresent()) {
+            Automation a = existing.get();
+            if (request.getName() != null && !request.getName().isBlank()) a.setName(request.getName());
+            if (keyword != null) a.setKeyword(keyword);
+            a.setMatchType(parseMatchType(request.getMatchType()));
+            if (request.getPostId() != null) a.setPostId(request.getPostId());
+            if (request.getFlowId() != null) {
+                a.setFlow(flowRepository.findById(request.getFlowId()).orElse(null));
+            }
+            return toResponse(automationRepository.save(a));
+        }
+
+        // 신규 생성 — Quota 검증
+        quotaService.checkAutomationQuota(user);
+
+        Automation automation = Automation.builder()
+                .user(user)
+                .name(request.getName())
+                .type(type)
+                .keyword(keyword)
                 .matchType(parseMatchType(request.getMatchType()))
                 .postId(request.getPostId())
                 .build();

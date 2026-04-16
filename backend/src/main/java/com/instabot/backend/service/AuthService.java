@@ -79,6 +79,7 @@ public class AuthService {
                 .name(user.getName())
                 .plan(user.getPlan().name())
                 .emailVerified(false)
+                .onboardingCompleted(user.isOnboardingCompleted())
                 .build();
     }
 
@@ -115,6 +116,7 @@ public class AuthService {
                 .name(user.getName())
                 .plan(user.getPlan().name())
                 .emailVerified(true)
+                .onboardingCompleted(user.isOnboardingCompleted())
                 .build();
     }
 
@@ -156,6 +158,7 @@ public class AuthService {
                 .name(user.getName())
                 .plan(user.getPlan().name())
                 .emailVerified(user.isEmailVerified())
+                .onboardingCompleted(user.isOnboardingCompleted())
                 .build();
     }
 

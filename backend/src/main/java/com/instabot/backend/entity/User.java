@@ -48,6 +48,10 @@ public class User {
     // 업종 (온보딩 시 선택)
     private String industry;
 
+    // 온보딩 완료 여부 (모든 디바이스/브라우저에 영속)
+    @Builder.Default
+    private boolean onboardingCompleted = false;
+
     // 이메일 인증
     @Builder.Default
     private boolean emailVerified = false;

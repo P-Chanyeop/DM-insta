@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { setToken, setStoredUser } from '../api/client'
+import { userService } from '../api/services'
 
 /**
  * Facebook/Instagram OAuth 콜백 페이지
@@ -38,27 +39,40 @@ export default function AuthCallbackPage() {
       setToken(token)
       setStoredUser({ email, name, plan: 'FREE', emailVerified: true })
 
-      // 이메일 범위 플래그 우선 확인 (레거시 전역 플래그는 같은 이메일일 때만 인정)
-      const scopedKey = email ? `onboarding_completed_${email}` : null
-      const scopedDone = scopedKey ? localStorage.getItem(scopedKey) === 'true' : false
-      const onboardingDone = scopedDone
+      // 백엔드에서 onboardingCompleted 조회 (모든 디바이스에 영속)
+      ;(async () => {
+        let onboardingDone = false
+        try {
+          const me = await userService.getMe()
+          onboardingDone = !!me.onboardingCompleted
+          // 캐시 동기화 + storedUser 업데이트
+          setStoredUser({ email: me.email, name: me.name, plan: me.plan, emailVerified: true, onboardingCompleted: onboardingDone })
+          if (onboardingDone && email) {
+            localStorage.setItem(`onboarding_completed_${email}`, 'true')
+          }
+        } catch {
+          // 백엔드 실패 시 localStorage 캐시 fallback
+          const scopedKey = email ? `onboarding_completed_${email}` : null
+          onboardingDone = scopedKey ? localStorage.getItem(scopedKey) === 'true' : false
+        }
 
-      // IG 연결 성공 여부와 무관하게 온보딩으로 이동 (이미 완료된 경우엔 대시보드)
-      if (onboardingDone) {
-        navigate('/app', { replace: true })
-        return
-      }
+        // IG 연결 성공 여부와 무관하게 온보딩으로 이동 (이미 완료된 경우엔 대시보드)
+        if (onboardingDone) {
+          navigate('/app', { replace: true })
+          return
+        }
 
-      // 온보딩으로 이동하면서 IG 상태 전달
-      const onboardingParams = new URLSearchParams()
-      if (igStatus === 'connected') {
-        onboardingParams.set('ig_connected', 'true')
-      } else if (igError) {
-        onboardingParams.set('ig_error', igError)
-        if (igReason) onboardingParams.set('ig_reason', igReason)
-      }
-      const qs = onboardingParams.toString()
-      navigate(qs ? `/app/onboarding?${qs}` : '/app/onboarding', { replace: true })
+        // 온보딩으로 이동하면서 IG 상태 전달
+        const onboardingParams = new URLSearchParams()
+        if (igStatus === 'connected') {
+          onboardingParams.set('ig_connected', 'true')
+        } else if (igError) {
+          onboardingParams.set('ig_error', igError)
+          if (igReason) onboardingParams.set('ig_reason', igReason)
+        }
+        const qs = onboardingParams.toString()
+        navigate(qs ? `/app/onboarding?${qs}` : '/app/onboarding', { replace: true })
+      })()
     }
 
     return () => {

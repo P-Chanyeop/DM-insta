@@ -4,21 +4,21 @@ export const authService = {
   async signup({ email, password, name }) {
     const res = await api.post('/auth/signup', { email, password, name })
     setToken(res.token)
-    setStoredUser({ email: res.email, name: res.name, plan: res.plan, emailVerified: res.emailVerified })
+    setStoredUser({ email: res.email, name: res.name, plan: res.plan, emailVerified: res.emailVerified, onboardingCompleted: res.onboardingCompleted })
     return res
   },
 
   async login({ email, password }) {
     const res = await api.post('/auth/login', { email, password })
     setToken(res.token)
-    setStoredUser({ email: res.email, name: res.name, plan: res.plan, emailVerified: res.emailVerified })
+    setStoredUser({ email: res.email, name: res.name, plan: res.plan, emailVerified: res.emailVerified, onboardingCompleted: res.onboardingCompleted })
     return res
   },
 
   async verifyEmail({ email, code }) {
     const res = await api.post('/auth/verify-email', { email, code })
     setToken(res.token)
-    setStoredUser({ email: res.email, name: res.name, plan: res.plan, emailVerified: res.emailVerified })
+    setStoredUser({ email: res.email, name: res.name, plan: res.plan, emailVerified: res.emailVerified, onboardingCompleted: res.onboardingCompleted })
     return res
   },
 
@@ -44,6 +44,7 @@ export const flowService = {
 export const automationService = {
   list: (type) => api.get(`/automations${type ? `?type=${type}` : ''}`),
   create: (data) => api.post('/automations', data),
+  upsert: (data) => api.post('/automations/upsert', data),
   toggle: (id) => api.patch(`/automations/${id}/toggle`),
   delete: (id) => api.delete(`/automations/${id}`),
 }
@@ -124,6 +125,7 @@ export const userService = {
   getMe: () => api.get('/users/me'),
   updateMe: (data) => api.put('/users/me', data),
   changePassword: (data) => api.put('/users/me/password', data),
+  markOnboardingComplete: () => api.patch('/users/me/onboarding-complete'),
 }
 
 export const teamService = {

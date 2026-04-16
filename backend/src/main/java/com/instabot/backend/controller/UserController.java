@@ -29,14 +29,7 @@ public class UserController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
-        return ResponseEntity.ok(UserDto.UserResponse.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .name(user.getName())
-                .plan(user.getPlan().name())
-                .industry(user.getIndustry())
-                .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null)
-                .build());
+        return ResponseEntity.ok(toResponse(user));
     }
 
     @PutMapping("/me")
@@ -52,14 +45,37 @@ public class UserController {
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
-        return ResponseEntity.ok(UserDto.UserResponse.builder()
+        return ResponseEntity.ok(toResponse(user));
+    }
+
+    /**
+     * 온보딩 완료 처리 (모든 디바이스에 영속).
+     * 프론트의 localStorage 플래그는 캐시로만 사용하고, 백엔드 값이 정답.
+     */
+    @PatchMapping("/me/onboarding-complete")
+    public ResponseEntity<UserDto.UserResponse> markOnboardingComplete() {
+        Long userId = SecurityUtils.currentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+
+        if (!user.isOnboardingCompleted()) {
+            user.setOnboardingCompleted(true);
+            user.setUpdatedAt(LocalDateTime.now());
+            userRepository.save(user);
+        }
+        return ResponseEntity.ok(toResponse(user));
+    }
+
+    private UserDto.UserResponse toResponse(User user) {
+        return UserDto.UserResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .name(user.getName())
                 .plan(user.getPlan().name())
                 .industry(user.getIndustry())
+                .onboardingCompleted(user.isOnboardingCompleted())
                 .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null)
-                .build());
+                .build();
     }
 
     @PutMapping("/me/password")

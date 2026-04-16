@@ -62,6 +62,7 @@ public class AuthDto {
         private String name;
         private String plan;
         private boolean emailVerified;
+        private boolean onboardingCompleted;
     }
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder

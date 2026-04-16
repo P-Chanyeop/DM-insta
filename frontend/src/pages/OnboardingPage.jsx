@@ -2,6 +2,19 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, getStoredUser, setStoredUser } from '../api/client'
 import { automationService, userService } from '../api/services'
+
+/** 온보딩 완료 마킹: 백엔드 우선 + localStorage 캐시. 백엔드 실패해도 UX는 진행. */
+async function markOnboardingDone() {
+  const user = getStoredUser()
+  const email = user?.email
+  // localStorage 캐시 (즉시 SPA 라우팅에서 사용)
+  if (email) localStorage.setItem(`onboarding_completed_${email}`, 'true')
+  // 백엔드 영속화 (다른 디바이스/브라우저에서도 인정)
+  try {
+    await userService.markOnboardingComplete()
+    if (user) setStoredUser({ ...user, onboardingCompleted: true })
+  } catch { /* 캐시만으로도 동작 */ }
+}
 import { useToast } from '../components/Toast'
 import { INDUSTRIES } from '../components/IndustrySelectModal'
 import '../styles/onboarding-wizard.css'
@@ -203,15 +216,16 @@ export default function OnboardingPage() {
     if (!keywordForm.keyword.trim()) { toast.info('키워드를 입력해주세요'); return }
     setLoading(true)
     try {
-      await automationService.create({
+      // upsert: 동일 (user, DM_KEYWORD, keyword)면 업데이트, 없으면 생성 → 중복 방지
+      await automationService.upsert({
         name: `자동응답: ${keywordForm.keyword}`, type: 'DM_KEYWORD',
         keyword: keywordForm.keyword, matchType: 'CONTAINS',
         responseMessage: keywordForm.message || `안녕하세요! "${keywordForm.keyword}" 관련 문의를 주셨군요. 곧 답변드리겠습니다.`,
         active: true,
       })
-      toast.info('키워드 자동응답이 생성되었습니다!')
+      toast.info('키워드 자동응답이 저장되었습니다!')
       setStep(3)
-    } catch { toast.info('자동응답 생성에 실패했습니다. 건너뛸 수 있습니다.') }
+    } catch { toast.info('자동응답 저장에 실패했습니다. 건너뛸 수 있습니다.') }
     finally { setLoading(false) }
   }
 
@@ -219,11 +233,12 @@ export default function OnboardingPage() {
     if (!welcomeMessage.trim()) { toast.info('환영 메시지를 입력해주세요'); return }
     setLoading(true)
     try {
-      await automationService.create({
-        name: '신규 팔로워 환영 메시지', type: 'WELCOME_DM',
+      // upsert: WELCOME_MESSAGE는 사용자당 1개 전제 → (user, type)으로 매칭
+      await automationService.upsert({
+        name: '신규 팔로워 환영 메시지', type: 'WELCOME_MESSAGE',
         responseMessage: welcomeMessage, active: true,
       })
-      toast.info('환영 메시지가 설정되었습니다!')
+      toast.info('환영 메시지가 저장되었습니다!')
       setStep(4)
     } catch { toast.info('환영 메시지 저장에 실패했습니다. 건너뛸 수 있습니다.') }
     finally { setLoading(false) }
@@ -233,25 +248,19 @@ export default function OnboardingPage() {
     setLoading(true)
     try {
       const promises = []
-      if (growthTools.commentDM) promises.push(automationService.create({ name: '댓글 자동 DM', type: 'COMMENT', keyword: '', matchType: 'CONTAINS', responseMessage: '댓글 감사합니다! DM으로 자세한 정보를 보내드릴게요.', active: true }))
-      if (growthTools.storyMention) promises.push(automationService.create({ name: '스토리 멘션 자동응답', type: 'STORY_MENTION', responseMessage: '스토리에 태그해주셔서 감사합니다!', active: true }))
-      if (growthTools.storyReply) promises.push(automationService.create({ name: '스토리 답장 자동응답', type: 'STORY_REPLY', responseMessage: '스토리에 반응해주셔서 감사합니다!', active: true }))
+      if (growthTools.commentDM) promises.push(automationService.upsert({ name: '댓글 자동 DM', type: 'COMMENT_TRIGGER', keyword: '', matchType: 'CONTAINS', responseMessage: '댓글 감사합니다! DM으로 자세한 정보를 보내드릴게요.', active: true }))
+      if (growthTools.storyMention) promises.push(automationService.upsert({ name: '스토리 멘션 자동응답', type: 'STORY_MENTION', responseMessage: '스토리에 태그해주셔서 감사합니다!', active: true }))
+      if (growthTools.storyReply) promises.push(automationService.upsert({ name: '스토리 답장 자동응답', type: 'STORY_REPLY', responseMessage: '스토리에 반응해주셔서 감사합니다!', active: true }))
       if (promises.length > 0) await Promise.all(promises)
       setStep(5)
     } catch { toast.info('일부 설정에 실패했습니다.'); setStep(5) }
     finally { setLoading(false) }
   }
 
-  /** 이메일 범위 플래그 키 — 다른 사용자/재가입자와 혼동 방지 */
-  const onboardingKey = () => {
-    const email = getStoredUser()?.email
-    return email ? `onboarding_completed_${email}` : 'onboarding_completed'
-  }
-
-  const handleFinish = () => { localStorage.setItem(onboardingKey(), 'true'); navigate('/app') }
+  const handleFinish = async () => { await markOnboardingDone(); navigate('/app') }
   const handleSkip = () => { if (step < STEPS.length - 1) setStep(step + 1) }
   const handleBack = () => { if (step > 0) setStep(step - 1) }
-  const handleSkipAll = () => { localStorage.setItem(onboardingKey(), 'true'); navigate('/app') }
+  const handleSkipAll = async () => { await markOnboardingDone(); navigate('/app') }
 
   // IG 에러 정보 가져오기
   const errorInfo = igError ? (IG_ERROR_MESSAGES[igError.code] || IG_ERROR_MESSAGES.UNKNOWN) : null
