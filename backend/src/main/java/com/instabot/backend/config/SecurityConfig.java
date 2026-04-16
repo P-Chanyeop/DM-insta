@@ -1,6 +1,6 @@
 package com.instabot.backend.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,10 +28,6 @@ public class SecurityConfig {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    @Autowired(required = false)
-    @org.springframework.context.annotation.Lazy
-    private RateLimitFilter rateLimitFilter;
-
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
         return new JwtAuthenticationFilter(jwtSecret);
@@ -45,7 +41,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           ObjectProvider<RateLimitFilter> rateLimitFilterProvider) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
@@ -56,6 +53,7 @@ public class SecurityConfig {
                 .anyRequest().permitAll()
             );
 
+        RateLimitFilter rateLimitFilter = rateLimitFilterProvider.getIfAvailable();
         if (rateLimitFilter != null) {
             http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
         }

@@ -128,12 +128,10 @@ export default function DashboardLayout() {
   const userName = storedUser?.name || '사용자'
   const userInitial = userName[0] || '?'
 
-  // 업종 미선택 시 모달 표시
-  useEffect(() => {
-    if (storedUser && !storedUser.industry) {
-      setShowIndustryModal(true)
-    }
-  }, [])
+  // 업종 선택은 온보딩에서 처리. 대시보드에서는 자동 팝업하지 않음.
+  // (설정 메뉴 등에서 수동으로 열 때만 사용)
+  // eslint-disable-next-line no-unused-expressions
+  useEffect(() => { /* noop: 업종 모달 자동 노출 해제 */ }, [])
 
   const notifRef = useRef(null)
   const helpRef = useRef(null)

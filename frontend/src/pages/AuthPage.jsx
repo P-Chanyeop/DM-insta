@@ -93,7 +93,8 @@ export default function AuthPage() {
           // 인증 코드 재발송
           authService.resendVerification({ email: form.email }).catch(() => {})
         } else {
-          const onboardingDone = localStorage.getItem('onboarding_completed')
+          // 이메일 범위 플래그만 인정 (다른 유저/DB 리셋 시 잘못된 스킵 방지)
+          const onboardingDone = localStorage.getItem(`onboarding_completed_${form.email}`) === 'true'
           navigate(onboardingDone ? '/app' : '/app/onboarding')
         }
       }

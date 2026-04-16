@@ -33,6 +33,14 @@ public class User {
     // Facebook OAuth 가입 시 저장되는 Facebook 사용자 ID (unique)
     private String facebookUserId;
 
+    // 장기 유효 Facebook User Access Token (암호화 저장)
+    // IG 연결 실패 시 재시도 용도 + 페이지/IG Business Account 조회용
+    @Column(length = 2048)
+    private String facebookAccessToken;
+
+    // Facebook 토큰 만료 시각 (장기 토큰 ≈ 60일)
+    private LocalDateTime facebookTokenExpiresAt;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private PlanType plan = PlanType.FREE;

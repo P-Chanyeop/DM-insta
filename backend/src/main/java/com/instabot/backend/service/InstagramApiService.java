@@ -46,42 +46,9 @@ public class InstagramApiService {
     // ─── OAuth ───
 
     /**
-     * Short-lived token → Long-lived token 교환 후 계정 저장
+     * Short-lived Facebook 토큰 → Long-lived 토큰으로 교환
      */
-    public InstagramAccount exchangeAndSaveToken(Long userId, String shortLivedToken,
-                                                  com.instabot.backend.entity.User user) {
-        // 1. Long-lived token 교환
-        String longLivedToken = exchangeLongLivedToken(shortLivedToken);
-
-        // 2. 프로필 정보 조회
-        JsonNode profile = getProfile(longLivedToken);
-        String igUserId = profile.get("id").asText();
-        String username = profile.has("username") ? profile.get("username").asText() : "";
-
-        // 3. 기존 계정 있으면 업데이트, 없으면 생성
-        InstagramAccount account = instagramAccountRepository.findByIgUserId(igUserId)
-                .orElse(InstagramAccount.builder()
-                        .user(user)
-                        .igUserId(igUserId)
-                        .build());
-
-        account.setUsername(username);
-        account.setAccessToken(encryptionUtil.encrypt(longLivedToken));
-        account.setConnected(true);
-        account.setConnectedAt(LocalDateTime.now());
-        account.setTokenExpiresAt(LocalDateTime.now().plusDays(60));
-
-        if (profile.has("profile_picture_url")) {
-            account.setProfilePictureUrl(profile.get("profile_picture_url").asText());
-        }
-        if (profile.has("followers_count")) {
-            account.setFollowersCount(profile.get("followers_count").asLong());
-        }
-
-        return instagramAccountRepository.save(account);
-    }
-
-    private String exchangeLongLivedToken(String shortLivedToken) {
+    public String exchangeLongLivedToken(String shortLivedToken) {
         String url = "https://graph.facebook.com/v21.0/oauth/access_token"
                 + "?grant_type=fb_exchange_token"
                 + "&client_id=" + appId
@@ -92,9 +59,155 @@ public class InstagramApiService {
         return resp.getBody().get("access_token").asText();
     }
 
-    private JsonNode getProfile(String accessToken) {
-        String url = apiBaseUrl + "/v21.0/me?fields=id,username,profile_picture_url,followers_count&access_token=" + accessToken;
-        return restTemplate.getForObject(url, JsonNode.class);
+    /**
+     * Facebook Pages API를 통해 Instagram Business Account 연동
+     *
+     * 플로우 (Meta 공식):
+     *  1. GET /me/accounts?access_token={fb_user_token}
+     *     → 유저가 관리하는 Facebook 페이지 목록 (각 페이지마다 Page Access Token 포함)
+     *  2. GET /{page_id}?fields=instagram_business_account&access_token={page_token}
+     *     → 페이지에 연결된 IG Business Account ID 확인
+     *  3. GET /{ig_business_id}?fields=id,username,profile_picture_url,followers_count&access_token={page_token}
+     *     → IG 프로필 정보 조회
+     *
+     * 전제조건 (유저가 미리 해둬야 함):
+     *  - Facebook 페이지 보유
+     *  - Instagram 계정 = 비즈니스 / 크리에이터 계정
+     *  - Facebook 페이지에 Instagram 계정 연결 완료
+     *
+     * @param fbUserToken 장기 Facebook User Access Token (이미 교환된 것)
+     * @return 연결 성공 시 저장된 InstagramAccount
+     * @throws IgConnectionException 연결 실패 사유 + 유저 친화적 메시지
+     */
+    public InstagramAccount connectInstagramViaFacebook(
+            com.instabot.backend.entity.User user, String fbUserToken) {
+
+        // 1. 유저가 관리하는 Facebook 페이지 목록 조회
+        JsonNode pagesResp;
+        try {
+            pagesResp = restTemplate.getForObject(
+                    "https://graph.facebook.com/v21.0/me/accounts?access_token=" + fbUserToken,
+                    JsonNode.class);
+        } catch (Exception e) {
+            log.error("Facebook 페이지 목록 조회 실패: {}", e.getMessage());
+            throw new IgConnectionException(
+                    "FB_API_ERROR",
+                    "Facebook API 호출에 실패했습니다. 잠시 후 다시 시도해주세요.");
+        }
+
+        JsonNode pages = pagesResp != null ? pagesResp.path("data") : null;
+        if (pages == null || !pages.isArray() || pages.isEmpty()) {
+            throw new IgConnectionException(
+                    "NO_FB_PAGE",
+                    "연결 가능한 Facebook 페이지가 없습니다. 먼저 Facebook 페이지를 만들고 Instagram 계정과 연결해주세요.");
+        }
+
+        // 2. Instagram Business Account가 연결된 페이지 찾기
+        String pageAccessToken = null;
+        String pageId = null;
+        String igBusinessId = null;
+
+        for (JsonNode page : pages) {
+            String pid = page.path("id").asText();
+            String pageToken = page.path("access_token").asText();
+            if (pid.isEmpty() || pageToken.isEmpty()) continue;
+
+            try {
+                JsonNode igInfo = restTemplate.getForObject(
+                        "https://graph.facebook.com/v21.0/" + pid
+                                + "?fields=instagram_business_account&access_token=" + pageToken,
+                        JsonNode.class);
+                if (igInfo != null && igInfo.has("instagram_business_account")) {
+                    igBusinessId = igInfo.path("instagram_business_account").path("id").asText(null);
+                    if (igBusinessId != null) {
+                        pageAccessToken = pageToken;
+                        pageId = pid;
+                        log.info("IG Business Account 발견: userId={}, pageId={}, igId={}",
+                                user.getId(), pageId, igBusinessId);
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("페이지 {} IG 정보 조회 실패 (건너뜀): {}", pid, e.getMessage());
+            }
+        }
+
+        if (igBusinessId == null) {
+            throw new IgConnectionException(
+                    "NO_IG_BUSINESS",
+                    "Instagram 비즈니스 계정이 연결된 Facebook 페이지를 찾을 수 없습니다. " +
+                    "Instagram 앱에서 '프로페셔널 계정으로 전환' 후 Facebook 페이지와 연결해주세요.");
+        }
+
+        // 3. Instagram 프로필 정보 조회 (페이지 액세스 토큰 사용)
+        JsonNode profile;
+        try {
+            profile = restTemplate.getForObject(
+                    "https://graph.facebook.com/v21.0/" + igBusinessId
+                            + "?fields=id,username,name,profile_picture_url,followers_count"
+                            + "&access_token=" + pageAccessToken,
+                    JsonNode.class);
+        } catch (Exception e) {
+            log.error("IG 프로필 조회 실패: igId={}, error={}", igBusinessId, e.getMessage());
+            throw new IgConnectionException(
+                    "IG_PROFILE_ERROR",
+                    "Instagram 프로필 조회에 실패했습니다. 권한을 다시 확인해주세요.");
+        }
+
+        String username = profile.path("username").asText("");
+
+        // 4. 기존 계정 있으면 업데이트, 없으면 생성
+        InstagramAccount account = instagramAccountRepository.findByIgUserId(igBusinessId)
+                .orElse(InstagramAccount.builder()
+                        .user(user)
+                        .igUserId(igBusinessId)
+                        .build());
+
+        // 소유자 검증: 이미 다른 유저가 연결한 계정이면 거부
+        if (account.getId() != null && !account.getUser().getId().equals(user.getId())) {
+            throw new IgConnectionException(
+                    "IG_ALREADY_OWNED",
+                    "이미 다른 센드잇 계정에 연결된 Instagram 계정입니다.");
+        }
+
+        account.setUsername(username);
+        // Instagram Graph API 호출에는 Page Access Token 사용
+        account.setAccessToken(encryptionUtil.encrypt(pageAccessToken));
+        account.setConnected(true);
+        account.setActive(true);
+        account.setConnectedAt(LocalDateTime.now());
+        account.setTokenExpiresAt(LocalDateTime.now().plusDays(60));
+
+        if (profile.has("profile_picture_url")) {
+            account.setProfilePictureUrl(profile.path("profile_picture_url").asText());
+        }
+        if (profile.has("followers_count")) {
+            account.setFollowersCount(profile.path("followers_count").asLong());
+        }
+
+        return instagramAccountRepository.save(account);
+    }
+
+    /**
+     * 하위 호환 유지용: 기존 시그니처로 호출되는 곳들 위해 제공
+     * short-lived 토큰을 장기 토큰으로 바꾼 뒤 connectInstagramViaFacebook 호출
+     */
+    public InstagramAccount exchangeAndSaveToken(Long userId, String shortLivedToken,
+                                                  com.instabot.backend.entity.User user) {
+        String longLivedToken = exchangeLongLivedToken(shortLivedToken);
+        return connectInstagramViaFacebook(user, longLivedToken);
+    }
+
+    /**
+     * Instagram 연동 실패 사유 코드 + 유저 친화적 메시지
+     */
+    public static class IgConnectionException extends RuntimeException {
+        private final String code;
+        public IgConnectionException(String code, String message) {
+            super(message);
+            this.code = code;
+        }
+        public String getCode() { return code; }
     }
 
     // ─── DM 발송 ───

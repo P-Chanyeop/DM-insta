@@ -22,6 +22,8 @@ public class InstagramAccount {
 
     @Column(length = 1024)
     private String accessToken;
+
+    @Column(length = 2048)
     private String profilePictureUrl;
     private Long followersCount;
     private String accountType;

@@ -4,7 +4,7 @@ import { setToken, setStoredUser } from '../api/client'
 
 /**
  * Facebook/Instagram OAuth 콜백 페이지
- * URL: /auth/callback?token=JWT&email=...&name=...
+ * URL: /auth/callback?token=JWT&email=...&name=...&ig_status=connected|none&ig_error=...&ig_reason=...
  * 또는: /auth/callback?error=...&reason=...
  */
 export default function AuthCallbackPage() {
@@ -18,22 +18,51 @@ export default function AuthCallbackPage() {
     const name = params.get('name')
     const err = params.get('error')
 
-    if (err) {
-      const reason = params.get('reason')
-      setError(reason || err)
-      setTimeout(() => navigate('/login'), 3000)
+    // IG 연결 상태 (signup 플로우에서 전달됨)
+    const igStatus = params.get('ig_status')   // "connected" | "none" | null
+    const igError = params.get('ig_error')     // e.g. "NO_FB_PAGE", "NO_IG_BUSINESS", null
+    const igReason = params.get('ig_reason')   // 에러 메시지
+
+    // 쿼리 파라미터가 전혀 없으면 StrictMode 재마운트 or 잘못된 진입 — 아무 것도 하지 않음
+    if (!token && !err) {
       return
     }
 
-    if (token) {
+    let redirectTimer = null
+
+    if (err) {
+      const reason = params.get('reason')
+      setError(reason || err)
+      redirectTimer = setTimeout(() => navigate('/login'), 5000)
+    } else if (token) {
       setToken(token)
       setStoredUser({ email, name, plan: 'FREE', emailVerified: true })
-      // 온보딩 완료 여부에 따라 라우팅
-      const onboardingDone = localStorage.getItem('onboarding_completed') === 'true'
-      navigate(onboardingDone ? '/app' : '/app/onboarding', { replace: true })
-    } else {
-      setError('토큰이 전달되지 않았습니다.')
-      setTimeout(() => navigate('/login'), 3000)
+
+      // 이메일 범위 플래그 우선 확인 (레거시 전역 플래그는 같은 이메일일 때만 인정)
+      const scopedKey = email ? `onboarding_completed_${email}` : null
+      const scopedDone = scopedKey ? localStorage.getItem(scopedKey) === 'true' : false
+      const onboardingDone = scopedDone
+
+      // IG 연결 성공 여부와 무관하게 온보딩으로 이동 (이미 완료된 경우엔 대시보드)
+      if (onboardingDone) {
+        navigate('/app', { replace: true })
+        return
+      }
+
+      // 온보딩으로 이동하면서 IG 상태 전달
+      const onboardingParams = new URLSearchParams()
+      if (igStatus === 'connected') {
+        onboardingParams.set('ig_connected', 'true')
+      } else if (igError) {
+        onboardingParams.set('ig_error', igError)
+        if (igReason) onboardingParams.set('ig_reason', igReason)
+      }
+      const qs = onboardingParams.toString()
+      navigate(qs ? `/app/onboarding?${qs}` : '/app/onboarding', { replace: true })
+    }
+
+    return () => {
+      if (redirectTimer) clearTimeout(redirectTimer)
     }
   }, [navigate])
 
