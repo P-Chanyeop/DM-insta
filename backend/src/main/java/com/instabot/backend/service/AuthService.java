@@ -214,7 +214,7 @@ public class AuthService {
         return String.format("%06d", ThreadLocalRandom.current().nextInt(1_000_000));
     }
 
-    private String generateToken(User user) {
+    public String generateToken(User user) {
         SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
         return Jwts.builder()
                 .subject(user.getEmail())

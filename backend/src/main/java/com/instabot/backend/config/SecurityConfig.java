@@ -29,6 +29,7 @@ public class SecurityConfig {
     private String jwtSecret;
 
     @Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
     private RateLimitFilter rateLimitFilter;
 
     @Bean

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { authService } from '../api/services'
-import { api } from '../api/client'
 import { useToast } from '../components/Toast'
 
 export default function AuthPage() {
@@ -159,12 +158,16 @@ export default function AuthPage() {
 
   const handleInstagramOAuth = async () => {
     try {
-      const data = await api.get('/instagram/oauth-url')
+      const res = await fetch(`${import.meta.env.VITE_API_BASE || 'http://localhost:8080'}/api/auth/instagram/signup-url`)
+      const data = await res.json()
       if (data.url) {
-        window.open(data.url, '_blank', 'width=600,height=700')
+        // 같은 창에서 이동 (콜백이 /auth/callback으로 리다이렉트)
+        window.location.href = data.url
+      } else {
+        showToast('Instagram 로그인 URL을 가져오지 못했습니다.')
       }
     } catch (err) {
-      showToast('Instagram 연동을 위해 관리자에게 앱 설정을 문의하세요')
+      showToast('Instagram 로그인 요청에 실패했습니다. 관리자에게 문의하세요.')
     }
   }
 
@@ -469,9 +472,17 @@ export default function AuthPage() {
 
           <div className="auth-divider"><span>또는</span></div>
 
-          <button className="auth-oauth" onClick={handleInstagramOAuth} style={{ cursor: 'pointer', opacity: 1 }}>
-            <i className="ri-instagram-line" /> Instagram으로 계속하기
+          <button
+            className="auth-oauth"
+            type="button"
+            onClick={handleInstagramOAuth}
+            style={{ cursor: 'pointer', opacity: 1 }}
+          >
+            <i className="ri-instagram-line" /> Instagram으로 {isSignup ? '가입' : '로그인'}
           </button>
+          <p style={{ fontSize: 12, color: 'var(--text-tertiary, #888)', textAlign: 'center', marginTop: 8, marginBottom: 0 }}>
+            <i className="ri-information-line" /> Facebook에 연결된 Instagram 비즈니스 계정이 필요합니다
+          </p>
 
           <div className="auth-switch">
             {isSignup ? (
