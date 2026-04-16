@@ -34,6 +34,10 @@ public class Automation {
 
     private String postId; // for comment triggers
 
+    /** 자동 응답 본문 (DM_KEYWORD/COMMENT_TRIGGER/WELCOME_MESSAGE/STORY_* 모두 사용) */
+    @Column(columnDefinition = "TEXT")
+    private String responseMessage;
+
     @Builder.Default
     private boolean active = true;
 

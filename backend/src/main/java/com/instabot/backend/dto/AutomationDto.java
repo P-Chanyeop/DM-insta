@@ -10,12 +10,14 @@ public class AutomationDto {
     public static class CreateRequest {
         @NotBlank(message = "자동화 이름은 필수입니다")
         private String name;
-        @NotBlank(message = "���동화 타���은 필수입니다")
+        @NotBlank(message = "자동화 타입은 필수입니다")
         private String type;
         private String keyword;
         private String matchType;
         private String postId;
+        private String responseMessage; // 자동 응답 본문
         private Long flowId;
+        private Boolean active; // null이면 기본값(true) 유지
     }
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -26,6 +28,7 @@ public class AutomationDto {
         private String keyword;
         private String matchType;
         private String postId;
+        private String responseMessage;
         private Long flowId;
         private boolean active;
         private Long triggeredCount;

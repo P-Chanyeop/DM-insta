@@ -26,6 +26,7 @@ export default function AutomationPage() {
     type: 'DM_KEYWORD',
     keyword: '',
     matchType: 'CONTAINS',
+    responseMessage: '',
     flowId: '',
   })
 
@@ -48,13 +49,20 @@ export default function AutomationPage() {
   useEffect(() => { loadData() }, [])
 
   const dmKeywordTriggers = automations.filter((a) => a.type === 'DM_KEYWORD')
-  const commentTriggers = automations.filter((a) => a.type === 'COMMENT')
+  const commentTriggers = automations.filter((a) => a.type === 'COMMENT_TRIGGER')
   const storyTriggers = automations.filter((a) => a.type === 'STORY_MENTION' || a.type === 'STORY_REPLY')
+  const welcomeMessages = automations.filter((a) => a.type === 'WELCOME_MESSAGE')
+
+  const isKeywordRequired = form.type === 'DM_KEYWORD' || form.type === 'COMMENT_TRIGGER'
 
   const handleCreate = async (e) => {
     e.preventDefault()
-    if (!form.name || !form.keyword) {
-      toast.warning('이름과 키워드를 입력해주세요.')
+    if (!form.name) {
+      toast.warning('이름을 입력해주세요.')
+      return
+    }
+    if (isKeywordRequired && !form.keyword) {
+      toast.warning('키워드를 입력해주세요.')
       return
     }
     try {
@@ -62,7 +70,7 @@ export default function AutomationPage() {
         ...form,
         flowId: form.flowId ? Number(form.flowId) : null,
       })
-      setForm({ name: '', type: 'DM_KEYWORD', keyword: '', matchType: 'CONTAINS', flowId: '' })
+      setForm({ name: '', type: 'DM_KEYWORD', keyword: '', matchType: 'CONTAINS', responseMessage: '', flowId: '' })
       setShowForm(false)
       toast.success('트리거가 생성되었습니다.')
       await loadData()
@@ -149,24 +157,29 @@ export default function AutomationPage() {
               onChange={(e) => setForm({ ...form, type: e.target.value })}
             >
               <option value="DM_KEYWORD">DM 키워드</option>
-              <option value="COMMENT">댓글 트리거</option>
+              <option value="COMMENT_TRIGGER">댓글 트리거</option>
               <option value="STORY_MENTION">스토리 멘션</option>
               <option value="STORY_REPLY">스토리 답장</option>
+              <option value="WELCOME_MESSAGE">환영 메시지</option>
             </select>
-            <input
-              type="text"
-              placeholder="키워드 (예: 가격)"
-              value={form.keyword}
-              onChange={(e) => setForm({ ...form, keyword: e.target.value })}
-            />
-            <select
-              value={form.matchType}
-              onChange={(e) => setForm({ ...form, matchType: e.target.value })}
-            >
-              <option value="CONTAINS">포함</option>
-              <option value="EXACT">정확</option>
-              <option value="STARTS_WITH">시작</option>
-            </select>
+            {isKeywordRequired && (
+              <>
+                <input
+                  type="text"
+                  placeholder="키워드 (예: 가격)"
+                  value={form.keyword}
+                  onChange={(e) => setForm({ ...form, keyword: e.target.value })}
+                />
+                <select
+                  value={form.matchType}
+                  onChange={(e) => setForm({ ...form, matchType: e.target.value })}
+                >
+                  <option value="CONTAINS">포함</option>
+                  <option value="EXACT">정확</option>
+                  <option value="STARTS_WITH">시작</option>
+                </select>
+              </>
+            )}
             <select
               value={form.flowId}
               onChange={(e) => setForm({ ...form, flowId: e.target.value })}
@@ -177,6 +190,15 @@ export default function AutomationPage() {
               ))}
             </select>
             <button type="submit" className="btn-primary">저장</button>
+          </div>
+          <div className="form-row" style={{ marginTop: 8 }}>
+            <textarea
+              placeholder="자동 응답 메시지 (트리거 발동 시 보낼 DM 내용)"
+              value={form.responseMessage}
+              onChange={(e) => setForm({ ...form, responseMessage: e.target.value })}
+              rows={2}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontFamily: 'inherit', fontSize: 14, resize: 'vertical' }}
+            />
           </div>
         </form>
       )}
@@ -201,7 +223,14 @@ export default function AutomationPage() {
               )}
               {dmKeywordTriggers.map((t) => (
                 <tr key={t.id}>
-                  <td>{t.name}</td>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{t.name}</div>
+                    {t.responseMessage && (
+                      <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4, maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.responseMessage}>
+                        💬 {t.responseMessage}
+                      </div>
+                    )}
+                  </td>
                   <td><span className="keyword-tag">{t.keyword}</span></td>
                   <td><span className="match-type">{t.matchType || '-'}</span></td>
                   <td><span className="flow-link">{flowNameOf(t.flowId)}</span></td>
@@ -250,9 +279,17 @@ export default function AutomationPage() {
                 <div className="ct-setting-row">
                   <label>감지 키워드</label>
                   <div className="ct-keywords">
-                    <span className="keyword-tag">{c.keyword}</span>
+                    {c.keyword
+                      ? <span className="keyword-tag">{c.keyword}</span>
+                      : <span style={{ fontSize: 12, color: '#94a3b8' }}>모든 댓글</span>}
                   </div>
                 </div>
+                {c.responseMessage && (
+                  <div className="ct-setting-row">
+                    <label>응답 메시지</label>
+                    <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{c.responseMessage}</div>
+                  </div>
+                )}
                 <div className="ct-setting-row">
                   <label>연결 플로우</label>
                   <div>{flowNameOf(c.flowId)}</div>
@@ -294,6 +331,9 @@ export default function AutomationPage() {
               <div className="st-info">
                 <strong>{s.name}</strong>
                 <p>{s.type === 'STORY_MENTION' ? '스토리 멘션 감지' : '스토리 답장 감지'}</p>
+                {s.responseMessage && (
+                  <p style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>💬 {s.responseMessage}</p>
+                )}
               </div>
               <div className="st-flow">→ {flowNameOf(s.flowId)}</div>
               <div className="st-stats">{formatNumber(s.triggeredCount)} 발송</div>
@@ -301,6 +341,40 @@ export default function AutomationPage() {
                 className={`flow-card-toggle${s.active ? ' active' : ''}`}
                 onClick={() => handleToggle(s.id)}
               />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Welcome Message */}
+      <div className="trigger-section">
+        <div className="trigger-section-header">
+          <div className="trigger-section-icon green"><i className="ri-hand-heart-line" /></div>
+          <div><h3>환영 메시지</h3><p>새로운 팔로워에게 첫 DM을 자동으로 보냅니다 (사용자당 1개)</p></div>
+        </div>
+        <div className="story-triggers">
+          {!loading && welcomeMessages.length === 0 && (
+            <EmptyState compact icon="ri-hand-heart-line" title="환영 메시지가 설정되지 않았습니다" description="신규 팔로워에게 첫인상을 남길 환영 DM을 만들어 보세요" />
+          )}
+          {welcomeMessages.map((w) => (
+            <div className="story-trigger-item" key={w.id}>
+              <div className="st-icon mention" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+                <i className="ri-hand-heart-line" />
+              </div>
+              <div className="st-info">
+                <strong>{w.name}</strong>
+                {w.responseMessage && (
+                  <p style={{ fontSize: 13, color: '#374151', marginTop: 4, lineHeight: 1.5 }}>💬 {w.responseMessage}</p>
+                )}
+              </div>
+              <div className="st-stats">{formatNumber(w.triggeredCount)} 발송</div>
+              <div
+                className={`flow-card-toggle${w.active ? ' active' : ''}`}
+                onClick={() => handleToggle(w.id)}
+              />
+              <button className="icon-btn" onClick={() => handleDelete(w.id)} style={{ marginLeft: 8 }}>
+                <i className="ri-delete-bin-line" />
+              </button>
             </div>
           ))}
         </div>

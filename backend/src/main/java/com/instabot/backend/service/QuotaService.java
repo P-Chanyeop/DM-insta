@@ -28,7 +28,9 @@ public class QuotaService {
     // ─── 플랜별 제한 상수 ───
 
     private static final int FREE_MAX_FLOWS = 3;
-    private static final int FREE_MAX_AUTOMATIONS = 3;
+    // 온보딩에서 DM_KEYWORD + WELCOME_MESSAGE + COMMENT_TRIGGER + STORY_MENTION + STORY_REPLY 5개를
+    // 한 번에 셋업할 수 있도록 FREE 한도를 5로 상향. (사용자 첫 경험 보장)
+    private static final int FREE_MAX_AUTOMATIONS = 5;
     private static final int FREE_MAX_CONTACTS = 1_000;
 
     private static final int PRO_MAX_CONTACTS = 15_000;

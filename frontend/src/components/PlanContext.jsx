@@ -9,7 +9,7 @@ const PLAN_LIMITS = {
     label: '무료',
     contacts: 1000,
     flows: 3,
-    automations: 3,
+    automations: 5,
     broadcast: false,
     sequences: false,
     abTesting: false,
