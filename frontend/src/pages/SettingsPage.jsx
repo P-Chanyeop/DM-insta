@@ -4,6 +4,7 @@ import { api, getStoredUser, setStoredUser } from '../api/client'
 import { integrationService, userService, teamService, billingService, instagramProfileService, recurringService, kakaoService } from '../api/services'
 import { useToast } from '../components/Toast'
 import { usePlan } from '../components/PlanContext'
+import IndustrySelectModal, { INDUSTRIES } from '../components/IndustrySelectModal'
 
 const TABS = [
   { key: 'account', icon: 'ri-instagram-line', label: '계정 연결' },
@@ -202,12 +203,14 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState({
     name: '',
     email: '',
+    industry: null,
     timezone: 'Asia/Seoul',
     language: 'ko',
   })
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
   const [profileLoading, setProfileLoading] = useState(true)
+  const [showIndustryModal, setShowIndustryModal] = useState(false)
 
   // Password change state
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
@@ -279,8 +282,16 @@ export default function SettingsPage() {
           ...prev,
           name: userData.name || '',
           email: userData.email || '',
+          industry: userData.industry || null,
         }))
-        setStoredUser({ email: userData.email, name: userData.name, plan: userData.plan })
+        setStoredUser({
+          ...(getStoredUser() || {}),
+          email: userData.email,
+          name: userData.name,
+          plan: userData.plan,
+          industry: userData.industry,
+          onboardingCompleted: userData.onboardingCompleted,
+        })
       } catch {
         // Fallback to stored user if API fails
         const stored = getStoredUser()
@@ -289,6 +300,7 @@ export default function SettingsPage() {
             ...prev,
             name: stored.name || '',
             email: stored.email || '',
+            industry: stored.industry || null,
           }))
         }
       } finally {
@@ -466,8 +478,15 @@ export default function SettingsPage() {
     setProfileSaving(true)
     try {
       const updated = await userService.updateMe({ name: profile.name.trim() })
-      setProfile(prev => ({ ...prev, name: updated.name, email: updated.email }))
-      setStoredUser({ email: updated.email, name: updated.name, plan: updated.plan })
+      setProfile(prev => ({ ...prev, name: updated.name, email: updated.email, industry: updated.industry || prev.industry }))
+      setStoredUser({
+        ...(getStoredUser() || {}),
+        email: updated.email,
+        name: updated.name,
+        plan: updated.plan,
+        industry: updated.industry,
+        onboardingCompleted: updated.onboardingCompleted,
+      })
       setProfileSaved(true)
       showToast('프로필이 저장되었습니다.')
       setTimeout(() => setProfileSaved(false), 3000)
@@ -1292,6 +1311,42 @@ export default function SettingsPage() {
               />
               <span style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>
                 이메일 변경은 지원되지 않습니다.
+              </span>
+            </div>
+            <div className="settings-form-group">
+              <label className="settings-label">업종</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                {(() => {
+                  const ind = INDUSTRIES.find(i => i.id === profile.industry)
+                  if (ind) {
+                    return (
+                      <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                        padding: '8px 14px', borderRadius: 8,
+                        background: '#F1F5F9', color: '#1F2937', fontWeight: 600,
+                      }}>
+                        <i className={ind.icon} style={{ fontSize: 18, color: '#7c3aed' }} />
+                        <span>{ind.label}</span>
+                      </div>
+                    )
+                  }
+                  return (
+                    <span style={{ color: '#94A3B8', fontSize: 14 }}>
+                      아직 업종을 선택하지 않았습니다.
+                    </span>
+                  )
+                })()}
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => setShowIndustryModal(true)}
+                  style={{ padding: '6px 14px' }}
+                >
+                  <i className="ri-edit-line" /> {profile.industry ? '변경' : '선택'}
+                </button>
+              </div>
+              <span style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>
+                업종에 따라 추천 템플릿과 자동화가 달라집니다.
               </span>
             </div>
             <div className="settings-form-group">
@@ -2227,6 +2282,20 @@ export default function SettingsPage() {
           {TAB_RENDERERS[activeTab]()}
         </div>
       </div>
+
+      {showIndustryModal && (
+        <IndustrySelectModal
+          initialSelected={profile.industry || null}
+          onCancel={() => setShowIndustryModal(false)}
+          onComplete={(newIndustry) => {
+            setShowIndustryModal(false)
+            if (newIndustry && newIndustry !== 'skipped') {
+              setProfile(prev => ({ ...prev, industry: newIndustry }))
+              showToast('업종이 변경되었습니다.')
+            }
+          }}
+        />
+      )}
     </>
   )
 }

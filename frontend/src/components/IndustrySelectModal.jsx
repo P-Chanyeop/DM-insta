@@ -13,8 +13,14 @@ const INDUSTRIES = [
   { id: 'other', icon: 'ri-apps-line', label: '기타', desc: '위에 해당하지 않는 업종' },
 ]
 
-export default function IndustrySelectModal({ onComplete }) {
-  const [selected, setSelected] = useState(null)
+/**
+ * 업종 선택 모달
+ * - 온보딩 모드 (기본): "나중에 선택" / "시작하기" — onComplete만 전달
+ * - 편집 모드 (Settings 등): initialSelected/onCancel 전달 시 "취소" / "변경 저장"으로 동작
+ */
+export default function IndustrySelectModal({ onComplete, initialSelected = null, onCancel = null }) {
+  const isEditMode = !!onCancel
+  const [selected, setSelected] = useState(initialSelected)
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
@@ -43,6 +49,11 @@ export default function IndustrySelectModal({ onComplete }) {
     onComplete('skipped')
   }
 
+  const headerTitle = isEditMode ? '업종 변경' : '업종을 선택해 주세요'
+  const headerDesc = isEditMode
+    ? '업종을 변경하면 맞춤 템플릿/자동화 추천이 갱신됩니다.'
+    : '맞춤 템플릿과 자동화 추천을 위해 업종을 알려주세요.'
+
   return (
     <div className="industry-modal-overlay">
       <div className="industry-modal">
@@ -50,8 +61,8 @@ export default function IndustrySelectModal({ onComplete }) {
           <div className="industry-modal-icon">
             <i className="ri-store-2-line" />
           </div>
-          <h2>업종을 선택해 주세요</h2>
-          <p>맞춤 템플릿과 자동화 추천을 위해 업종을 알려주세요.</p>
+          <h2>{headerTitle}</h2>
+          <p>{headerDesc}</p>
         </div>
 
         <div className="industry-grid">
@@ -69,9 +80,19 @@ export default function IndustrySelectModal({ onComplete }) {
         </div>
 
         <div className="industry-modal-actions">
-          <button className="btn-ghost" onClick={handleSkip}>나중에 선택</button>
-          <button className="btn-primary" disabled={!selected || saving} onClick={handleSave}>
-            {saving ? <><i className="ri-loader-4-line spin" /> 저장 중...</> : '시작하기'}
+          {isEditMode ? (
+            <button className="btn-ghost" onClick={onCancel} disabled={saving}>취소</button>
+          ) : (
+            <button className="btn-ghost" onClick={handleSkip}>나중에 선택</button>
+          )}
+          <button
+            className="btn-primary"
+            disabled={!selected || saving || (isEditMode && selected === initialSelected)}
+            onClick={handleSave}
+          >
+            {saving
+              ? <><i className="ri-loader-4-line spin" /> 저장 중...</>
+              : (isEditMode ? '변경 저장' : '시작하기')}
           </button>
         </div>
       </div>
