@@ -1341,12 +1341,16 @@ label.ne-radio {
 .ig-scenario-label i { font-size: 12px; color: #a78bfa; }
 .ig-scenario-chips {
   display: flex;
+  flex-wrap: wrap;  /* 좁은 폰 프리뷰에선 줄바꿈이 스크롤보다 나음 */
   gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
   padding-bottom: 2px;
+  max-height: 72px;  /* 3줄까지만 (그 이상은 세로 스크롤) */
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3c transparent;
 }
-.ig-scenario-chips::-webkit-scrollbar { display: none; }
+.ig-scenario-chips::-webkit-scrollbar { width: 4px; height: 4px; }
+.ig-scenario-chips::-webkit-scrollbar-thumb { background: #3a3a3c; border-radius: 2px; }
 .ig-scenario-chip {
   flex-shrink: 0;
   padding: 4px 10px;
@@ -1357,7 +1361,7 @@ label.ne-radio {
   color: #d1d1d6;
   cursor: pointer;
   white-space: nowrap;
-  max-width: 240px;
+  max-width: 100%;  /* 컨테이너 폭 초과시 ellipsis */
   overflow: hidden;
   text-overflow: ellipsis;
   transition: all 0.15s;
