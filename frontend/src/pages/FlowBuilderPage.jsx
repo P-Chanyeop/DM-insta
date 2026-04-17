@@ -247,16 +247,21 @@ export default function FlowBuilderPage() {
         </div>
         <div className="fb-header-right">
           <div className={`fb-live-badge ${isLive ? 'live' : 'draft'}`}>
-            {isLive ? 'Live' : 'Draft'}
+            {isLive ? '게시됨' : '임시저장'}
           </div>
-          <label className="fb-live-toggle">
+          <label className="fb-live-toggle" title={isLive ? '비활성화하려면 토글 후 저장' : '활성화하려면 토글 후 저장'}>
             <input
               type="checkbox"
               checked={isLive}
-              onChange={() => setIsLive(!isLive)}
+              onChange={() => { setIsLive(!isLive); setSavedAt(null); }}
             />
             <span className="fb-toggle-slider" />
           </label>
+          {savedAt === null && currentFlowId && (
+            <span style={{ fontSize: 12, color: '#f59e0b', fontWeight: 500 }}>
+              <i className="ri-error-warning-line" /> 저장되지 않은 변경
+            </span>
+          )}
           <button
             className="fb-guide-btn"
             onClick={() => tourRef.current?.restart()}

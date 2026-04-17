@@ -59,13 +59,9 @@ const PAGE_TITLES = {
   '/app/flows/builder': '플로우 빌더',
 }
 
-const DEMO_NOTIFICATIONS = [
-  { id: 1, icon: 'ri-message-3-line', color: 'blue', title: '새 DM 수신', desc: '@user_123님이 "가격" 키워드를 보냈습니다', time: '2분 전', unread: true },
-  { id: 2, icon: 'ri-flow-chart', color: 'green', title: '자동화 완료', desc: '"쇼핑몰 상품 안내" 플로우가 15건 실행됨', time: '15분 전', unread: true },
-  { id: 3, icon: 'ri-user-add-line', color: 'purple', title: '신규 팔로워', desc: '오늘 새 팔로워 23명이 추가되었습니다', time: '1시간 전', unread: false },
-  { id: 4, icon: 'ri-broadcast-line', color: 'orange', title: '브로드캐스트 전송 완료', desc: '"4월 프로모션" 캠페인이 1,200명에게 발송됨', time: '3시간 전', unread: false },
-  { id: 5, icon: 'ri-error-warning-line', color: 'red', title: 'API 연결 오류', desc: 'Instagram API 토큰이 곧 만료됩니다', time: '5시간 전', unread: false },
-]
+// S50 fix: 실제 백엔드 알림 엔드포인트 연결 전까지는 빈 배열.
+// 추후 /api/notifications GET으로 연결 예정.
+const DEMO_NOTIFICATIONS = []
 
 const HELP_LINKS = [
   { icon: 'ri-book-2-line', label: '문서', desc: '사용 가이드 및 문서', href: 'https://docs.example.com', external: true },
@@ -105,6 +101,19 @@ const SEARCHABLE_ITEMS = [
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  // S58 fix: 백엔드 연결 상태 배너
+  const [apiOffline, setApiOffline] = useState(false)
+
+  useEffect(() => {
+    const onOff = () => setApiOffline(true)
+    const onOn = () => setApiOffline(false)
+    window.addEventListener('api:offline', onOff)
+    window.addEventListener('api:online', onOn)
+    return () => {
+      window.removeEventListener('api:offline', onOff)
+      window.removeEventListener('api:online', onOn)
+    }
+  }, [])
   const [notifOpen, setNotifOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [shortcutsModal, setShortcutsModal] = useState(false)
@@ -407,9 +416,36 @@ export default function DashboardLayout() {
 
       {/* Main Content */}
       <main className="main-content">
+        {apiOffline && (
+          <div style={{
+            padding: '10px 20px',
+            background: '#fee2e2',
+            borderBottom: '1px solid #fca5a5',
+            color: '#991b1b',
+            fontSize: 13,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}>
+            <i className="ri-wifi-off-line" style={{ fontSize: 18 }} />
+            <strong>서버에 연결할 수 없습니다.</strong>
+            <span>네트워크 상태를 확인하거나 잠시 후 다시 시도해주세요.</span>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ marginLeft: 'auto', padding: '4px 12px', border: '1px solid #991b1b', background: '#fff', borderRadius: 6, cursor: 'pointer', color: '#991b1b', fontSize: 12, fontWeight: 500 }}
+            >
+              <i className="ri-refresh-line" /> 새로고침
+            </button>
+          </div>
+        )}
         <header className="topbar">
           <div className="topbar-left">
-            <button className="mobile-sidebar-btn" onClick={() => setSidebarOpen(prev => !prev)}>
+            <button
+              className="mobile-sidebar-btn"
+              onClick={() => setSidebarOpen(prev => !prev)}
+              aria-label={sidebarOpen ? '메뉴 닫기' : '메뉴 열기'}
+              type="button"
+            >
               <i className={sidebarOpen ? 'ri-close-line' : 'ri-menu-line'} />
             </button>
             <h1 className="page-title">{pageTitle}</h1>
@@ -449,6 +485,13 @@ export default function DashboardLayout() {
                     )}
                   </div>
                   <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+                    {notifications.length === 0 && (
+                      <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-secondary, #9ca3af)' }}>
+                        <i className="ri-notification-off-line" style={{ fontSize: 32, display: 'block', marginBottom: 8, opacity: 0.5 }} />
+                        <p style={{ fontSize: 13, margin: 0 }}>알림이 없습니다</p>
+                        <p style={{ fontSize: 11, margin: '4px 0 0', opacity: 0.8 }}>새 이벤트가 발생하면 여기 표시됩니다</p>
+                      </div>
+                    )}
                     {notifications.map(notif => (
                       <button
                         key={notif.id}

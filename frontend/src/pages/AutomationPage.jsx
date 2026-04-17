@@ -14,7 +14,7 @@ function formatNumber(value) {
 export default function AutomationPage() {
   const toast = useToast()
   const confirmDialog = useConfirm()
-  const { getLimit, isAtLimit } = usePlan()
+  const { getLimit, isAtLimit, refresh: refreshPlan } = usePlan()
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -66,6 +66,7 @@ export default function AutomationPage() {
       setShowForm(false)
       toast.success('트리거가 생성되었습니다.')
       await loadData()
+      await refreshPlan()  // S5 fix: 쿼터 카운트 즉시 갱신
     } catch (err) {
       toast.error(err.message || '생성에 실패했습니다.')
     }
@@ -94,6 +95,7 @@ export default function AutomationPage() {
       await automationService.delete(id)
       toast.success('트리거가 삭제되었습니다.')
       await loadData()
+      await refreshPlan()  // S5 fix: 쿼터 카운트 즉시 갱신
     } catch (err) {
       toast.error(err.message || '삭제에 실패했습니다.')
     }

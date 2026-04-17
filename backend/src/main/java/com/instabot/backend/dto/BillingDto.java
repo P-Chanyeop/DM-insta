@@ -24,6 +24,11 @@ public class BillingDto {
         private String status;
         private String currentPeriodEnd;
         private boolean cancelAtPeriodEnd;
+
+        // 플랜별 한도 체크용 usage (S5/S16 fix)
+        private Long flowCount;
+        private Long automationCount;
+        private Long contactCount;
     }
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder

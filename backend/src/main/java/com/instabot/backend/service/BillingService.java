@@ -7,6 +7,9 @@ import com.instabot.backend.entity.Subscription.SubscriptionStatus;
 import com.instabot.backend.entity.User;
 import com.instabot.backend.exception.BadRequestException;
 import com.instabot.backend.exception.ResourceNotFoundException;
+import com.instabot.backend.repository.AutomationRepository;
+import com.instabot.backend.repository.ContactRepository;
+import com.instabot.backend.repository.FlowRepository;
 import com.instabot.backend.repository.SubscriptionRepository;
 import com.instabot.backend.repository.UserRepository;
 import com.stripe.exception.SignatureVerificationException;
@@ -36,6 +39,9 @@ public class BillingService {
 
     private final SubscriptionRepository subscriptionRepository;
     private final UserRepository userRepository;
+    private final FlowRepository flowRepository;
+    private final AutomationRepository automationRepository;
+    private final ContactRepository contactRepository;
     private final StripeConfig stripeConfig;
 
     @Value("${app.base-url}")
@@ -125,6 +131,11 @@ public class BillingService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
+        // S5/S16 fix: usage 카운트 포함 — 프론트 PlanContext가 isAtLimit() 판정에 사용
+        long flowCount = flowRepository.countByUserId(userId);
+        long automationCount = automationRepository.countByUserId(userId);
+        long contactCount = contactRepository.countByUserId(userId);
+
         return subscriptionRepository.findByUserId(userId)
                 .map(sub -> BillingDto.BillingInfoResponse.builder()
                         .plan(user.getPlan().name())
@@ -132,11 +143,17 @@ public class BillingService {
                         .currentPeriodEnd(sub.getCurrentPeriodEnd() != null
                                 ? sub.getCurrentPeriodEnd().toString() : null)
                         .cancelAtPeriodEnd(sub.isCancelAtPeriodEnd())
+                        .flowCount(flowCount)
+                        .automationCount(automationCount)
+                        .contactCount(contactCount)
                         .build())
                 .orElse(BillingDto.BillingInfoResponse.builder()
                         .plan(user.getPlan().name())
                         .status("NONE")
                         .cancelAtPeriodEnd(false)
+                        .flowCount(flowCount)
+                        .automationCount(automationCount)
+                        .contactCount(contactCount)
                         .build());
     }
 

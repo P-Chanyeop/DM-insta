@@ -3,10 +3,12 @@ package com.instabot.backend.service;
 import com.instabot.backend.dto.AutomationDto;
 import com.instabot.backend.entity.Automation;
 import com.instabot.backend.entity.User;
+import com.instabot.backend.exception.BadRequestException;
 import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.AutomationRepository;
 import com.instabot.backend.repository.FlowRepository;
 import com.instabot.backend.repository.UserRepository;
+import com.instabot.backend.util.InputSanitizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -97,14 +99,25 @@ public class AutomationService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
+        Automation.AutomationType type = parseType(request.getType());
+
+        // S21 fix: 싱글톤 타입은 사용자당 1개만 허용 (WELCOME_MESSAGE/STORY_MENTION/STORY_REPLY/ICEBREAKER)
+        if (isSingletonType(type)) {
+            Optional<Automation> existing = automationRepository.findFirstByUserIdAndType(userId, type);
+            if (existing.isPresent()) {
+                throw new BadRequestException(
+                    "이미 해당 타입의 자동화가 존재합니다. 기존 항목을 수정하거나 삭제 후 다시 시도해주세요.");
+            }
+        }
+
         // 플랜별 자동화 할당량 검증
         quotaService.checkAutomationQuota(user);
 
         Automation automation = Automation.builder()
                 .user(user)
-                .name(request.getName())
-                .type(parseType(request.getType()))
-                .keyword(request.getKeyword())
+                .name(InputSanitizer.sanitize(request.getName()))
+                .type(type)
+                .keyword(InputSanitizer.sanitize(request.getKeyword()))
                 .matchType(parseMatchType(request.getMatchType()))
                 .postId(request.getPostId())
                 .build();
@@ -144,8 +157,8 @@ public class AutomationService {
 
         if (existing.isPresent()) {
             Automation a = existing.get();
-            if (request.getName() != null && !request.getName().isBlank()) a.setName(request.getName());
-            if (keyword != null) a.setKeyword(keyword);
+            if (request.getName() != null && !request.getName().isBlank()) a.setName(InputSanitizer.sanitize(request.getName()));
+            if (keyword != null) a.setKeyword(InputSanitizer.sanitize(keyword));
             a.setMatchType(parseMatchType(request.getMatchType()));
             if (request.getPostId() != null) a.setPostId(request.getPostId());
             if (request.getFlowId() != null) {
@@ -159,9 +172,9 @@ public class AutomationService {
 
         Automation automation = Automation.builder()
                 .user(user)
-                .name(request.getName())
+                .name(InputSanitizer.sanitize(request.getName()))
                 .type(type)
-                .keyword(keyword)
+                .keyword(InputSanitizer.sanitize(keyword))
                 .matchType(parseMatchType(request.getMatchType()))
                 .postId(request.getPostId())
                 .build();

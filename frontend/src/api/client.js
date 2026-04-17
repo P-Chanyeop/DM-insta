@@ -30,16 +30,28 @@ export function setStoredUser(user) {
 
 async function request(path, { method = 'GET', body, headers = {} } = {}) {
   const token = getToken()
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json; charset=UTF-8',
-      'Accept': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  })
+  let res
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    })
+  } catch (e) {
+    // S58 fix: 네트워크 실패 (백엔드 다운 등) → 배너 표시 이벤트
+    window.dispatchEvent(new CustomEvent('api:offline', { detail: { path, message: e.message } }))
+    const err = new Error('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.')
+    err.status = 0
+    err.code = 'NETWORK_ERROR'
+    throw err
+  }
+  // 성공 응답 수신 시 online 복구 이벤트
+  window.dispatchEvent(new CustomEvent('api:online'))
 
   if (!res.ok) {
     let errorMessage = `요청 실패 (${res.status})`

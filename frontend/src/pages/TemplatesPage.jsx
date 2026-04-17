@@ -6,9 +6,17 @@ import { templateService } from '../api/services'
 import { getStoredUser } from '../api/client'
 import { INDUSTRIES } from '../components/IndustrySelectModal'
 
+// 백엔드 enum → 한글 라벨 (S13 fix)
+const CATEGORY_LABELS = {
+  SHOPPING: '쇼핑몰',
+  BOOKING: '예약/서비스',
+  EVENT: '이벤트',
+  LEAD: '리드수집',
+  SUPPORT: '고객지원',
+}
 const CATEGORIES = ['전체', '쇼핑몰', '예약/서비스', '이벤트', '리드수집', '고객지원']
 
-// 업종별 추천 카테고리 매핑
+// 업종별 추천 카테고리 매핑 (한글 라벨 기준)
 const INDUSTRY_CATEGORY_MAP = {
   shopping: ['쇼핑몰', '이벤트'],
   food: ['쇼핑몰', '이벤트', '고객지원'],
@@ -18,6 +26,32 @@ const INDUSTRY_CATEGORY_MAP = {
   content: ['리드수집', '이벤트'],
   realestate: ['리드수집', '고객지원'],
   other: [],
+}
+
+// 카테고리별 기본 아이콘/그라디언트 (백엔드가 제공하지 않을 때 fallback)
+const CATEGORY_VISUAL = {
+  SHOPPING:  { icon: 'ri-shopping-bag-line',  bg: 'linear-gradient(135deg, #f472b6, #fb923c)' },
+  BOOKING:   { icon: 'ri-calendar-check-line', bg: 'linear-gradient(135deg, #60a5fa, #818cf8)' },
+  EVENT:     { icon: 'ri-gift-line',           bg: 'linear-gradient(135deg, #fb7185, #f59e0b)' },
+  LEAD:      { icon: 'ri-user-add-line',       bg: 'linear-gradient(135deg, #34d399, #06b6d4)' },
+  SUPPORT:   { icon: 'ri-customer-service-2-line', bg: 'linear-gradient(135deg, #a78bfa, #ec4899)' },
+}
+
+/** 백엔드 Response DTO를 프론트 카드 shape로 정규화 */
+function normalizeTemplate(raw) {
+  const visual = CATEGORY_VISUAL[raw.category] || { icon: 'ri-file-list-3-line', bg: 'linear-gradient(135deg, #94a3b8, #64748b)' }
+  return {
+    id: raw.id,
+    title: raw.name || '제목 없음',
+    desc: raw.description || '',
+    categoryKey: raw.category, // 원본 enum
+    category: CATEGORY_LABELS[raw.category] || raw.category || '기타',
+    icon: raw.icon || visual.icon,
+    bg: raw.gradientColors || visual.bg,
+    uses: raw.usageCount || 0,
+    rating: raw.rating ? raw.rating.toFixed(1) : '4.8',
+    flowData: raw.flowData,
+  }
 }
 
 export default function TemplatesPage() {
@@ -49,7 +83,7 @@ export default function TemplatesPage() {
     setError('')
     try {
       const data = await templateService.list()
-      setTemplates(data || [])
+      setTemplates((data || []).map(normalizeTemplate))
     } catch {
       setError('템플릿을 불러올 수 없습니다. 다시 시도해주세요.')
       setTemplates([])
@@ -74,10 +108,11 @@ export default function TemplatesPage() {
 
   const filtered = templates.filter((t) => {
     const matchesCat = activeCat === '전체' || t.category === activeCat
+    const q = search.trim().toLowerCase()
     const matchesSearch =
-      !search.trim() ||
-      t.title.toLowerCase().includes(search.toLowerCase()) ||
-      t.desc.toLowerCase().includes(search.toLowerCase())
+      !q ||
+      (t.title || '').toLowerCase().includes(q) ||
+      (t.desc || '').toLowerCase().includes(q)
     return matchesCat && matchesSearch
   })
 

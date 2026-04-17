@@ -137,6 +137,31 @@ export default function BroadcastPage() {
         </button>
       </div>
 
+      {!broadcastAllowed && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px',
+          background: 'linear-gradient(90deg, #ede9fe 0%, #fef3c7 100%)',
+          border: '1px solid #c4b5fd', borderRadius: 12, marginBottom: 16,
+        }}>
+          <i className="ri-vip-crown-2-line" style={{ fontSize: 24, color: '#7c3aed' }} />
+          <div style={{ flex: 1 }}>
+            <strong style={{ display: 'block', color: '#5b21b6', fontSize: 14 }}>
+              브로드캐스팅은 프로 플랜 전용 기능입니다
+            </strong>
+            <span style={{ color: '#7c3aed', fontSize: 12 }}>
+              현재 플랜에서는 미리보기만 가능합니다. 실제 발송은 업그레이드 후 이용하세요.
+            </span>
+          </div>
+          <button
+            className="btn-primary"
+            onClick={() => navigate('/app/settings')}
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            업그레이드
+          </button>
+        </div>
+      )}
+
       {error && (
         <div className="alert-banner error">
           <i className="ri-error-warning-line" /> {error}
