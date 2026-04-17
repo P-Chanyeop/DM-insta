@@ -22,6 +22,8 @@ import {
   getDefaultGraph,
   NODE_PALETTE,
   generateNodeId,
+  validateGraph,
+  extractTriggerType,
 } from '../components/flow-builder/flowSerializer'
 import { interpolateVariables, hasVariables } from '../components/flow-builder/VariableInserter'
 import OnboardingTour from '../components/OnboardingTour'
@@ -174,10 +176,17 @@ export default function FlowBuilderPage() {
       setSaving(true)
       setError('')
 
+      // v2: 저장 전 그래프 검증
+      const validation = validateGraph(nodes, edges)
+      if (!validation.valid) {
+        setError(validation.errors.join('\n'))
+        return
+      }
+
       const flowData = graphToFlowData(nodes, edges)
       const payload = {
         name: flowName,
-        triggerType: (flowData.trigger?.type || 'comment').toUpperCase(),
+        triggerType: extractTriggerType(flowData),
         flowData: JSON.stringify(flowData),
         active: isLive,
         status: isLive ? 'PUBLISHED' : 'DRAFT',
@@ -295,7 +304,7 @@ export default function FlowBuilderPage() {
       </div>
 
       {error && (
-        <div className="alert-banner error" style={{ margin: '8px 16px' }}>
+        <div className="alert-banner error" style={{ margin: '8px 16px', whiteSpace: 'pre-line' }}>
           <i className="ri-error-warning-line" /> {error}
         </div>
       )}

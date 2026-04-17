@@ -1,28 +1,80 @@
 /* ────────────────────────────────────────────
  *  React Flow 노드/엣지 ↔ 백엔드 flowData JSON 변환
  *
- *  백엔드 flowData 형식:
+ *  v2 (그래프 기반):
  *  {
- *    trigger: { type, keywords, excludeKeywords, matchType, postTarget },
- *    commentReply: { enabled, replies },
- *    openingDm: { enabled, message, buttonText },
- *    requirements: {
- *      followCheck: { enabled, message },
- *      emailCollection: { enabled, message }
- *    },
+ *    version: 2,
+ *    nodes: [ { id, type, data, position } ],
+ *    edges: [ { id, source, target, sourceHandle } ]
+ *  }
+ *
+ *  v1 (레거시 고정 슬롯):
+ *  {
+ *    trigger: { type, keywords, ... },
+ *    openingDm: { enabled, message, ... },
+ *    requirements: { followCheck, emailCollection },
  *    mainDm: { message, links },
- *    followUp: { enabled, delay, unit, message }
+ *    followUp: { enabled, delay, unit, message },
+ *    ...
  *  }
  * ──────────────────────────────────────────── */
 
 const Y_SPACING = 160
 const X_CENTER = 300
 
-/**
- * 백엔드 flowData JSON → React Flow 노드/엣지 변환
- */
+/* ═══════════════════════════════════════════
+ *  flowDataToGraph — 백엔드 JSON → React Flow
+ * ═══════════════════════════════════════════ */
+
 export function flowDataToGraph(fd) {
-  if (!fd || (!fd.trigger && !fd.commentReply)) {
+  if (!fd) return getDefaultGraph()
+
+  // ── v2: 그래프를 그대로 복원 ──
+  if (fd.version === 2) {
+    return flowDataToGraphV2(fd)
+  }
+
+  // ── v1: 레거시 고정 슬롯 → 그래프 변환 ──
+  return flowDataToGraphV1(fd)
+}
+
+/**
+ * v2 복원 — nodes/edges를 그대로 반환, React Flow 스타일만 보충
+ */
+function flowDataToGraphV2(fd) {
+  const nodes = (fd.nodes || []).map(n => ({
+    id: n.id,
+    type: n.type,
+    position: n.position || { x: X_CENTER, y: 0 },
+    data: { ...n.data },
+  }))
+
+  const edges = (fd.edges || []).map(e => ({
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    sourceHandle: e.sourceHandle || undefined,
+    type: 'smoothstep',
+    animated: true,
+    style: { stroke: '#94A3B8', strokeWidth: 2 },
+  }))
+
+  // nodeCounter를 기존 노드 중 최대치 이상으로 세팅 (중복 ID 방지)
+  const maxNum = nodes.reduce((max, n) => {
+    const m = n.id.match(/-(\d+)$/)
+    return m ? Math.max(max, parseInt(m[1], 10)) : max
+  }, nodeCounter)
+  nodeCounter = maxNum + 1
+
+  if (nodes.length === 0) return getDefaultGraph()
+  return { nodes, edges }
+}
+
+/**
+ * v1 레거시 변환 — 기존 고정 슬롯 구조를 그래프로 재구성
+ */
+function flowDataToGraphV1(fd) {
+  if (!fd.trigger && !fd.commentReply) {
     return getDefaultGraph()
   }
 
@@ -39,8 +91,12 @@ export function flowDataToGraph(fd) {
     position: { x: X_CENTER, y },
     data: {
       triggerType: fd.trigger?.type || 'comment',
-      keywords: (fd.trigger?.keywords || []).join(', '),
-      excludeKeywords: (fd.trigger?.excludeKeywords || []).join(', '),
+      keywords: Array.isArray(fd.trigger?.keywords)
+        ? fd.trigger.keywords.join(', ')
+        : (fd.trigger?.keywords || ''),
+      excludeKeywords: Array.isArray(fd.trigger?.excludeKeywords)
+        ? fd.trigger.excludeKeywords.join(', ')
+        : (fd.trigger?.excludeKeywords || ''),
       keywordMatch: fd.trigger?.matchType || 'CONTAINS',
       postTarget: fd.trigger?.postTarget || 'any',
     },
@@ -48,13 +104,11 @@ export function flowDataToGraph(fd) {
   prevNodeId = triggerId
   y += Y_SPACING
 
-  // 2. 댓글 답장 (comment 트리거 + enabled)
+  // 2. 댓글 답장
   if (fd.commentReply?.enabled) {
     const id = 'commentReply-1'
     nodes.push({
-      id,
-      type: 'commentReply',
-      position: { x: X_CENTER, y },
+      id, type: 'commentReply', position: { x: X_CENTER, y },
       data: { replies: fd.commentReply.replies || [''], replyDelay: fd.commentReply.replyDelay ?? 0 },
     })
     edges.push(makeEdge(prevNodeId, id))
@@ -66,14 +120,8 @@ export function flowDataToGraph(fd) {
   if (fd.openingDm?.enabled) {
     const id = 'message-opening'
     nodes.push({
-      id,
-      type: 'message',
-      position: { x: X_CENTER, y },
-      data: {
-        role: 'opening',
-        message: fd.openingDm.message || '',
-        buttonText: fd.openingDm.buttonText || '',
-      },
+      id, type: 'message', position: { x: X_CENTER, y },
+      data: { role: 'opening', message: fd.openingDm.message || '', buttonText: fd.openingDm.buttonText || '' },
     })
     edges.push(makeEdge(prevNodeId, id))
     prevNodeId = id
@@ -84,13 +132,8 @@ export function flowDataToGraph(fd) {
   if (fd.requirements?.followCheck?.enabled) {
     const id = 'condition-follow'
     nodes.push({
-      id,
-      type: 'condition',
-      position: { x: X_CENTER, y },
-      data: {
-        conditionType: 'followCheck',
-        message: fd.requirements.followCheck.message || '',
-      },
+      id, type: 'condition', position: { x: X_CENTER, y },
+      data: { conditionType: 'followCheck', message: fd.requirements.followCheck.message || '' },
     })
     edges.push(makeEdge(prevNodeId, id, 'pass'))
     prevNodeId = id
@@ -101,28 +144,20 @@ export function flowDataToGraph(fd) {
   if (fd.requirements?.emailCollection?.enabled) {
     const id = 'condition-email'
     nodes.push({
-      id,
-      type: 'condition',
-      position: { x: X_CENTER, y },
-      data: {
-        conditionType: 'emailCheck',
-        message: fd.requirements.emailCollection.message || '',
-      },
+      id, type: 'condition', position: { x: X_CENTER, y },
+      data: { conditionType: 'emailCheck', message: fd.requirements.emailCollection.message || '' },
     })
     edges.push(makeEdge(prevNodeId, id, 'pass'))
     prevNodeId = id
     y += Y_SPACING
   }
 
-  // 5-1. 고급 조건들 (즉시 평가형)
-  const advConditions = fd.conditions || []
-  advConditions.forEach((cond, i) => {
+  // 5-1. 고급 조건들
+  ;(fd.conditions || []).forEach((cond, i) => {
     if (!cond.enabled) return
     const id = `condition-adv-${i}`
     nodes.push({
-      id,
-      type: 'condition',
-      position: { x: X_CENTER, y },
+      id, type: 'condition', position: { x: X_CENTER, y },
       data: {
         conditionType: cond.type,
         ...(cond.type === 'tagCheck' && { tagName: cond.tagName || '' }),
@@ -139,9 +174,7 @@ export function flowDataToGraph(fd) {
   // 6. 메인 DM
   const mainId = 'message-main'
   nodes.push({
-    id: mainId,
-    type: 'message',
-    position: { x: X_CENTER, y },
+    id: mainId, type: 'message', position: { x: X_CENTER, y },
     data: {
       role: 'main',
       message: fd.mainDm?.message || '',
@@ -152,110 +185,73 @@ export function flowDataToGraph(fd) {
   prevNodeId = mainId
   y += Y_SPACING
 
-  // 7. 액션 노드들
-  if (fd.actions?.length > 0) {
-    fd.actions.forEach((act, i) => {
-      const id = `action-${i + 1}`
-      nodes.push({
-        id,
-        type: 'action',
-        position: { x: X_CENTER, y },
-        data: {
-          actionType: act.actionType || 'addTag',
-          value: act.value || '',
-        },
-      })
-      edges.push(makeEdge(prevNodeId, id))
-      prevNodeId = id
-      y += Y_SPACING
+  // 7. 액션
+  ;(fd.actions || []).forEach((act, i) => {
+    const id = `action-${i + 1}`
+    nodes.push({
+      id, type: 'action', position: { x: X_CENTER, y },
+      data: { actionType: act.actionType || 'addTag', value: act.value || '' },
     })
-  }
+    edges.push(makeEdge(prevNodeId, id))
+    prevNodeId = id
+    y += Y_SPACING
+  })
 
-  // 8. 웹훅 노드들
-  if (fd.webhooks?.length > 0) {
-    fd.webhooks.forEach((wh, i) => {
-      const id = `webhook-${i + 1}`
-      nodes.push({
-        id,
-        type: 'webhook',
-        position: { x: X_CENTER, y },
-        data: {
-          method: wh.method || 'POST',
-          url: wh.url || '',
-          headers: wh.headers || '{}',
-          body: wh.body || '',
-        },
-      })
-      edges.push(makeEdge(prevNodeId, id))
-      prevNodeId = id
-      y += Y_SPACING
+  // 8. 웹훅
+  ;(fd.webhooks || []).forEach((wh, i) => {
+    const id = `webhook-${i + 1}`
+    nodes.push({
+      id, type: 'webhook', position: { x: X_CENTER, y },
+      data: { method: wh.method || 'POST', url: wh.url || '', headers: wh.headers || '{}', body: wh.body || '' },
     })
-  }
+    edges.push(makeEdge(prevNodeId, id))
+    prevNodeId = id
+    y += Y_SPACING
+  })
 
-  // 9. 재고 확인(인벤토리) 노드
+  // 9. 인벤토리
   if (fd.inventory?.enabled) {
     const id = 'inventory-1'
     nodes.push({
-      id,
-      type: 'inventory',
-      position: { x: X_CENTER, y },
-      data: {
-        groupBuyId: fd.inventory.groupBuyId || null,
-        soldOutMessage: fd.inventory.soldOutMessage || '죄송합니다, 이 상품은 매진되었습니다. 😢',
-      },
+      id, type: 'inventory', position: { x: X_CENTER, y },
+      data: { groupBuyId: fd.inventory.groupBuyId || null, soldOutMessage: fd.inventory.soldOutMessage || '죄송합니다, 이 상품은 매진되었습니다. 😢' },
     })
     edges.push(makeEdge(prevNodeId, id))
     prevNodeId = id
     y += Y_SPACING
   }
 
-  // 10. 캐러셀 노드
+  // 10. 캐러셀
   if (fd.carousel?.enabled) {
     const id = 'carousel-1'
-    nodes.push({
-      id,
-      type: 'carousel',
-      position: { x: X_CENTER, y },
-      data: {
-        cards: fd.carousel.cards || [],
-      },
-    })
+    nodes.push({ id, type: 'carousel', position: { x: X_CENTER, y }, data: { cards: fd.carousel.cards || [] } })
     edges.push(makeEdge(prevNodeId, id))
     prevNodeId = id
     y += Y_SPACING
   }
 
-  // 10. A/B 테스트 노드
+  // 11. A/B 테스트
   if (fd.abtest?.enabled) {
     const id = 'abtest-1'
     nodes.push({
-      id,
-      type: 'abtest',
-      position: { x: X_CENTER, y },
-      data: {
-        testName: fd.abtest.testName || '',
-        variantA: fd.abtest.variantA ?? 50,
-      },
+      id, type: 'abtest', position: { x: X_CENTER, y },
+      data: { testName: fd.abtest.testName || '', variantA: fd.abtest.variantA ?? 50 },
     })
     edges.push(makeEdge(prevNodeId, id))
     prevNodeId = id
     y += Y_SPACING
   }
 
-  // 11. AI 자동 응답 노드
+  // 12. AI 자동 응답
   if (fd.aiResponse?.enabled) {
     const id = 'aiResponse-1'
     nodes.push({
-      id,
-      type: 'aiResponse',
-      position: { x: X_CENTER, y },
+      id, type: 'aiResponse', position: { x: X_CENTER, y },
       data: {
-        mode: fd.aiResponse.mode || 'faq',
-        faqItems: fd.aiResponse.faqItems || [],
+        mode: fd.aiResponse.mode || 'faq', faqItems: fd.aiResponse.faqItems || [],
         brandTone: fd.aiResponse.brandTone || { style: 'friendly', emoji: true, formality: 3 },
         fallbackAction: fd.aiResponse.fallbackAction || 'default_message',
-        fallbackMessage: fd.aiResponse.fallbackMessage || '',
-        maxTokens: fd.aiResponse.maxTokens || 200,
+        fallbackMessage: fd.aiResponse.fallbackMessage || '', maxTokens: fd.aiResponse.maxTokens || 200,
         contextWindow: fd.aiResponse.contextWindow || 3,
       },
     })
@@ -264,57 +260,37 @@ export function flowDataToGraph(fd) {
     y += Y_SPACING
   }
 
-  // 12-1. 카카오 알림톡/친구톡 노드
+  // 13. 카카오
   if (fd.kakao?.enabled) {
     const id = 'kakao-1'
     nodes.push({
-      id,
-      type: 'kakao',
-      position: { x: X_CENTER, y },
-      data: {
-        kakaoType: fd.kakao.kakaoType || 'alimtalk',
-        templateCode: fd.kakao.templateCode || '',
-        message: fd.kakao.message || '',
-        imageUrl: fd.kakao.imageUrl || '',
-        buttons: fd.kakao.buttons || [],
-      },
+      id, type: 'kakao', position: { x: X_CENTER, y },
+      data: { kakaoType: fd.kakao.kakaoType || 'alimtalk', templateCode: fd.kakao.templateCode || '', message: fd.kakao.message || '', imageUrl: fd.kakao.imageUrl || '', buttons: fd.kakao.buttons || [] },
     })
     edges.push(makeEdge(prevNodeId, id))
     prevNodeId = id
     y += Y_SPACING
   }
 
-  // 12-2. 옵트인(Recurring Notification) 노드
+  // 14. 옵트인
   if (fd.optIn?.enabled) {
     const id = 'optIn-1'
     nodes.push({
-      id,
-      type: 'optIn',
-      position: { x: X_CENTER, y },
-      data: {
-        topic: fd.optIn.topic || 'general',
-        topicLabel: fd.optIn.topicLabel || '소식 알림',
-        message: fd.optIn.message || '새 소식을 받아보시겠어요?',
-        frequency: fd.optIn.frequency || 'WEEKLY',
-      },
+      id, type: 'optIn', position: { x: X_CENTER, y },
+      data: { topic: fd.optIn.topic || 'general', topicLabel: fd.optIn.topicLabel || '소식 알림', message: fd.optIn.message || '새 소식을 받아보시겠어요?', frequency: fd.optIn.frequency || 'WEEKLY' },
     })
     edges.push(makeEdge(prevNodeId, id))
     prevNodeId = id
     y += Y_SPACING
   }
 
-  // 13. 팔로업
+  // 15. 팔로업 (delay + message)
   if (fd.followUp?.enabled) {
     const unitMap = { '분': 'minutes', '시간': 'hours', '일': 'days' }
     const delayId = 'delay-1'
     nodes.push({
-      id: delayId,
-      type: 'delay',
-      position: { x: X_CENTER, y },
-      data: {
-        delay: fd.followUp.delay || 30,
-        unit: unitMap[fd.followUp.unit] || 'minutes',
-      },
+      id: delayId, type: 'delay', position: { x: X_CENTER, y },
+      data: { delay: fd.followUp.delay || 30, unit: unitMap[fd.followUp.unit] || 'minutes' },
     })
     edges.push(makeEdge(prevNodeId, delayId))
     prevNodeId = delayId
@@ -322,13 +298,8 @@ export function flowDataToGraph(fd) {
 
     const followUpId = 'message-followup'
     nodes.push({
-      id: followUpId,
-      type: 'message',
-      position: { x: X_CENTER, y },
-      data: {
-        role: 'followup',
-        message: fd.followUp.message || '',
-      },
+      id: followUpId, type: 'message', position: { x: X_CENTER, y },
+      data: { role: 'followup', message: fd.followUp.message || '' },
     })
     edges.push(makeEdge(delayId, followUpId))
     y += Y_SPACING
@@ -337,136 +308,99 @@ export function flowDataToGraph(fd) {
   return { nodes, edges }
 }
 
+/* ═══════════════════════════════════════════
+ *  graphToFlowData — React Flow → 백엔드 JSON (v2)
+ * ═══════════════════════════════════════════ */
+
 /**
- * React Flow 노드/엣지 → 백엔드 flowData JSON 변환
+ * v2: 그래프를 있는 그대로 저장. position + sourceHandle 완전 보존.
  */
 export function graphToFlowData(nodes, edges) {
-  const delayUnitMap = { minutes: '분', hours: '시간', days: '일' }
-
-  const triggerNode = nodes.find(n => n.type === 'trigger')
-  const commentReplyNode = nodes.find(n => n.type === 'commentReply')
-  const openingNode = nodes.find(n => n.type === 'message' && n.data.role === 'opening')
-  const followCheckNode = nodes.find(n => n.type === 'condition' && n.data.conditionType === 'followCheck')
-  const emailCheckNode = nodes.find(n => n.type === 'condition' && n.data.conditionType === 'emailCheck')
-  const advConditionNodes = nodes.filter(n => n.type === 'condition' && !['followCheck', 'emailCheck'].includes(n.data.conditionType))
-  const mainNode = nodes.find(n => n.type === 'message' && n.data.role === 'main')
-  const delayNode = nodes.find(n => n.type === 'delay')
-  const followUpNode = nodes.find(n => n.type === 'message' && n.data.role === 'followup')
-  const actionNodes = nodes.filter(n => n.type === 'action')
-  const webhookNodes = nodes.filter(n => n.type === 'webhook')
-  const inventoryNode = nodes.find(n => n.type === 'inventory')
-  const carouselNode = nodes.find(n => n.type === 'carousel')
-  const abtestNode = nodes.find(n => n.type === 'abtest')
-  const aiResponseNode = nodes.find(n => n.type === 'aiResponse')
-  const optInNode = nodes.find(n => n.type === 'optIn')
-  const kakaoNode = nodes.find(n => n.type === 'kakao')
-
-  const td = triggerNode?.data || {}
-
   return {
-    trigger: {
-      type: td.triggerType || 'comment',
-      keywords: td.keywords ? td.keywords.split(',').map(k => k.trim()).filter(Boolean) : [],
-      excludeKeywords: td.excludeKeywords ? td.excludeKeywords.split(',').map(k => k.trim()).filter(Boolean) : [],
-      matchType: td.keywordMatch || 'CONTAINS',
-      postTarget: td.postTarget || 'any',
-    },
-    commentReply: {
-      enabled: !!commentReplyNode,
-      replies: commentReplyNode?.data.replies || [],
-      replyDelay: commentReplyNode?.data.replyDelay ?? 0,
-    },
-    openingDm: {
-      enabled: !!openingNode,
-      message: openingNode?.data.message || '',
-      buttonText: openingNode?.data.buttonText || '',
-    },
-    requirements: {
-      followCheck: {
-        enabled: !!followCheckNode,
-        message: followCheckNode?.data.message || '',
-      },
-      emailCollection: {
-        enabled: !!emailCheckNode,
-        message: emailCheckNode?.data.message || '',
-      },
-    },
-    conditions: advConditionNodes.map(n => ({
-      enabled: true,
-      type: n.data.conditionType,
-      ...(n.data.conditionType === 'tagCheck' && { tagName: n.data.tagName || '' }),
-      ...(n.data.conditionType === 'customField' && {
-        fieldName: n.data.fieldName || '',
-        operator: n.data.operator || 'equals',
-        fieldValue: n.data.fieldValue || '',
-      }),
-      ...(n.data.conditionType === 'timeRange' && {
-        startHour: n.data.startHour ?? 9,
-        endHour: n.data.endHour ?? 18,
-        activeDays: n.data.activeDays || [0,1,2,3,4,5,6],
-      }),
-      ...(n.data.conditionType === 'random' && { probability: n.data.probability ?? 50 }),
+    version: 2,
+    nodes: nodes.map(n => ({
+      id: n.id,
+      type: n.type,
+      data: { ...n.data },
+      position: { x: n.position?.x ?? 0, y: n.position?.y ?? 0 },
     })),
-    mainDm: {
-      message: mainNode?.data.message || '',
-      links: (mainNode?.data.links || []).filter(l => l.url).map(l => ({ text: l.label || '', url: l.url })),
-    },
-    actions: actionNodes.map(n => ({
-      actionType: n.data.actionType || 'addTag',
-      value: n.data.value || '',
+    edges: edges.map(e => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      ...(e.sourceHandle ? { sourceHandle: e.sourceHandle } : {}),
     })),
-    webhooks: webhookNodes.map(n => ({
-      method: n.data.method || 'POST',
-      url: n.data.url || '',
-      headers: n.data.headers || '{}',
-      body: n.data.body || '',
-    })),
-    inventory: {
-      enabled: !!inventoryNode,
-      groupBuyId: inventoryNode?.data.groupBuyId || null,
-      soldOutMessage: inventoryNode?.data.soldOutMessage || '죄송합니다, 이 상품은 매진되었습니다. 😢',
-    },
-    carousel: {
-      enabled: !!carouselNode,
-      cards: carouselNode?.data.cards || [],
-    },
-    abtest: {
-      enabled: !!abtestNode,
-      testName: abtestNode?.data.testName || '',
-      variantA: abtestNode?.data.variantA ?? 50,
-    },
-    aiResponse: {
-      enabled: !!aiResponseNode,
-      mode: aiResponseNode?.data.mode || 'faq',
-      faqItems: aiResponseNode?.data.faqItems || [],
-      brandTone: aiResponseNode?.data.brandTone || { style: 'friendly', emoji: true, formality: 3 },
-      fallbackAction: aiResponseNode?.data.fallbackAction || 'default_message',
-      fallbackMessage: aiResponseNode?.data.fallbackMessage || '',
-      maxTokens: aiResponseNode?.data.maxTokens || 200,
-      contextWindow: aiResponseNode?.data.contextWindow || 3,
-    },
-    kakao: {
-      enabled: !!kakaoNode,
-      kakaoType: kakaoNode?.data.kakaoType || 'alimtalk',
-      templateCode: kakaoNode?.data.templateCode || '',
-      message: kakaoNode?.data.message || '',
-      imageUrl: kakaoNode?.data.imageUrl || '',
-      buttons: kakaoNode?.data.buttons || [],
-    },
-    optIn: {
-      enabled: !!optInNode,
-      topic: optInNode?.data.topic || 'general',
-      topicLabel: optInNode?.data.topicLabel || '소식 알림',
-      message: optInNode?.data.message || '새 소식을 받아보시겠어요?',
-      frequency: optInNode?.data.frequency || 'WEEKLY',
-    },
-    followUp: {
-      enabled: !!followUpNode,
-      delay: delayNode?.data.delay || 30,
-      unit: delayUnitMap[delayNode?.data.unit] || '분',
-      message: followUpNode?.data.message || '',
-    },
   }
+}
+
+/* ═══════════════════════════════════════════
+ *  그래프 검증 — 저장 전 호출
+ * ═══════════════════════════════════════════ */
+
+/**
+ * 그래프 유효성 검사. 문제 발견 시 { valid: false, errors: [...] } 반환.
+ */
+export function validateGraph(nodes, edges) {
+  const errors = []
+  const nodeIds = new Set(nodes.map(n => n.id))
+
+  // 1. 트리거 노드 반드시 1개
+  const triggers = nodes.filter(n => n.type === 'trigger')
+  if (triggers.length === 0) {
+    errors.push('트리거 노드가 없습니다. 플로우에는 반드시 트리거가 필요합니다.')
+  } else if (triggers.length > 1) {
+    errors.push('트리거 노드가 2개 이상입니다. 플로우에는 트리거가 1개만 있어야 합니다.')
+  }
+
+  // 2. 모든 edge의 source/target이 존재하는 노드를 가리키는지
+  edges.forEach(e => {
+    if (!nodeIds.has(e.source)) {
+      errors.push(`엣지 "${e.id}"의 출발 노드 "${e.source}"가 존재하지 않습니다.`)
+    }
+    if (!nodeIds.has(e.target)) {
+      errors.push(`엣지 "${e.id}"의 도착 노드 "${e.target}"가 존재하지 않습니다.`)
+    }
+  })
+
+  // 3. 순환 감지 (DFS)
+  const adj = {}
+  edges.forEach(e => {
+    if (!adj[e.source]) adj[e.source] = []
+    adj[e.source].push(e.target)
+  })
+  const visited = new Set()
+  const inStack = new Set()
+  let hasCycle = false
+
+  function dfs(nodeId) {
+    if (hasCycle) return
+    if (inStack.has(nodeId)) { hasCycle = true; return }
+    if (visited.has(nodeId)) return
+    visited.add(nodeId)
+    inStack.add(nodeId)
+    ;(adj[nodeId] || []).forEach(next => dfs(next))
+    inStack.delete(nodeId)
+  }
+
+  nodeIds.forEach(id => {
+    if (!visited.has(id)) dfs(id)
+  })
+  if (hasCycle) {
+    errors.push('플로우에 순환(무한 루프)이 감지되었습니다. 순환 경로를 제거해 주세요.')
+  }
+
+  return { valid: errors.length === 0, errors }
+}
+
+/**
+ * v2 데이터에서 triggerType 추출 (FlowBuilderPage에서 사용)
+ */
+export function extractTriggerType(flowData) {
+  if (flowData.version === 2) {
+    const triggerNode = (flowData.nodes || []).find(n => n.type === 'trigger')
+    return (triggerNode?.data?.triggerType || 'comment').toUpperCase()
+  }
+  return (flowData.trigger?.type || 'comment').toUpperCase()
 }
 
 /**
