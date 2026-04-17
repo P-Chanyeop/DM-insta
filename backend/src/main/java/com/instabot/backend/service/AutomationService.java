@@ -120,6 +120,8 @@ public class AutomationService {
                 .keyword(InputSanitizer.sanitize(request.getKeyword()))
                 .matchType(parseMatchType(request.getMatchType()))
                 .postId(request.getPostId())
+                .responseMessage(request.getResponseMessage())
+                .active(request.getActive() == null ? true : request.getActive())
                 .build();
 
         if (request.getFlowId() != null) {
@@ -161,6 +163,8 @@ public class AutomationService {
             if (keyword != null) a.setKeyword(InputSanitizer.sanitize(keyword));
             a.setMatchType(parseMatchType(request.getMatchType()));
             if (request.getPostId() != null) a.setPostId(request.getPostId());
+            if (request.getResponseMessage() != null) a.setResponseMessage(request.getResponseMessage());
+            if (request.getActive() != null) a.setActive(request.getActive());
             if (request.getFlowId() != null) {
                 a.setFlow(flowRepository.findById(request.getFlowId()).orElse(null));
             }
@@ -177,6 +181,8 @@ public class AutomationService {
                 .keyword(InputSanitizer.sanitize(keyword))
                 .matchType(parseMatchType(request.getMatchType()))
                 .postId(request.getPostId())
+                .responseMessage(request.getResponseMessage())
+                .active(request.getActive() == null ? true : request.getActive())
                 .build();
 
         if (request.getFlowId() != null) {
@@ -215,6 +221,7 @@ public class AutomationService {
                 .keyword(a.getKeyword())
                 .matchType(a.getMatchType().name())
                 .postId(a.getPostId())
+                .responseMessage(a.getResponseMessage())
                 .flowId(a.getFlow() != null ? a.getFlow().getId() : null)
                 .active(a.isActive())
                 .triggeredCount(a.getTriggeredCount())
