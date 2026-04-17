@@ -466,9 +466,10 @@ export default function FlowBuilderPage() {
  */
 function PhonePreview({ nodes, edges }) {
   const previewEndRef = useRef(null)
+  const [selectedPathIdx, setSelectedPathIdx] = useState(0)
   useEffect(() => {
     previewEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [nodes, edges])
+  }, [nodes, edges, selectedPathIdx])
 
   // 트리거 정보 (첫 user 메시지 시뮬레이션용)
   const triggerNode = nodes.find(n => n.type === 'trigger')
@@ -579,9 +580,8 @@ function PhonePreview({ nodes, edges }) {
     }
   }
 
-  // ─── 엣지 기반 topological 순회 ───
-  // 시작점: trigger(또는 commentReply) 노드. 없으면 인디그리 0인 노드.
-  const edgeBySource = new Map() // sourceId → [edges]
+  // ─── 엣지/그래프 준비 ───
+  const edgeBySource = new Map()
   edges.forEach(e => {
     if (!edgeBySource.has(e.source)) edgeBySource.set(e.source, [])
     edgeBySource.get(e.source).push(e)
@@ -589,37 +589,108 @@ function PhonePreview({ nodes, edges }) {
   const nodeById = new Map(nodes.map(n => [n.id, n]))
   const inDegree = new Map(nodes.map(n => [n.id, 0]))
   edges.forEach(e => inDegree.set(e.target, (inDegree.get(e.target) || 0) + 1))
-
   const startNode = triggerNode || commentReplyNode || nodes.find(n => inDegree.get(n.id) === 0) || nodes[0]
 
-  const visited = new Set()
-  const msgs = []
-  const queue = startNode ? [startNode.id] : []
-  while (queue.length > 0) {
-    const id = queue.shift()
-    if (visited.has(id)) continue
-    visited.add(id)
-    const node = nodeById.get(id)
-    if (!node) continue
-    renderNodeMessages(node, false).forEach(m => msgs.push(m))
-    // outgoing edges를 sourceHandle/순서 기준으로 방문
-    const outs = (edgeBySource.get(id) || []).slice()
-    // 여러 브랜치: UI상 "yes/true/a" 같은 handle을 우선
-    outs.sort((a, b) => {
-      const pri = (h) => {
-        if (!h) return 2
-        if (/yes|true|a|default/i.test(h)) return 0
-        if (/no|false|b/i.test(h)) return 1
-        return 2
+  // ─── 분기 handle 한글 라벨 ───
+  const handleLabel = (sourceNode, handleId) => {
+    if (!handleId) return null
+    const h = String(handleId).toLowerCase()
+    // 조건 노드
+    if (sourceNode?.type === 'condition') {
+      const ct = sourceNode.data?.conditionType
+      if (/yes|true|pass/i.test(h)) {
+        if (ct === 'followCheck') return '팔로워'
+        if (ct === 'emailCheck') return '이메일 수집 완료'
+        if (ct === 'tagCheck') return `태그 보유 (${sourceNode.data?.tagName || '?'})`
+        if (ct === 'timeRange') return `영업시간 내 (${sourceNode.data?.startHour ?? 9}~${sourceNode.data?.endHour ?? 18}시)`
+        if (ct === 'customField') return '조건 일치'
+        return '통과'
       }
-      return pri(a.sourceHandle) - pri(b.sourceHandle)
-    })
-    outs.forEach(e => queue.push(e.target))
+      if (/no|false|fail/i.test(h)) {
+        if (ct === 'followCheck') return '미팔로우'
+        if (ct === 'emailCheck') return '이메일 미수집'
+        if (ct === 'tagCheck') return '태그 없음'
+        if (ct === 'timeRange') return '영업시간 외'
+        if (ct === 'customField') return '조건 불일치'
+        return '실패'
+      }
+    }
+    // 랜덤/AB
+    if (/^a$/i.test(h)) return `A 변형${sourceNode?.data?.variantA != null ? ` (${sourceNode.data.variantA}%)` : ''}`
+    if (/^b$/i.test(h)) return `B 변형${sourceNode?.data?.variantA != null ? ` (${100 - sourceNode.data.variantA}%)` : ''}`
+    // 웹훅 응답
+    if (/success|2xx/i.test(h)) return '응답 성공'
+    if (/error|fail|4xx|5xx/i.test(h)) return '응답 실패'
+    return null
   }
 
-  // 고아 노드 (연결 안 됐지만 캔버스에 존재)
+  // ─── 경로 열거 (DFS, 순환 방지, 경로당 노드 최대 30) ───
+  // path = { nodeIds: [...], labels: [{ atIdx, label }] } — labels는 분기 라벨만
+  const MAX_PATHS = 12
+  const MAX_DEPTH = 30
+  const allPaths = []
+  const dfs = (nodeId, visited, pathNodes, pathLabels) => {
+    if (allPaths.length >= MAX_PATHS) return
+    if (visited.has(nodeId)) {
+      // 순환: 현재 경로를 닫고 저장 (순환 배지 첨부)
+      allPaths.push({ nodeIds: pathNodes.slice(), labels: pathLabels.slice(), cyclic: true })
+      return
+    }
+    if (pathNodes.length >= MAX_DEPTH) {
+      allPaths.push({ nodeIds: pathNodes.slice(), labels: pathLabels.slice(), truncated: true })
+      return
+    }
+    const newVisited = new Set(visited); newVisited.add(nodeId)
+    const newPathNodes = pathNodes.concat([nodeId])
+    const outs = edgeBySource.get(nodeId) || []
+    if (outs.length === 0) {
+      // 리프 — 경로 완성
+      allPaths.push({ nodeIds: newPathNodes, labels: pathLabels.slice() })
+      return
+    }
+    // 분기 엣지 각각으로 재귀
+    const sourceNode = nodeById.get(nodeId)
+    outs.forEach(e => {
+      const lbl = handleLabel(sourceNode, e.sourceHandle)
+      const newLabels = lbl ? pathLabels.concat([{ atNodeId: nodeId, label: lbl }]) : pathLabels
+      dfs(e.target, newVisited, newPathNodes, newLabels)
+    })
+  }
+  if (startNode) dfs(startNode.id, new Set(), [], [])
+
+  // 경로 라벨 생성: 분기 라벨 join + 마지막 노드 step 힌트
+  const pathNameFor = (path) => {
+    if (!path) return '기본 경로'
+    if (path.labels.length === 0) return '기본 경로'
+    return path.labels.map(l => l.label).join(' → ')
+  }
+
+  // 유효 경로 인덱스 클램프
+  const safeIdx = Math.min(selectedPathIdx, Math.max(0, allPaths.length - 1))
+  const selectedPath = allPaths[safeIdx]
+
+  // ─── 선택된 경로만 메시지 렌더 ───
+  const msgs = []
+  const visitedInPath = new Set(selectedPath?.nodeIds || [])
+  if (selectedPath) {
+    selectedPath.nodeIds.forEach(id => {
+      const node = nodeById.get(id)
+      if (!node) return
+      renderNodeMessages(node, false).forEach(m => msgs.push(m))
+    })
+    if (selectedPath.cyclic) {
+      msgs.push({ type: 'divider', text: '🔁 순환 감지 — 이 경로는 반복됩니다' })
+    }
+    if (selectedPath.truncated) {
+      msgs.push({ type: 'divider', text: `⚠️ 경로가 ${MAX_DEPTH}노드를 초과해 잘렸습니다` })
+    }
+  }
+
+  // 고아 노드: 선택 경로에 포함되지도, 다른 경로에도 없는 노드
+  const anyPathNodeIds = new Set()
+  allPaths.forEach(p => p.nodeIds.forEach(id => anyPathNodeIds.add(id)))
   const orphans = nodes.filter(n =>
-    !visited.has(n.id) &&
+    !anyPathNodeIds.has(n.id) &&
     n.type !== 'trigger' && n.type !== 'commentReply'
   )
   if (orphans.length > 0) {
@@ -649,6 +720,31 @@ function PhonePreview({ nodes, edges }) {
               <i className="ri-vidicon-line" />
             </div>
           </div>
+
+          {/* 시나리오 칩 선택기 — 분기가 있을 때만 (경로 2개 이상) */}
+          {allPaths.length >= 2 && (
+            <div className="ig-scenario-picker">
+              <div className="ig-scenario-label">
+                <i className="ri-route-line" /> 시나리오 ({allPaths.length}개)
+              </div>
+              <div className="ig-scenario-chips">
+                {allPaths.map((p, idx) => {
+                  const name = pathNameFor(p)
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      className={`ig-scenario-chip${idx === safeIdx ? ' active' : ''}`}
+                      onClick={() => setSelectedPathIdx(idx)}
+                      title={name}
+                    >
+                      {name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* 대화 영역 */}
           <div className="ig-chat">

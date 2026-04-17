@@ -1318,6 +1318,58 @@ label.ne-radio {
 .ig-header-info span { font-size: 11px; color: #8E8E8E; }
 .ig-header-actions { display: flex; gap: 16px; }
 .ig-header-actions i { font-size: 22px; color: #fff; }
+/* 시나리오 칩 선택기 (분기 있을 때) */
+.ig-scenario-picker {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  background: #1c1c1e;
+  border-top: 1px solid #2a2a2a;
+  border-bottom: 1px solid #2a2a2a;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ig-scenario-label {
+  font-size: 10px;
+  color: #8e8e8e;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.ig-scenario-label i { font-size: 12px; color: #a78bfa; }
+.ig-scenario-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.ig-scenario-chips::-webkit-scrollbar { display: none; }
+.ig-scenario-chip {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 999px;
+  border: 1px solid #3a3a3c;
+  background: #2c2c2e;
+  color: #d1d1d6;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.15s;
+}
+.ig-scenario-chip:hover { background: #3a3a3c; color: #fff; }
+.ig-scenario-chip.active {
+  background: #a78bfa;
+  border-color: #a78bfa;
+  color: #fff;
+  font-weight: 600;
+}
+
 .ig-chat {
   flex: 1; overflow-y: auto; padding: 8px 12px; display: flex;
   flex-direction: column; gap: 6px; scroll-behavior: smooth;
