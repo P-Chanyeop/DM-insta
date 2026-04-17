@@ -446,7 +446,7 @@ export default function FlowBuilderPage() {
 
         {/* DM 미리보기 패널 (우측) */}
         {previewOpen && (
-          <PhonePreview nodes={nodes} />
+          <PhonePreview nodes={nodes} edges={edges} />
         )}
 
         {/* A/B 테스트 결과 패널 (우측) */}
@@ -460,162 +460,173 @@ export default function FlowBuilderPage() {
   )
 }
 
-/* ── 인스타그램 DM 폰 프리뷰 (다크모드) ── */
-function PhonePreview({ nodes }) {
+/* ── 인스타그램 DM 폰 프리뷰 (다크모드) ──
+ * 엣지 연결 순서대로 노드를 방문하여 메시지 생성.
+ * 연결되지 않은 고아 노드는 회색 '(미연결)' 배지와 함께 하단에 표시.
+ */
+function PhonePreview({ nodes, edges }) {
   const previewEndRef = useRef(null)
   useEffect(() => {
     previewEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [nodes])
+  }, [nodes, edges])
 
-  const msgs = []
-
-  // 노드 데이터에서 메시지 목록 생성
+  // 트리거 정보 (첫 user 메시지 시뮬레이션용)
   const triggerNode = nodes.find(n => n.type === 'trigger')
   const commentReplyNode = nodes.find(n => n.type === 'commentReply')
-  const openingNode = nodes.find(n => n.type === 'message' && n.data.role === 'opening')
-  const followCheckNode = nodes.find(n => n.type === 'condition' && n.data.conditionType === 'followCheck')
-  const emailCheckNode = nodes.find(n => n.type === 'condition' && n.data.conditionType === 'emailCheck')
-  const mainNode = nodes.find(n => n.type === 'message' && n.data.role === 'main')
-  const delayNode = nodes.find(n => n.type === 'delay')
-  const followUpNode = nodes.find(n => n.type === 'message' && n.data.role === 'followup')
-
-  const triggerKeyword = triggerNode?.data.keywords?.split(',')[0]?.trim() || '키워드'
-  const triggerType = triggerNode?.data.triggerType || 'comment'
-
-  // 변수 미리보기 컨텍스트
+  const triggerKeyword = triggerNode?.data?.keywords?.split(',')[0]?.trim() || '키워드'
+  const triggerType = triggerNode?.data?.triggerType || 'comment'
   const previewCtx = { name: '홍길동', username: '@user123', keyword: triggerKeyword }
   const preview = (text) => interpolateVariables(text, previewCtx)
 
-  // 오프닝 DM
-  if (openingNode) {
-    msgs.push({
-      type: 'bot-bubble',
-      text: preview(openingNode.data.message) || '오프닝 메시지',
-      hasVars: hasVariables(openingNode.data.message),
-      buttons: openingNode.data.buttonText ? [{ label: openingNode.data.buttonText }] : [],
-      step: '오프닝 DM',
-    })
-    if (openingNode.data.buttonText) {
-      msgs.push({ type: 'user-action', text: `"${openingNode.data.buttonText}" 버튼 탭` })
-    }
-  }
+  // ─── 노드 → 메시지 변환기 ───
+  const renderNodeMessages = (node, isOrphan = false) => {
+    const out = []
+    const d = node?.data || {}
+    const orphanMark = isOrphan ? { orphan: true } : {}
 
-  // 팔로우 체크
-  if (followCheckNode) {
-    msgs.push({
-      type: 'bot-bubble',
-      text: preview(followCheckNode.data.message) || '팔로우 후 다시 시도해 주세요',
-      hasVars: hasVariables(followCheckNode.data.message),
-      buttons: [{ label: '팔로우 하기' }],
-      step: '팔로우 확인',
-    })
-    msgs.push({ type: 'user-action', text: '팔로우 완료' })
-  }
-
-  // 이메일 수집
-  if (emailCheckNode) {
-    msgs.push({ type: 'bot-bubble', text: preview(emailCheckNode.data.message) || '이메일을 입력해 주세요', hasVars: hasVariables(emailCheckNode.data.message), buttons: [], step: '이메일 수집' })
-    msgs.push({ type: 'user-text', text: 'example@email.com' })
-  }
-
-  // 고급 조건 노드들 (즉시 평가형)
-  const advCondNodes = nodes.filter(n => n.type === 'condition' && !['followCheck', 'emailCheck'].includes(n.data.conditionType))
-  advCondNodes.forEach(cn => {
-    const ct = cn.data.conditionType
-    const condLabels = { tagCheck: '태그 확인', customField: '필드 조건', timeRange: '시간 조건', random: '랜덤 분기' }
-    let detail = ''
-    if (ct === 'tagCheck') detail = `태그 "${cn.data.tagName || '?'}" 보유 여부`
-    else if (ct === 'customField') detail = `${cn.data.fieldName || '?'} ${cn.data.operator || '='} ${cn.data.fieldValue || '?'}`
-    else if (ct === 'timeRange') detail = `${cn.data.startHour ?? 9}시~${cn.data.endHour ?? 18}시 활성`
-    else if (ct === 'random') detail = `${cn.data.probability ?? 50}% 확률로 통과`
-    msgs.push({ type: 'system-note', text: `🔀 ${condLabels[ct] || '조건'}: ${detail}`, step: condLabels[ct] || '조건' })
-  })
-
-  // 메인 DM + 링크
-  if (mainNode) {
-    const linkBtns = (mainNode.data.links || []).filter(l => l.label || l.url).map(l => ({ label: l.label || '링크', url: l.url }))
-    msgs.push({ type: 'bot-bubble', text: preview(mainNode.data.message) || '메인 메시지', hasVars: hasVariables(mainNode.data.message), buttons: linkBtns, step: '메인 DM' })
-  }
-
-  // 액션 노드들
-  const actionNodes = nodes.filter(n => n.type === 'action')
-  actionNodes.forEach(an => {
-    const labels = { addTag: '태그 추가', removeTag: '태그 제거', setVariable: '변수 설정', addNote: '노트 추가', subscribe: '구독 처리', unsubscribe: '구독 해제' }
-    msgs.push({ type: 'system-note', text: `⚡ ${labels[an.data.actionType] || '액션'}: ${an.data.value || '(미설정)'}`, step: '액션' })
-  })
-
-  // 웹훅 노드들
-  const webhookNodes = nodes.filter(n => n.type === 'webhook')
-  webhookNodes.forEach(wh => {
-    msgs.push({ type: 'system-note', text: `🔗 웹훅 ${wh.data.method || 'POST'}: ${wh.data.url || '(URL 미설정)'}`, step: '웹훅' })
-  })
-
-  // 캐러셀 노드
-  // 알림 구독(OptIn) 노드
-  const optInNode = nodes.find(n => n.type === 'optIn')
-  if (optInNode) {
-    const od = optInNode.data
-    msgs.push({ type: 'bot-bubble', text: od.message || '새 소식을 받아보시겠어요?', buttons: [{ text: '알림 받기' }], step: '알림 구독' })
-  }
-
-  // 재고 확인 노드
-  const inventoryNode = nodes.find(n => n.type === 'inventory')
-  if (inventoryNode) {
-    const gbId = inventoryNode.data.groupBuyId
-    msgs.push({ type: 'system-note', text: `📦 재고 확인 ${gbId ? `(공동구매 #${gbId})` : '(미연결)'}`, step: '재고 확인' })
-  }
-
-  const carouselNode = nodes.find(n => n.type === 'carousel')
-  if (carouselNode) {
-    const cards = carouselNode.data.cards || []
-    msgs.push({ type: 'carousel', cards: cards.map(c => ({ title: c.title || '제목 없음', subtitle: c.subtitle || '', buttonText: c.buttonText || '보기' })), step: '캐러셀' })
-  }
-
-  // A/B 테스트 노드
-  const abtestNode = nodes.find(n => n.type === 'abtest')
-  if (abtestNode) {
-    const pct = abtestNode.data.variantA ?? 50
-    msgs.push({ type: 'system-note', text: `🔀 A/B 테스트 (A:${pct}% / B:${100 - pct}%) — ${abtestNode.data.testName || '테스트'}`, step: 'A/B 테스트' })
-  }
-
-  // AI 자동 응답 노드
-  const aiNode = nodes.find(n => n.type === 'aiResponse')
-  if (aiNode) {
-    const aiData = aiNode.data
-    if (aiData.mode === 'faq') {
-      const validFaqs = (aiData.faqItems || []).filter(f => f.keyword && f.answer)
-      if (validFaqs.length > 0) {
-        // 첫 번째 FAQ를 시뮬레이션
-        msgs.push({ type: 'user-text', text: validFaqs[0].keyword.split(',')[0]?.trim() || '질문' })
-        msgs.push({ type: 'bot-bubble', text: preview(validFaqs[0].answer), hasVars: hasVariables(validFaqs[0].answer), buttons: [], step: 'AI FAQ 응답' })
-      } else {
-        msgs.push({ type: 'system-note', text: '🤖 AI FAQ 응답 (항목 미설정)', step: 'AI 응답' })
+    switch (node.type) {
+      case 'trigger':
+      case 'commentReply':
+        // 대화 시작 구간. 미리보기에선 별도 표시 안 함 (헤더에서 처리)
+        return out
+      case 'message': {
+        const role = d.role || 'main'
+        const stepLabel = role === 'opening' ? '오프닝 DM' : role === 'followup' ? '팔로업' : '메인 DM'
+        const linkBtns = (d.links || []).filter(l => l.label || l.url).map(l => ({ label: l.label || '링크', url: l.url }))
+        const buttons = d.buttonText ? [{ label: d.buttonText }] : linkBtns
+        out.push({
+          type: 'bot-bubble',
+          text: preview(d.message) || `${stepLabel} 메시지`,
+          hasVars: hasVariables(d.message),
+          buttons,
+          step: stepLabel,
+          ...orphanMark,
+        })
+        if (role === 'opening' && d.buttonText) {
+          out.push({ type: 'user-action', text: `"${d.buttonText}" 버튼 탭` })
+        }
+        return out
       }
-    } else {
-      // 스마트 모드
-      const toneLabel = { friendly: '친근한', professional: '전문적', casual: '캐주얼' }[aiData.brandTone?.style] || '친근한'
-      msgs.push({ type: 'user-text', text: '이 상품 가격이 어떻게 되나요?' })
-      msgs.push({
-        type: 'ai-response',
-        text: `안녕하세요! ${aiData.brandTone?.emoji !== false ? '😊 ' : ''}문의 주셔서 감사합니다. AI가 ${toneLabel} 톤으로 자동 응답합니다.`,
-        step: 'AI 스마트 응답',
-      })
+      case 'condition': {
+        const ct = d.conditionType
+        if (ct === 'followCheck') {
+          out.push({ type: 'bot-bubble', text: preview(d.message) || '팔로우 후 다시 시도해 주세요', hasVars: hasVariables(d.message), buttons: [{ label: '팔로우 하기' }], step: '팔로우 확인', ...orphanMark })
+          out.push({ type: 'user-action', text: '팔로우 완료' })
+        } else if (ct === 'emailCheck') {
+          out.push({ type: 'bot-bubble', text: preview(d.message) || '이메일을 입력해 주세요', hasVars: hasVariables(d.message), buttons: [], step: '이메일 수집', ...orphanMark })
+          out.push({ type: 'user-text', text: 'example@email.com' })
+        } else {
+          const labels = { tagCheck: '태그 확인', customField: '필드 조건', timeRange: '시간 조건', random: '랜덤 분기' }
+          let detail = ''
+          if (ct === 'tagCheck') detail = `태그 "${d.tagName || '?'}" 보유 여부`
+          else if (ct === 'customField') detail = `${d.fieldName || '?'} ${d.operator || '='} ${d.fieldValue || '?'}`
+          else if (ct === 'timeRange') detail = `${d.startHour ?? 9}시~${d.endHour ?? 18}시 활성`
+          else if (ct === 'random') detail = `${d.probability ?? 50}% 확률로 통과`
+          out.push({ type: 'system-note', text: `🔀 ${labels[ct] || '조건'}: ${detail}`, step: labels[ct] || '조건', ...orphanMark })
+        }
+        return out
+      }
+      case 'delay':
+        out.push({ type: 'delay', value: d.delay || 30, unit: d.unit || 'minutes', ...orphanMark })
+        return out
+      case 'action': {
+        const labels = { addTag: '태그 추가', removeTag: '태그 제거', setVariable: '변수 설정', addNote: '노트 추가', subscribe: '구독 처리', unsubscribe: '구독 해제' }
+        out.push({ type: 'system-note', text: `⚡ ${labels[d.actionType] || '액션'}: ${d.value || '(미설정)'}`, step: '액션', ...orphanMark })
+        return out
+      }
+      case 'webhook':
+        out.push({ type: 'system-note', text: `🔗 웹훅 ${d.method || 'POST'}: ${d.url || '(URL 미설정)'}`, step: '웹훅', ...orphanMark })
+        return out
+      case 'optIn':
+        out.push({ type: 'bot-bubble', text: d.message || '새 소식을 받아보시겠어요?', buttons: [{ label: '알림 받기' }], step: '알림 구독', ...orphanMark })
+        return out
+      case 'inventory':
+        out.push({ type: 'system-note', text: `📦 재고 확인 ${d.groupBuyId ? `(공동구매 #${d.groupBuyId})` : '(미연결)'}`, step: '재고 확인', ...orphanMark })
+        return out
+      case 'carousel': {
+        const cards = (d.cards || []).map(c => ({ title: c.title || '제목 없음', subtitle: c.subtitle || '', buttonText: c.buttonText || '보기' }))
+        out.push({ type: 'carousel', cards, step: '캐러셀', ...orphanMark })
+        return out
+      }
+      case 'abtest': {
+        const pct = d.variantA ?? 50
+        out.push({ type: 'system-note', text: `🔀 A/B 테스트 (A:${pct}% / B:${100 - pct}%) — ${d.testName || '테스트'}`, step: 'A/B 테스트', ...orphanMark })
+        return out
+      }
+      case 'aiResponse': {
+        if (d.mode === 'faq') {
+          const validFaqs = (d.faqItems || []).filter(f => f.keyword && f.answer)
+          if (validFaqs.length > 0) {
+            out.push({ type: 'user-text', text: validFaqs[0].keyword.split(',')[0]?.trim() || '질문' })
+            out.push({ type: 'bot-bubble', text: preview(validFaqs[0].answer), hasVars: hasVariables(validFaqs[0].answer), buttons: [], step: 'AI FAQ 응답', ...orphanMark })
+          } else {
+            out.push({ type: 'system-note', text: '🤖 AI FAQ 응답 (항목 미설정)', step: 'AI 응답', ...orphanMark })
+          }
+        } else {
+          const toneLabel = { friendly: '친근한', professional: '전문적', casual: '캐주얼' }[d.brandTone?.style] || '친근한'
+          out.push({ type: 'user-text', text: '이 상품 가격이 어떻게 되나요?' })
+          out.push({ type: 'ai-response', text: `안녕하세요! ${d.brandTone?.emoji !== false ? '😊 ' : ''}문의 주셔서 감사합니다. AI가 ${toneLabel} 톤으로 자동 응답합니다.`, step: 'AI 스마트 응답', ...orphanMark })
+        }
+        return out
+      }
+      case 'kakao': {
+        const typeLabel = d.kakaoType === 'friendtalk' ? '친구톡' : '알림톡'
+        out.push({ type: 'system-note', text: `💬 카카오 ${typeLabel}: ${d.kakaoType === 'alimtalk' ? (d.templateCode || '템플릿 미설정') : (d.message?.slice(0, 30) || '메시지 미설정')}`, step: `카카오 ${typeLabel}`, ...orphanMark })
+        return out
+      }
+      default:
+        return out
     }
   }
 
-  // 카카오톡 노드
-  const kakaoNode = nodes.find(n => n.type === 'kakao')
-  if (kakaoNode) {
-    const kd = kakaoNode.data
-    const typeLabel = kd.kakaoType === 'friendtalk' ? '친구톡' : '알림톡'
-    msgs.push({ type: 'system-note', text: `💬 카카오 ${typeLabel}: ${kd.kakaoType === 'alimtalk' ? (kd.templateCode || '템플릿 미설정') : (kd.message?.slice(0, 30) || '메시지 미설정')}`, step: `카카오 ${typeLabel}` })
+  // ─── 엣지 기반 topological 순회 ───
+  // 시작점: trigger(또는 commentReply) 노드. 없으면 인디그리 0인 노드.
+  const edgeBySource = new Map() // sourceId → [edges]
+  edges.forEach(e => {
+    if (!edgeBySource.has(e.source)) edgeBySource.set(e.source, [])
+    edgeBySource.get(e.source).push(e)
+  })
+  const nodeById = new Map(nodes.map(n => [n.id, n]))
+  const inDegree = new Map(nodes.map(n => [n.id, 0]))
+  edges.forEach(e => inDegree.set(e.target, (inDegree.get(e.target) || 0) + 1))
+
+  const startNode = triggerNode || commentReplyNode || nodes.find(n => inDegree.get(n.id) === 0) || nodes[0]
+
+  const visited = new Set()
+  const msgs = []
+  const queue = startNode ? [startNode.id] : []
+  while (queue.length > 0) {
+    const id = queue.shift()
+    if (visited.has(id)) continue
+    visited.add(id)
+    const node = nodeById.get(id)
+    if (!node) continue
+    renderNodeMessages(node, false).forEach(m => msgs.push(m))
+    // outgoing edges를 sourceHandle/순서 기준으로 방문
+    const outs = (edgeBySource.get(id) || []).slice()
+    // 여러 브랜치: UI상 "yes/true/a" 같은 handle을 우선
+    outs.sort((a, b) => {
+      const pri = (h) => {
+        if (!h) return 2
+        if (/yes|true|a|default/i.test(h)) return 0
+        if (/no|false|b/i.test(h)) return 1
+        return 2
+      }
+      return pri(a.sourceHandle) - pri(b.sourceHandle)
+    })
+    outs.forEach(e => queue.push(e.target))
   }
 
-  // 팔로업
-  if (followUpNode) {
-    const d = delayNode?.data
-    msgs.push({ type: 'delay', value: d?.delay || 30, unit: d?.unit || 'minutes' })
-    msgs.push({ type: 'bot-bubble', text: preview(followUpNode.data.message) || '팔로업 메시지', hasVars: hasVariables(followUpNode.data.message), buttons: [], step: '팔로업' })
+  // 고아 노드 (연결 안 됐지만 캔버스에 존재)
+  const orphans = nodes.filter(n =>
+    !visited.has(n.id) &&
+    n.type !== 'trigger' && n.type !== 'commentReply'
+  )
+  if (orphans.length > 0) {
+    msgs.push({ type: 'divider', text: `⚠️ 연결되지 않은 노드 ${orphans.length}개 — 실제 발송에선 동작하지 않습니다` })
+    orphans.forEach(n => {
+      renderNodeMessages(n, true).forEach(m => msgs.push(m))
+    })
   }
 
   return (
@@ -668,7 +679,7 @@ function PhonePreview({ nodes }) {
               if (msg.type === 'bot-bubble') {
                 const showAvatar = i === 0 || msgs[i-1]?.type === 'user-text' || msgs[i-1]?.type === 'user-action' || msgs[i-1]?.type === 'delay'
                 return (
-                  <div key={i}>
+                  <div key={i} style={msg.orphan ? { opacity: 0.5 } : {}}>
                     {msg.step && <div className="ig-step-label"><i className="ri-arrow-right-s-fill" /> {msg.step}</div>}
                     <div className="ig-msg-row received">
                       {showAvatar ? <div className="ig-avatar-small">B</div> : <div className="ig-avatar-spacer" />}
@@ -716,7 +727,7 @@ function PhonePreview({ nodes }) {
               }
               if (msg.type === 'system-note') {
                 return (
-                  <div key={i}>
+                  <div key={i} style={msg.orphan ? { opacity: 0.5 } : {}}>
                     {msg.step && <div className="ig-step-label"><i className="ri-arrow-right-s-fill" /> {msg.step}</div>}
                     <div className="ig-system-note">{msg.text}</div>
                   </div>
@@ -724,7 +735,7 @@ function PhonePreview({ nodes }) {
               }
               if (msg.type === 'ai-response') {
                 return (
-                  <div key={i}>
+                  <div key={i} style={msg.orphan ? { opacity: 0.5 } : {}}>
                     {msg.step && <div className="ig-step-label"><i className="ri-arrow-right-s-fill" /> {msg.step}</div>}
                     <div className="ig-msg-row received">
                       <div className="ig-avatar-small ai">
@@ -740,7 +751,7 @@ function PhonePreview({ nodes }) {
               }
               if (msg.type === 'carousel') {
                 return (
-                  <div key={i}>
+                  <div key={i} style={msg.orphan ? { opacity: 0.5 } : {}}>
                     {msg.step && <div className="ig-step-label"><i className="ri-arrow-right-s-fill" /> {msg.step}</div>}
                     <div className="ig-carousel-preview">
                       {msg.cards.map((card, j) => (
@@ -752,6 +763,22 @@ function PhonePreview({ nodes }) {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )
+              }
+              if (msg.type === 'divider') {
+                return (
+                  <div key={i} style={{
+                    margin: '16px 0 8px',
+                    padding: '8px 12px',
+                    background: '#fef3c7',
+                    border: '1px dashed #f59e0b',
+                    borderRadius: 8,
+                    fontSize: 11,
+                    color: '#92400e',
+                    textAlign: 'center',
+                  }}>
+                    {msg.text}
                   </div>
                 )
               }
