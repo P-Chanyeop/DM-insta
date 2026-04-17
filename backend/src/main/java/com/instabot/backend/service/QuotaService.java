@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
  * 플랜별 할당량(Quota) 검증 서비스
  *
  * 플랜 제한:
- *   FREE:       플로우 3개, 자동화 3개, 연락처 1,000명, 브로드캐스트/시퀀스 불가
+ *   FREE:       플로우 3개, 자동화 5개, 연락처 1,000명, 브로드캐스트/시퀀스 불가
  *   PRO:        무제한 플로우/자동화, 연락처 15,000명, 브로드캐스트/시퀀스 가능
  *   ENTERPRISE: 모두 무제한
  */
@@ -28,7 +28,7 @@ public class QuotaService {
     // ─── 플랜별 제한 상수 ───
 
     private static final int FREE_MAX_FLOWS = 3;
-    private static final int FREE_MAX_AUTOMATIONS = 3;
+    private static final int FREE_MAX_AUTOMATIONS = 5;
     private static final int FREE_MAX_CONTACTS = 1_000;
 
     private static final int PRO_MAX_CONTACTS = 15_000;

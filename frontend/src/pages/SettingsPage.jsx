@@ -77,7 +77,7 @@ const PLANS = [
     annualPrice: 0,
     features: [
       { text: '연락처 1,000명', included: true },
-      { text: '기본 자동화 3개', included: true },
+      { text: '기본 자동화 5개', included: true },
       { text: 'Instagram 계정 1개', included: true },
       { text: '커뮤니티 지원', included: true },
       { text: '브로드캐스팅', included: false },
