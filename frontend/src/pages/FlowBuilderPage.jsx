@@ -591,7 +591,8 @@ function PhonePreview({ nodes, edges }) {
   edges.forEach(e => inDegree.set(e.target, (inDegree.get(e.target) || 0) + 1))
   const startNode = triggerNode || commentReplyNode || nodes.find(n => inDegree.get(n.id) === 0) || nodes[0]
 
-  // ─── 분기 handle 한글 라벨 ───
+  // ─── 분기 handle 한글 라벨 (long + short 쌍) ───
+  // B안: 칩엔 짧은 라벨, 브레드크럼엔 긴 라벨
   const handleLabel = (sourceNode, handleId) => {
     if (!handleId) return null
     const h = String(handleId).toLowerCase()
@@ -599,40 +600,58 @@ function PhonePreview({ nodes, edges }) {
     if (sourceNode?.type === 'condition') {
       const ct = sourceNode.data?.conditionType
       if (/yes|true|pass/i.test(h)) {
-        if (ct === 'followCheck') return '팔로워'
-        if (ct === 'emailCheck') return '이메일 수집 완료'
-        if (ct === 'tagCheck') return `태그 보유 (${sourceNode.data?.tagName || '?'})`
-        if (ct === 'timeRange') return `영업시간 내 (${sourceNode.data?.startHour ?? 9}~${sourceNode.data?.endHour ?? 18}시)`
-        if (ct === 'customField') return '조건 일치'
-        return '통과'
+        if (ct === 'followCheck') return { long: '팔로워', short: '팔로워 ✓' }
+        if (ct === 'emailCheck') return { long: '이메일 수집 완료', short: '이메일 ✓' }
+        if (ct === 'tagCheck') return { long: `태그 보유 (${sourceNode.data?.tagName || '?'})`, short: `${sourceNode.data?.tagName || '태그'} ✓` }
+        if (ct === 'timeRange') return { long: `영업시간 내 (${sourceNode.data?.startHour ?? 9}~${sourceNode.data?.endHour ?? 18}시)`, short: '영업시간 ✓' }
+        if (ct === 'customField') return { long: '조건 일치', short: '조건 ✓' }
+        return { long: '통과', short: '통과' }
       }
       if (/no|false|fail/i.test(h)) {
-        if (ct === 'followCheck') return '미팔로우'
-        if (ct === 'emailCheck') return '이메일 미수집'
-        if (ct === 'tagCheck') return '태그 없음'
-        if (ct === 'timeRange') return '영업시간 외'
-        if (ct === 'customField') return '조건 불일치'
-        return '실패'
+        if (ct === 'followCheck') return { long: '미팔로우', short: '팔로워 ✗' }
+        if (ct === 'emailCheck') return { long: '이메일 미수집', short: '이메일 ✗' }
+        if (ct === 'tagCheck') return { long: '태그 없음', short: `${sourceNode.data?.tagName || '태그'} ✗` }
+        if (ct === 'timeRange') return { long: '영업시간 외', short: '영업시간 ✗' }
+        if (ct === 'customField') return { long: '조건 불일치', short: '조건 ✗' }
+        return { long: '실패', short: '실패' }
       }
     }
     // 랜덤/AB
-    if (/^a$/i.test(h)) return `A 변형${sourceNode?.data?.variantA != null ? ` (${sourceNode.data.variantA}%)` : ''}`
-    if (/^b$/i.test(h)) return `B 변형${sourceNode?.data?.variantA != null ? ` (${100 - sourceNode.data.variantA}%)` : ''}`
+    if (/^a$/i.test(h)) {
+      const pct = sourceNode?.data?.variantA
+      return { long: `A 변형${pct != null ? ` (${pct}%)` : ''}`, short: `A${pct != null ? ` ${pct}%` : ''}` }
+    }
+    if (/^b$/i.test(h)) {
+      const pct = sourceNode?.data?.variantA
+      return { long: `B 변형${pct != null ? ` (${100 - pct}%)` : ''}`, short: `B${pct != null ? ` ${100 - pct}%` : ''}` }
+    }
     // 웹훅 응답
-    if (/success|2xx/i.test(h)) return '응답 성공'
-    if (/error|fail|4xx|5xx/i.test(h)) return '응답 실패'
+    if (/success|2xx/i.test(h)) return { long: '응답 성공', short: '2xx ✓' }
+    if (/error|fail|4xx|5xx/i.test(h)) return { long: '응답 실패', short: 'Err ✗' }
     return null
   }
 
+  // A안: 분기 노드인데 일부 handle이 미연결인지 판단
+  // 현재는 "조건 노드에 yes/no 둘 다 필요한데 하나만 연결"된 케이스를 감지
+  const incompleteBranchNodeIds = new Set()
+  nodes.forEach(n => {
+    const outs = edgeBySource.get(n.id) || []
+    const needsYesNo = n.type === 'condition' // AB/random은 꼭 양쪽 필요 안 함 (편향 허용)
+    if (!needsYesNo) return
+    const handles = new Set(outs.map(e => String(e.sourceHandle || '').toLowerCase()))
+    const hasYes = [...handles].some(h => /yes|true|pass/.test(h))
+    const hasNo = [...handles].some(h => /no|false|fail/.test(h))
+    if (!hasYes || !hasNo) incompleteBranchNodeIds.add(n.id)
+  })
+
   // ─── 경로 열거 (DFS, 순환 방지, 경로당 노드 최대 30) ───
-  // path = { nodeIds: [...], labels: [{ atIdx, label }] } — labels는 분기 라벨만
+  // path = { nodeIds, labels: [{atNodeId, long, short}], cyclic?, truncated?, incompleteAt? }
   const MAX_PATHS = 12
   const MAX_DEPTH = 30
   const allPaths = []
   const dfs = (nodeId, visited, pathNodes, pathLabels) => {
     if (allPaths.length >= MAX_PATHS) return
     if (visited.has(nodeId)) {
-      // 순환: 현재 경로를 닫고 저장 (순환 배지 첨부)
       allPaths.push({ nodeIds: pathNodes.slice(), labels: pathLabels.slice(), cyclic: true })
       return
     }
@@ -643,26 +662,46 @@ function PhonePreview({ nodes, edges }) {
     const newVisited = new Set(visited); newVisited.add(nodeId)
     const newPathNodes = pathNodes.concat([nodeId])
     const outs = edgeBySource.get(nodeId) || []
+    // A안: 분기 노드인데 미완성이면 여기서 경로 종료 + incomplete 플래그
+    if (incompleteBranchNodeIds.has(nodeId)) {
+      allPaths.push({ nodeIds: newPathNodes, labels: pathLabels.slice(), incompleteAt: nodeId })
+      // 연결된 일부 분기는 계속 탐색
+      const sourceNode = nodeById.get(nodeId)
+      outs.forEach(e => {
+        const lbl = handleLabel(sourceNode, e.sourceHandle)
+        const newLabels = lbl ? pathLabels.concat([{ atNodeId: nodeId, ...lbl }]) : pathLabels
+        dfs(e.target, newVisited, newPathNodes, newLabels)
+      })
+      return
+    }
     if (outs.length === 0) {
-      // 리프 — 경로 완성
       allPaths.push({ nodeIds: newPathNodes, labels: pathLabels.slice() })
       return
     }
-    // 분기 엣지 각각으로 재귀
     const sourceNode = nodeById.get(nodeId)
     outs.forEach(e => {
       const lbl = handleLabel(sourceNode, e.sourceHandle)
-      const newLabels = lbl ? pathLabels.concat([{ atNodeId: nodeId, label: lbl }]) : pathLabels
+      const newLabels = lbl ? pathLabels.concat([{ atNodeId: nodeId, ...lbl }]) : pathLabels
       dfs(e.target, newVisited, newPathNodes, newLabels)
     })
   }
   if (startNode) dfs(startNode.id, new Set(), [], [])
 
-  // 경로 라벨 생성: 분기 라벨 join + 마지막 노드 step 힌트
-  const pathNameFor = (path) => {
-    if (!path) return '기본 경로'
-    if (path.labels.length === 0) return '기본 경로'
-    return path.labels.map(l => l.label).join(' → ')
+  // B안: 칩 라벨 = 번호 + 짧은 라벨 " · " 로 이음
+  const pathNameFor = (path, idx) => {
+    const num = `#${idx + 1}`
+    if (!path) return num
+    if (path.incompleteAt) {
+      const shortLbls = path.labels.map(l => l.short).filter(Boolean).join(' · ')
+      return `${num}${shortLbls ? ' · ' + shortLbls : ''} · ⚠ 미완성`
+    }
+    if (path.labels.length === 0) return `${num} · 기본`
+    return `${num} · ${path.labels.map(l => l.short).join(' · ')}`
+  }
+  // C안: 브레드크럼 = 긴 라벨 " › "
+  const pathBreadcrumbFor = (path) => {
+    if (!path || path.labels.length === 0) return '기본 경로'
+    return path.labels.map(l => l.long).join(' › ')
   }
 
   // 유효 경로 인덱스 클램프
@@ -683,6 +722,16 @@ function PhonePreview({ nodes, edges }) {
     }
     if (selectedPath.truncated) {
       msgs.push({ type: 'divider', text: `⚠️ 경로가 ${MAX_DEPTH}노드를 초과해 잘렸습니다` })
+    }
+    if (selectedPath.incompleteAt) {
+      const node = nodeById.get(selectedPath.incompleteAt)
+      const nodeLabel = node?.data?.conditionType === 'followCheck' ? '팔로우 확인'
+        : node?.data?.conditionType === 'emailCheck' ? '이메일 수집'
+        : node?.data?.conditionType === 'tagCheck' ? '태그 확인'
+        : node?.data?.conditionType === 'timeRange' ? '시간 조건'
+        : node?.data?.conditionType === 'customField' ? '필드 조건'
+        : '조건 노드'
+      msgs.push({ type: 'divider', text: `⚠️ "${nodeLabel}" 분기가 완성되지 않았습니다 — 통과/실패 중 한쪽이 연결되지 않음` })
     }
   }
 
@@ -726,23 +775,36 @@ function PhonePreview({ nodes, edges }) {
             <div className="ig-scenario-picker">
               <div className="ig-scenario-label">
                 <i className="ri-route-line" /> 시나리오 ({allPaths.length}개)
+                {incompleteBranchNodeIds.size > 0 && (
+                  <span style={{ color: '#fbbf24', marginLeft: 6 }}>
+                    <i className="ri-error-warning-line" /> 미완성 분기 {incompleteBranchNodeIds.size}개
+                  </span>
+                )}
               </div>
               <div className="ig-scenario-chips">
                 {allPaths.map((p, idx) => {
-                  const name = pathNameFor(p)
+                  const name = pathNameFor(p, idx)
+                  const isIncomplete = !!p.incompleteAt
                   return (
                     <button
                       key={idx}
                       type="button"
-                      className={`ig-scenario-chip${idx === safeIdx ? ' active' : ''}`}
+                      className={`ig-scenario-chip${idx === safeIdx ? ' active' : ''}${isIncomplete ? ' incomplete' : ''}`}
                       onClick={() => setSelectedPathIdx(idx)}
-                      title={name}
+                      title={pathBreadcrumbFor(p)}
                     >
                       {name}
                     </button>
                   )
                 })}
               </div>
+              {/* C안: 브레드크럼 — 현재 선택 경로의 긴 라벨 */}
+              {selectedPath && selectedPath.labels.length > 0 && (
+                <div className="ig-scenario-breadcrumb">
+                  <i className="ri-git-branch-line" />
+                  <span>{pathBreadcrumbFor(selectedPath)}</span>
+                </div>
+              )}
             </div>
           )}
 
