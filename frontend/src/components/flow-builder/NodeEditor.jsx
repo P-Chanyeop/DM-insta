@@ -316,6 +316,34 @@ function ConditionEditor({ data, update }) {
         </div>
       )}
 
+      {/* B안: 팔로우 확인 재시도 옵션 */}
+      {ct === 'followCheck' && (
+        <div className="ne-field">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={data.retryOnFail !== false}
+              onChange={(e) => update({ retryOnFail: e.target.checked })}
+              style={{ width: 16, height: 16, cursor: 'pointer' }}
+            />
+            <span>팔로우 안내 후 "확인" 버튼으로 재시도 허용</span>
+          </label>
+          <p className="ne-hint">
+            체크 시: 안내 메시지에 버튼이 추가되고, 사용자가 탭하면 팔로우 여부를 다시 확인합니다.<br/>
+            해제 시: 팔로우하지 않은 사용자의 대화는 여기서 종료됩니다.
+          </p>
+          {data.retryOnFail !== false && (
+            <input
+              className="ne-input"
+              style={{ marginTop: 8 }}
+              placeholder="버튼 문구 (기본: 확인했어요)"
+              value={data.retryButton || ''}
+              onChange={(e) => update({ retryButton: e.target.value })}
+            />
+          )}
+        </div>
+      )}
+
       {/* 태그 확인 */}
       {ct === 'tagCheck' && (
         <div className="ne-field">

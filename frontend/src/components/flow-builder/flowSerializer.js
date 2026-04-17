@@ -524,7 +524,7 @@ export const NODE_PALETTE = [
   { type: 'message', label: '오프닝 DM', icon: 'ri-message-3-line', color: '#3B82F6',
     defaultData: { role: 'opening', message: '', buttonText: '링크 받기' } },
   { type: 'condition', label: '팔로우 확인', icon: 'ri-user-follow-line', color: '#8B5CF6',
-    defaultData: { conditionType: 'followCheck', message: '팔로우 후 다시 시도해 주세요' } },
+    defaultData: { conditionType: 'followCheck', message: '팔로우 후 다시 시도해 주세요', retryOnFail: true, retryButton: '확인했어요' } },
   { type: 'condition', label: '이메일 수집', icon: 'ri-mail-line', color: '#8B5CF6',
     defaultData: { conditionType: 'emailCheck', message: '이메일 주소를 입력해 주세요' } },
   { type: 'condition', label: '태그 확인', icon: 'ri-price-tag-3-line', color: '#8B5CF6',

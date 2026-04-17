@@ -511,8 +511,18 @@ function PhonePreview({ nodes, edges }) {
       case 'condition': {
         const ct = d.conditionType
         if (ct === 'followCheck') {
-          out.push({ type: 'bot-bubble', text: preview(d.message) || '팔로우 후 다시 시도해 주세요', hasVars: hasVariables(d.message), buttons: [{ label: '팔로우 하기' }], step: '팔로우 확인', ...orphanMark })
-          out.push({ type: 'user-action', text: '팔로우 완료' })
+          const retry = d.retryOnFail !== false  // 기본 true
+          const btnLabel = d.retryButton || '확인했어요'
+          const buttons = retry
+            ? [{ label: '팔로우 하기' }, { label: btnLabel }]
+            : [{ label: '팔로우 하기' }]
+          out.push({ type: 'bot-bubble', text: preview(d.message) || '팔로우 후 다시 시도해 주세요', hasVars: hasVariables(d.message), buttons, step: '팔로우 확인', ...orphanMark })
+          if (retry) {
+            out.push({ type: 'user-action', text: `"${btnLabel}" 버튼 탭` })
+            out.push({ type: 'system-note', text: '🔁 팔로우 상태를 다시 확인합니다', ...orphanMark })
+          } else {
+            out.push({ type: 'user-action', text: '팔로우 완료 (수동)' })
+          }
         } else if (ct === 'emailCheck') {
           out.push({ type: 'bot-bubble', text: preview(d.message) || '이메일을 입력해 주세요', hasVars: hasVariables(d.message), buttons: [], step: '이메일 수집', ...orphanMark })
           out.push({ type: 'user-text', text: 'example@email.com' })
@@ -631,17 +641,13 @@ function PhonePreview({ nodes, edges }) {
     return null
   }
 
-  // A안: 분기 노드인데 일부 handle이 미연결인지 판단
-  // 현재는 "조건 노드에 yes/no 둘 다 필요한데 하나만 연결"된 케이스를 감지
+  // A안: 분기 노드의 "진짜 미사용" 케이스만 감지 (양쪽 다 미연결)
+  // 한쪽만 비어있는 건 "그 분기에서 대화 종료" 의도로 허용
   const incompleteBranchNodeIds = new Set()
   nodes.forEach(n => {
+    if (n.type !== 'condition') return
     const outs = edgeBySource.get(n.id) || []
-    const needsYesNo = n.type === 'condition' // AB/random은 꼭 양쪽 필요 안 함 (편향 허용)
-    if (!needsYesNo) return
-    const handles = new Set(outs.map(e => String(e.sourceHandle || '').toLowerCase()))
-    const hasYes = [...handles].some(h => /yes|true|pass/.test(h))
-    const hasNo = [...handles].some(h => /no|false|fail/.test(h))
-    if (!hasYes || !hasNo) incompleteBranchNodeIds.add(n.id)
+    if (outs.length === 0) incompleteBranchNodeIds.add(n.id)
   })
 
   // ─── 경로 열거 (DFS, 순환 방지, 경로당 노드 최대 30) ───
@@ -731,7 +737,13 @@ function PhonePreview({ nodes, edges }) {
         : node?.data?.conditionType === 'timeRange' ? '시간 조건'
         : node?.data?.conditionType === 'customField' ? '필드 조건'
         : '조건 노드'
-      msgs.push({ type: 'divider', text: `⚠️ "${nodeLabel}" 분기가 완성되지 않았습니다 — 통과/실패 중 한쪽이 연결되지 않음` })
+      msgs.push({ type: 'divider', text: `⚠️ "${nodeLabel}" 분기에 연결이 전혀 없습니다 — 이 조건 노드는 동작하지 않습니다` })
+    } else if (!selectedPath.cyclic && !selectedPath.truncated) {
+      // A안: 정상 경로 끝에 "대화 종료" 라벨 (마지막 분기 라벨이 있을 때만)
+      const lastLabel = selectedPath.labels[selectedPath.labels.length - 1]
+      if (lastLabel) {
+        msgs.push({ type: 'divider', text: `💬 여기서 대화 종료 (${lastLabel.long})` })
+      }
     }
   }
 
