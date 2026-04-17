@@ -11,6 +11,7 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
     Page<Contact> findByUserId(Long userId, Pageable pageable);
     Page<Contact> findByUserIdAndActiveTrue(Long userId, Pageable pageable);
     Optional<Contact> findByUserIdAndIgUserId(Long userId, String igUserId);
+    java.util.List<Contact> findAllByUserId(Long userId);
     long countByUserId(Long userId);
     long countByUserIdAndActiveTrue(Long userId);
 

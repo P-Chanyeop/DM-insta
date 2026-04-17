@@ -43,5 +43,5 @@ public class Automation {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     public enum AutomationType { DM_KEYWORD, COMMENT_TRIGGER, STORY_MENTION, STORY_REPLY, WELCOME_MESSAGE, ICEBREAKER }
-    public enum MatchType { EXACT, CONTAINS }
+    public enum MatchType { EXACT, CONTAINS, STARTS_WITH }
 }

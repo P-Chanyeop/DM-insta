@@ -94,4 +94,38 @@ public class UserController {
 
         return ResponseEntity.ok(Map.of("message", "비밀번호가 변경되었습니다."));
     }
+
+    /**
+     * 회원 탈퇴 (S60) — 비밀번호 재확인 후 anonymize 방식으로 soft delete.
+     * 완전 삭제 대신 개인정보만 제거하여 분석/통계 연속성 유지 (GDPR 권장).
+     * Body: { "currentPassword": "..." }
+     */
+    @DeleteMapping("/me")
+    public ResponseEntity<Map<String, String>> deleteMe(@RequestBody Map<String, String> body) {
+        Long userId = SecurityUtils.currentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+
+        String password = body.get("currentPassword");
+        if (password == null || password.isBlank()) {
+            throw new BadRequestException("비밀번호를 입력해주세요.");
+        }
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new BadRequestException("비밀번호가 올바르지 않습니다.");
+        }
+
+        // Anonymize: 이메일/이름/비밀번호를 식별 불가 값으로 치환 + 토큰 무효화 상태
+        long ts = System.currentTimeMillis();
+        user.setEmail("deleted-" + user.getId() + "-" + ts + "@deleted.local");
+        user.setName("삭제된 사용자");
+        user.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+        user.setFacebookAccessToken(null);
+        user.setFacebookUserId(null);
+        user.setFacebookTokenExpiresAt(null);
+        user.setEmailVerified(false);
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "계정이 삭제되었습니다."));
+    }
 }

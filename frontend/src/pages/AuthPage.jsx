@@ -100,7 +100,14 @@ export default function AuthPage() {
           if (res.onboardingCompleted) {
             localStorage.setItem(`onboarding_completed_${form.email}`, 'true')
           }
-          navigate(onboardingDone ? '/app' : '/app/onboarding')
+          // S51 fix: redirect 파라미터가 있으면 복귀
+          const params = new URLSearchParams(location.search)
+          const redirect = params.get('redirect')
+          if (redirect && redirect.startsWith('/app') && onboardingDone) {
+            navigate(redirect)
+          } else {
+            navigate(onboardingDone ? '/app' : '/app/onboarding')
+          }
         }
       }
     } catch (err) {

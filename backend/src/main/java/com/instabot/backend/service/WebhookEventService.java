@@ -272,6 +272,7 @@ public class WebhookEventService {
         return switch (automation.getMatchType()) {
             case EXACT -> lowerText.equals(lowerKeyword);
             case CONTAINS -> lowerText.contains(lowerKeyword);
+            case STARTS_WITH -> lowerText.startsWith(lowerKeyword);
         };
     }
 

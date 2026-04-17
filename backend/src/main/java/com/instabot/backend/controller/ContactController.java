@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +22,21 @@ public class ContactController {
     @GetMapping
     public ResponseEntity<Page<ContactDto.Response>> getContacts(@PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(contactService.getContacts(SecurityUtils.currentUserId(), pageable));
+    }
+
+    /**
+     * CSV 내보내기 — UTF-8 BOM 포함 (Excel 한글 호환)
+     * 중요: @GetMapping("/export")를 @GetMapping("/{id}") 보다 먼저 선언해야
+     *       "/contacts/export"가 Long id로 파싱되지 않는다.
+     */
+    @GetMapping(value = "/export", produces = "text/csv; charset=UTF-8")
+    public ResponseEntity<String> exportContacts() {
+        String csv = contactService.exportContactsCsv(SecurityUtils.currentUserId());
+        String fileName = "contacts-" + java.time.LocalDate.now() + ".csv";
+        return ResponseEntity.ok()
+                .header("Content-Type", "text/csv; charset=UTF-8")
+                .header("Content-Disposition", "attachment; filename=\"" + fileName + "\"")
+                .body("\uFEFF" + csv); // UTF-8 BOM
     }
 
     @GetMapping("/{id}")

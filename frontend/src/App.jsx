@@ -2,11 +2,13 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { AccountProvider } from './components/AccountContext'
 import PageLoader from './components/PageLoader'
+import RequireAuth from './components/RequireAuth'
 
 // Eager: 랜딩/인증은 첫 화면이므로 즉시 로드
 import LandingPage from './pages/LandingPage'
 import AuthPage from './pages/AuthPage'
 import DashboardLayout from './layouts/DashboardLayout'
+import NotFoundPage from './pages/NotFoundPage'
 
 // Lazy: 대시보드 내부 페이지들은 코드 스플리팅
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
@@ -39,8 +41,8 @@ export default function App() {
       <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><LegalPage /></Suspense>} />
       <Route path="/signup" element={<AuthPage />} />
       <Route path="/auth/callback" element={<Suspense fallback={<PageLoader />}><AuthCallbackPage /></Suspense>} />
-      <Route path="/app/onboarding" element={<Suspense fallback={<PageLoader />}><OnboardingPage /></Suspense>} />
-      <Route path="/app" element={<DashboardLayout />}>
+      <Route path="/app/onboarding" element={<RequireAuth><Suspense fallback={<PageLoader />}><OnboardingPage /></Suspense></RequireAuth>} />
+      <Route path="/app" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
         <Route index element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />
         <Route path="flows" element={<Suspense fallback={<PageLoader />}><FlowsPage /></Suspense>} />
         <Route path="flows/builder" element={<Suspense fallback={<PageLoader />}><FlowBuilderPage /></Suspense>} />
@@ -60,6 +62,8 @@ export default function App() {
         <Route path="agency" element={<Suspense fallback={<PageLoader />}><AgencyPage /></Suspense>} />
         <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
       </Route>
+      {/* S54 fix: 404 캐치올 — 이 라우트는 반드시 맨 마지막에 두어야 함 */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
     </AccountProvider>
   )

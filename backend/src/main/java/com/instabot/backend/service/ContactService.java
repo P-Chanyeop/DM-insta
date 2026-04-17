@@ -108,6 +108,35 @@ public class ContactService {
         return contactRepository.countByUserId(userId);
     }
 
+    /**
+     * CSV 내보내기 — 사용자의 전체 연락처를 RFC 4180 CSV 문자열로 반환.
+     * 쉼표/따옴표/줄바꿈 포함 시 이스케이프.
+     */
+    public String exportContactsCsv(Long userId) {
+        List<Contact> contacts = contactRepository.findAllByUserId(userId);
+        StringBuilder sb = new StringBuilder();
+        sb.append("id,username,name,tags,memo,messageCount,active,subscribedAt,lastActiveAt\n");
+        for (Contact c : contacts) {
+            sb.append(c.getId()).append(',');
+            sb.append(csvEscape(c.getUsername())).append(',');
+            sb.append(csvEscape(c.getName())).append(',');
+            sb.append(csvEscape(c.getTags() == null ? "" : String.join("|", c.getTags()))).append(',');
+            sb.append(csvEscape(c.getMemo())).append(',');
+            sb.append(c.getMessageCount()).append(',');
+            sb.append(c.isActive()).append(',');
+            sb.append(c.getSubscribedAt() == null ? "" : c.getSubscribedAt()).append(',');
+            sb.append(c.getLastActiveAt() == null ? "" : c.getLastActiveAt()).append('\n');
+        }
+        return sb.toString();
+    }
+
+    private String csvEscape(String s) {
+        if (s == null) return "";
+        boolean needQuote = s.contains(",") || s.contains("\"") || s.contains("\n") || s.contains("\r");
+        String escaped = s.replace("\"", "\"\"");
+        return needQuote ? "\"" + escaped + "\"" : escaped;
+    }
+
     private ContactDto.Response toResponse(Contact c) {
         return ContactDto.Response.builder()
                 .id(c.getId())

@@ -54,7 +54,8 @@ public class AutomationService {
             Map.entry("포함", Automation.MatchType.CONTAINS),
             Map.entry("EXACT", Automation.MatchType.EXACT),
             Map.entry("정확", Automation.MatchType.EXACT),
-            Map.entry("STARTS_WITH", Automation.MatchType.CONTAINS) // fallback
+            Map.entry("STARTS_WITH", Automation.MatchType.STARTS_WITH),
+            Map.entry("시작", Automation.MatchType.STARTS_WITH)
     );
 
     private Automation.AutomationType parseType(String input) {
