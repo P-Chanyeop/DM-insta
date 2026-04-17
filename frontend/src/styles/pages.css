@@ -920,6 +920,26 @@
 }
 .fb-canvas .react-flow__panel { z-index: 5; }
 
+/* 엣지 클릭 영역 넓히기 + 호버/선택 시각 강조 (연결선 삭제 UX) */
+.fb-canvas .react-flow__edge { cursor: pointer; }
+.fb-canvas .react-flow__edge-path {
+  stroke-width: 2px;
+  transition: stroke-width 0.15s, stroke 0.15s;
+}
+.fb-canvas .react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 3px;
+  stroke: #6366f1;
+}
+.fb-canvas .react-flow__edge.selected .react-flow__edge-path {
+  stroke: #ef4444;
+  stroke-width: 3px;
+  stroke-dasharray: 6 4;
+}
+/* 엣지 클릭 히트박스 확장 (얇은 선이라도 클릭 쉽게) */
+.fb-canvas .react-flow__edge-interaction {
+  stroke-width: 20px !important;
+}
+
 /* 노드 추가 버튼 */
 .fb-add-node-btn {
   display: flex; align-items: center; gap: 6px;

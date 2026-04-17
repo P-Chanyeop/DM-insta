@@ -300,6 +300,25 @@ export default function FlowBuilderPage() {
         </div>
       )}
 
+      {/* 연결선 삭제 안내 배너 — 노드가 2개 이상일 때만 표시 */}
+      {nodes.length >= 2 && (
+        <div style={{
+          margin: '8px 16px 0', padding: '8px 14px',
+          background: '#eef2ff', border: '1px solid #c7d2fe',
+          borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10,
+          fontSize: 13, color: '#4338ca',
+        }}>
+          <i className="ri-information-line" style={{ fontSize: 16, color: '#6366f1' }} />
+          <span>
+            <strong>연결선 삭제:</strong> 선을 <u>클릭</u>해 빨간 점선으로 선택한 뒤{' '}
+            <kbd style={{ padding: '1px 6px', background: '#fff', border: '1px solid #c7d2fe', borderRadius: 4, fontFamily: 'monospace', fontSize: 11 }}>Delete</kbd>
+            {' '}또는{' '}
+            <kbd style={{ padding: '1px 6px', background: '#fff', border: '1px solid #c7d2fe', borderRadius: 4, fontFamily: 'monospace', fontSize: 11 }}>Backspace</kbd>
+            {' '}키를 누르세요. 노드 삭제도 동일합니다.
+          </span>
+        </div>
+      )}
+
       {/* ── 메인 캔버스 영역 ── */}
       <div className="fb-canvas-layout">
         {/* 노드 팔레트 (좌측) */}
