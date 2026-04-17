@@ -920,24 +920,35 @@
 }
 .fb-canvas .react-flow__panel { z-index: 5; }
 
-/* 엣지 클릭 영역 넓히기 + 호버/선택 시각 강조 (연결선 삭제 UX) */
+/* 엣지 클릭 영역 넓히기 + 호버/선택 시각 강조 (연결선 삭제 UX)
+ * React Flow는 defaultEdgeOptions.style을 인라인으로 박기 때문에
+ * CSS 우선순위를 이기려면 !important + 특이도 올려야 함 */
 .fb-canvas .react-flow__edge { cursor: pointer; }
-.fb-canvas .react-flow__edge-path {
-  stroke-width: 2px;
-  transition: stroke-width 0.15s, stroke 0.15s;
+.fb-canvas .react-flow__edge .react-flow__edge-path {
+  transition: stroke-width 0.15s ease, stroke 0.15s ease;
 }
+/* 호버: 보라색 + 굵게 */
 .fb-canvas .react-flow__edge:hover .react-flow__edge-path {
-  stroke-width: 3px;
-  stroke: #6366f1;
+  stroke: #6366f1 !important;
+  stroke-width: 3.5px !important;
 }
-.fb-canvas .react-flow__edge.selected .react-flow__edge-path {
-  stroke: #ef4444;
-  stroke-width: 3px;
-  stroke-dasharray: 6 4;
+/* 선택됨: 빨강 + 굵게 + 점선 + 살짝 glow */
+.fb-canvas .react-flow__edge.selected .react-flow__edge-path,
+.fb-canvas .react-flow__edge[data-selected="true"] .react-flow__edge-path {
+  stroke: #ef4444 !important;
+  stroke-width: 4px !important;
+  stroke-dasharray: 8 4 !important;
+  filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.5));
+}
+/* 선택된 엣지의 애니메이션 멈춤 (dash 이동 안 보이게) */
+.fb-canvas .react-flow__edge.selected .react-flow__edge-path,
+.fb-canvas .react-flow__edge[data-selected="true"] .react-flow__edge-path {
+  animation: none !important;
 }
 /* 엣지 클릭 히트박스 확장 (얇은 선이라도 클릭 쉽게) */
 .fb-canvas .react-flow__edge-interaction {
   stroke-width: 20px !important;
+  cursor: pointer;
 }
 
 /* 노드 추가 버튼 */
