@@ -277,7 +277,7 @@ export default function FlowsPage() {
                   <button
                     className="icon-btn"
                     title="수정"
-                    onClick={() => navigate('/app/flows/builder', { state: { flowId: f.id } })}
+                    onClick={() => navigate(`/app/flows/builder/${f.id}`)}
                   >
                     <i className="ri-edit-line" />
                   </button>

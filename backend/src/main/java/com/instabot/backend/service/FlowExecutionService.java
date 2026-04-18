@@ -2,10 +2,14 @@ package com.instabot.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.instabot.backend.dto.flow.*;
 import com.instabot.backend.entity.*;
 import com.instabot.backend.entity.PendingFlowAction.PendingStep;
 import com.instabot.backend.entity.ScheduledFollowUp;
 import com.instabot.backend.repository.*;
+import com.instabot.backend.service.flow.FlowGraphParser;
+import com.instabot.backend.service.flow.NodeExecutor;
+import com.instabot.backend.service.flow.NodeExecutorRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -56,6 +60,9 @@ public class FlowExecutionService {
     private final NodeExecutionRepository nodeExecutionRepository;
     private final ABTestService abTestService;
     private final KakaoChannelService kakaoChannelService;
+    private final NodeExecutorRegistry nodeExecutorRegistry;
+
+    private static final int MAX_GRAPH_STEPS = 50;
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}");
@@ -75,6 +82,15 @@ public class FlowExecutionService {
             log.info("플로우 실행 시작: flowId={}, sender={}", flow.getId(), senderIgId);
 
             JsonNode flowData = objectMapper.readTree(flow.getFlowData());
+            int version = flowData.path("version").asInt(1);
+
+            // ── v2 그래프 실행 ──
+            if (version >= 2) {
+                executeFlowV2(flow, igAccount, senderIgId, triggerText, commentId, flowData);
+                return;
+            }
+
+            // ── v1 레거시 실행 (아래 기존 코드) ──
             String accessToken = instagramApiService.getDecryptedToken(igAccount);
             String botIgId = igAccount.getIgUserId();
 
@@ -170,11 +186,18 @@ public class FlowExecutionService {
             JsonNode flowData = objectMapper.readTree(flow.getFlowData());
             log.info("오프닝DM 버튼 클릭 → requirements 진행: flowId={}, sender={}", flow.getId(), senderIgId);
 
-            // 기존 AWAITING_POSTBACK 완료, triggerKeyword 복원
             String triggerKeyword = pending.getTriggerKeyword();
+            String currentNodeId = pending.getCurrentNodeId();
             pending.setPendingStep(PendingStep.COMPLETED);
             pendingFlowActionRepository.save(pending);
 
+            // v2 그래프: currentNodeId가 있으면 그래프 순회 재개
+            if (currentNodeId != null) {
+                resumeFlowGraph(flow, igAccount, senderIgId, triggerKeyword, currentNodeId, pending.getCommentId());
+                return;
+            }
+
+            // v1 레거시
             proceedToRequirements(flow, igAccount, senderIgId, flowData, triggerKeyword);
 
         } catch (Exception e) {
@@ -210,9 +233,18 @@ public class FlowExecutionService {
                 // ✅ 팔로우 확인됨 → 다음 단계 진행
                 log.info("팔로우 확인 완료: flowId={}, sender={}", flow.getId(), senderIgId);
                 String triggerKeyword = pending.getTriggerKeyword();
+                String currentNodeId = pending.getCurrentNodeId();
                 pending.setPendingStep(PendingStep.COMPLETED);
                 pendingFlowActionRepository.save(pending);
 
+                // v2 그래프: currentNodeId가 있으면 그래프 순회 재개 ("pass" 분기)
+                if (currentNodeId != null) {
+                    resumeFlowGraph(flow, igAccount, senderIgId, triggerKeyword,
+                            currentNodeId, pending.getCommentId(), "pass");
+                    return;
+                }
+
+                // v1 레거시
                 proceedToRequirementsAfterFollow(flow, igAccount, senderIgId, flowData, triggerKeyword);
             } else {
                 // ❌ 아직 팔로우 안 됨 → 재확인 메시지 + 버튼 다시 발송
@@ -309,9 +341,19 @@ public class FlowExecutionService {
             log.info("requirement 충족 → 다음 단계 진행: flowId={}, step={}", flow.getId(), fulfilledStep);
 
             // 현재 pending 완료 처리
+            String currentNodeId = pending.getCurrentNodeId();
             pending.setPendingStep(PendingStep.COMPLETED);
             pendingFlowActionRepository.save(pending);
 
+            // v2 그래프: currentNodeId가 있으면 그래프 순회 재개
+            if (currentNodeId != null) {
+                String branch = (fulfilledStep == PendingStep.AWAITING_FOLLOW) ? "pass" : "pass";
+                resumeFlowGraph(flow, igAccount, senderIgId, triggerKeyword,
+                        currentNodeId, pending.getCommentId(), branch);
+                return;
+            }
+
+            // ── v1 레거시 ──
             // 충족된 requirement 완료 추적
             Contact contact = findContact(igAccount.getUser().getId(), senderIgId);
             Long cId = contact != null ? contact.getId() : null;
@@ -323,10 +365,8 @@ public class FlowExecutionService {
 
             // 다음 requirements부터 이어서 진행
             if (fulfilledStep == PendingStep.AWAITING_FOLLOW) {
-                // 팔로우 완료 → 이메일 수집부터 이어서
                 proceedToRequirementsAfterFollow(flow, igAccount, senderIgId, flowData, triggerKeyword);
             } else if (fulfilledStep == PendingStep.AWAITING_EMAIL) {
-                // 이메일 완료 → 메인DM 발송
                 sendMainDmAndFollowUp(flow, igAccount, senderIgId, flowData, triggerKeyword);
             }
 
@@ -790,16 +830,160 @@ public class FlowExecutionService {
     private void savePendingAction(Flow flow, InstagramAccount igAccount,
                                     String senderIgId, String commentId, PendingStep step,
                                     String triggerKeyword) {
+        savePendingAction(flow, igAccount, senderIgId, commentId, step, triggerKeyword, null);
+    }
+
+    @Transactional
+    private void savePendingAction(Flow flow, InstagramAccount igAccount,
+                                    String senderIgId, String commentId, PendingStep step,
+                                    String triggerKeyword, String currentNodeId) {
         PendingFlowAction action = PendingFlowAction.builder()
                 .flow(flow)
                 .instagramAccount(igAccount)
                 .senderIgId(senderIgId)
                 .commentId(commentId)
                 .triggerKeyword(triggerKeyword)
+                .currentNodeId(currentNodeId)
                 .pendingStep(step)
                 .expiresAt(LocalDateTime.now().plusHours(24))
                 .build();
         pendingFlowActionRepository.save(action);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // v2 그래프 순회 엔진
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * v2 플로우 실행 진입점
+     */
+    private void executeFlowV2(Flow flow, InstagramAccount igAccount, String senderIgId,
+                                String triggerText, String commentId, JsonNode flowData) {
+        FlowGraph graph = FlowGraphParser.parse(flowData.toString());
+        if (graph.getTriggerNodeId() == null) {
+            log.warn("v2 플로우에 트리거 노드 없음: flowId={}", flow.getId());
+            return;
+        }
+
+        String accessToken = instagramApiService.getDecryptedToken(igAccount);
+        String botIgId = igAccount.getIgUserId();
+        Contact contact = findContact(igAccount.getUser().getId(), senderIgId);
+
+        FlowContext ctx = FlowContext.builder()
+                .flow(flow)
+                .igAccount(igAccount)
+                .senderIgId(senderIgId)
+                .commentId(commentId)
+                .triggerKeyword(triggerText)
+                .contact(contact)
+                .accessToken(accessToken)
+                .botIgId(botIgId)
+                .build();
+
+        executeFlowGraph(graph, ctx, graph.getTriggerNodeId());
+        incrementSentCount(flow);
+        log.info("v2 플로우 실행 완료: flowId={}", flow.getId());
+    }
+
+    /**
+     * 그래프 순회 실행 루프
+     */
+    private void executeFlowGraph(FlowGraph graph, FlowContext ctx, String startNodeId) {
+        String currentId = startNodeId;
+        Long contactId = ctx.getContact() != null ? ctx.getContact().getId() : null;
+
+        while (currentId != null && ctx.getStepCount() < MAX_GRAPH_STEPS) {
+            FlowNode node = graph.getNode(currentId);
+            if (node == null) {
+                log.warn("노드를 찾을 수 없음: nodeId={}", currentId);
+                break;
+            }
+
+            // 순환 방지
+            if (ctx.getVisitedNodeIds().contains(currentId)) {
+                log.warn("순환 감지 — 그래프 순회 중단: nodeId={}", currentId);
+                break;
+            }
+            ctx.getVisitedNodeIds().add(currentId);
+            ctx.setStepCount(ctx.getStepCount() + 1);
+
+            // 노드 실행 추적
+            trackNode(ctx.getFlow().getId(), node.getType(), NodeExecution.Action.ENTERED, contactId);
+
+            // 노드 실행
+            NodeExecutor exec = nodeExecutorRegistry.get(node.getType());
+            NodeExecResult result = exec.execute(ctx, node);
+
+            trackNode(ctx.getFlow().getId(), node.getType(), NodeExecution.Action.COMPLETED, contactId);
+
+            // 결과 처리
+            if (result.isHaltFlow()) {
+                log.info("노드에서 플로우 중단: nodeId={}, type={}", currentId, node.getType());
+                break;
+            }
+
+            if (result.isAwaitUser()) {
+                // 사용자 응답 대기 → PendingFlowAction 저장 후 중단
+                savePendingAction(ctx.getFlow(), ctx.getIgAccount(), ctx.getSenderIgId(),
+                        ctx.getCommentId(), result.getAwaitStep(), ctx.getTriggerKeyword(), currentId);
+                log.info("사용자 응답 대기: nodeId={}, step={}", currentId, result.getAwaitStep());
+                break;
+            }
+
+            // 다음 노드 선택
+            currentId = graph.chooseNext(currentId, result.getBranch());
+        }
+
+        if (ctx.getStepCount() >= MAX_GRAPH_STEPS) {
+            log.warn("MAX_GRAPH_STEPS({}) 도달 — 플로우 강제 종료: flowId={}",
+                    MAX_GRAPH_STEPS, ctx.getFlow().getId());
+        }
+    }
+
+    /**
+     * PendingFlowAction 해소 후 그래프 순회 재개 (branch 없이 — postback 등)
+     */
+    private void resumeFlowGraph(Flow flow, InstagramAccount igAccount, String senderIgId,
+                                  String triggerKeyword, String currentNodeId, String commentId) {
+        resumeFlowGraph(flow, igAccount, senderIgId, triggerKeyword, currentNodeId, commentId, null);
+    }
+
+    /**
+     * PendingFlowAction 해소 후 그래프 순회 재개
+     * @param branch 이전 노드의 결과 분기 (null이면 기본 엣지)
+     */
+    private void resumeFlowGraph(Flow flow, InstagramAccount igAccount, String senderIgId,
+                                  String triggerKeyword, String currentNodeId, String commentId,
+                                  String branch) {
+        try {
+            JsonNode flowData = objectMapper.readTree(flow.getFlowData());
+            FlowGraph graph = FlowGraphParser.parse(flowData.toString());
+
+            String accessToken = instagramApiService.getDecryptedToken(igAccount);
+            String botIgId = igAccount.getIgUserId();
+            Contact contact = findContact(igAccount.getUser().getId(), senderIgId);
+
+            FlowContext ctx = FlowContext.builder()
+                    .flow(flow)
+                    .igAccount(igAccount)
+                    .senderIgId(senderIgId)
+                    .commentId(commentId)
+                    .triggerKeyword(triggerKeyword)
+                    .contact(contact)
+                    .accessToken(accessToken)
+                    .botIgId(botIgId)
+                    .build();
+
+            // 현재 노드에서 다음 노드로 진행
+            String nextNodeId = graph.chooseNext(currentNodeId, branch);
+            if (nextNodeId != null) {
+                executeFlowGraph(graph, ctx, nextNodeId);
+            }
+
+            log.info("v2 그래프 순회 재개 완료: flowId={}, resumeFrom={}", flow.getId(), currentNodeId);
+        } catch (Exception e) {
+            log.error("v2 그래프 순회 재개 실패: flowId={}, error={}", flow.getId(), e.getMessage(), e);
+        }
     }
 
     // ─── Recurring Notification 옵트인 노드 ───

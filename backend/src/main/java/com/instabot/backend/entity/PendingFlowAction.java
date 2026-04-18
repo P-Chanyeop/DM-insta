@@ -46,6 +46,10 @@ public class PendingFlowAction {
     /** 트리거한 키워드 (메시지 변수 {키워드} 치환용) */
     private String triggerKeyword;
 
+    /** v2 그래프: 실행이 중단된 노드 ID (resume 시 사용) */
+    @Column(name = "current_node_id")
+    private String currentNodeId;
+
     /** 현재 대기 중인 단계 */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

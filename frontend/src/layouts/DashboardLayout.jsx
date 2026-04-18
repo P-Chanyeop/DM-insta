@@ -131,7 +131,9 @@ export default function DashboardLayout() {
 
   const location = useLocation()
   const navigate = useNavigate()
-  const pageTitle = PAGE_TITLES[location.pathname] || '대시보드'
+  const pageTitle = PAGE_TITLES[location.pathname]
+    || Object.entries(PAGE_TITLES).find(([k]) => location.pathname.startsWith(k + '/'))?.[1]
+    || '대시보드'
 
   const storedUser = useMemo(() => getStoredUser(), [])
   const userName = storedUser?.name || '사용자'

@@ -2,10 +2,8 @@ package com.instabot.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.instabot.backend.repository.ContactRepository;
-import com.instabot.backend.repository.FlowRepository;
-import com.instabot.backend.repository.PendingFlowActionRepository;
-import com.instabot.backend.repository.ScheduledFollowUpRepository;
+import com.instabot.backend.repository.*;
+import com.instabot.backend.service.flow.NodeExecutorRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,16 +26,40 @@ class FlowExecutionServiceTest {
     private ConversationService conversationService;
 
     @Mock
+    private AIService aiService;
+
+    @Mock
+    private GroupBuyService groupBuyService;
+
+    @Mock
+    private RecurringNotificationService recurringNotificationService;
+
+    @Mock
+    private ABTestService abTestService;
+
+    @Mock
+    private KakaoChannelService kakaoChannelService;
+
+    @Mock
     private FlowRepository flowRepository;
 
     @Mock
     private ContactRepository contactRepository;
 
     @Mock
+    private GroupBuyRepository groupBuyRepository;
+
+    @Mock
     private PendingFlowActionRepository pendingFlowActionRepository;
 
     @Mock
     private ScheduledFollowUpRepository scheduledFollowUpRepository;
+
+    @Mock
+    private NodeExecutionRepository nodeExecutionRepository;
+
+    @Mock
+    private NodeExecutorRegistry nodeExecutorRegistry;
 
     @InjectMocks
     private FlowExecutionService flowExecutionService;

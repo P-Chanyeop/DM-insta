@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import {
   ReactFlow,
   Background,
@@ -39,11 +39,12 @@ import OnboardingTour from '../components/OnboardingTour'
 export default function FlowBuilderPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { id: urlFlowId } = useParams()
   const reactFlowWrapper = useRef(null)
   const tourRef = useRef(null)
   const [reactFlowInstance, setReactFlowInstance] = useState(null)
 
-  const [currentFlowId, setCurrentFlowId] = useState(location.state?.flowId || null)
+  const [currentFlowId, setCurrentFlowId] = useState(urlFlowId || location.state?.flowId || null)
   const [flowName, setFlowName] = useState('새 자동화')
   const [isLive, setIsLive] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -196,7 +197,10 @@ export default function FlowBuilderPage() {
         await flowService.update(currentFlowId, payload)
       } else {
         const created = await flowService.create(payload)
-        if (created?.id) setCurrentFlowId(created.id)
+        if (created?.id) {
+          setCurrentFlowId(created.id)
+          navigate(`/app/flows/builder/${created.id}`, { replace: true })
+        }
       }
       setSavedAt(new Date())
     } catch (err) {
