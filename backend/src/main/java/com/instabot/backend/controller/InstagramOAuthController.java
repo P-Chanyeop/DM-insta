@@ -63,9 +63,9 @@ public class InstagramOAuthController {
     @Value("${cors.allowed-origins}")
     private String frontendOrigin;
 
-    // Instagram Login 스코프
+    // Instagram Business Login 스코프
     private static final String OAUTH_SCOPE =
-            "instagram_basic,instagram_manage_messages,instagram_manage_comments";
+            "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments";
 
     // ─── OAuth URL 생성 ───
 
@@ -88,9 +88,7 @@ public class InstagramOAuthController {
                 + "&redirect_uri=" + urlEncode(redirectUri)
                 + "&scope=" + OAUTH_SCOPE
                 + "&response_type=code"
-                + "&state=" + state
-                + "&enable_fb_login=0"
-                + "&force_authentication=0";
+                + "&state=" + state;
     }
 
     // ─── OAuth 콜백 (통합) ───
