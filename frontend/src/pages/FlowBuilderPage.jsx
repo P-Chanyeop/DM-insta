@@ -23,6 +23,7 @@ import {
   NODE_PALETTE,
   generateNodeId,
   validateGraph,
+  validateForActivation,
   extractTriggerType,
 } from '../components/flow-builder/flowSerializer'
 import { interpolateVariables, hasVariables } from '../components/flow-builder/VariableInserter'
@@ -184,6 +185,16 @@ export default function FlowBuilderPage() {
         return
       }
 
+      // 활성화 상태로 저장 시 심화 검증
+      if (isLive) {
+        const activationCheck = validateForActivation(nodes, edges)
+        if (!activationCheck.valid) {
+          setError('플로우를 활성화 상태로 저장할 수 없습니다:\n' + activationCheck.errors.join('\n'))
+          setIsLive(false)
+          return
+        }
+      }
+
       const flowData = graphToFlowData(nodes, edges)
       const payload = {
         name: flowName,
@@ -267,7 +278,21 @@ export default function FlowBuilderPage() {
             <input
               type="checkbox"
               checked={isLive}
-              onChange={() => { setIsLive(!isLive); setSavedAt(null); }}
+              onChange={() => {
+                if (!isLive) {
+                  // 활성화 시도 → 심화 검증
+                  const result = validateForActivation(nodes, edges)
+                  if (!result.valid) {
+                    setError('플로우를 활성화할 수 없습니다:\n' + result.errors.join('\n'))
+                    return
+                  }
+                  if (result.warnings.length > 0) {
+                    setError('⚠️ 경고:\n' + result.warnings.join('\n'))
+                  }
+                }
+                setIsLive(!isLive)
+                setSavedAt(null)
+              }}
             />
             <span className="fb-toggle-slider" />
           </label>

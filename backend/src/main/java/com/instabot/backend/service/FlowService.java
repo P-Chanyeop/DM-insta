@@ -18,6 +18,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class FlowService {
 
+    private final FlowValidationService flowValidationService;
+
     private final FlowRepository flowRepository;
     private final UserRepository userRepository;
     private final QuotaService quotaService;
@@ -95,8 +97,18 @@ public class FlowService {
 
         if (request.getName() != null) flow.setName(request.getName());
         if (request.getFlowData() != null) flow.setFlowData(request.getFlowData());
-        if (request.getActive() != null) flow.setActive(request.getActive());
         if (request.getStatus() != null) flow.setStatus(Flow.FlowStatus.valueOf(request.getStatus()));
+
+        // active=true 설정 시 검증 (flowData가 같이 업데이트되면 새 데이터 기준)
+        if (Boolean.TRUE.equals(request.getActive()) && !flow.isActive()) {
+            String dataToValidate = request.getFlowData() != null ? request.getFlowData() : flow.getFlowData();
+            List<String> errors = flowValidationService.validateForActivation(dataToValidate);
+            if (!errors.isEmpty()) {
+                throw new IllegalStateException("플로우를 활성화할 수 없습니다: " + String.join(", ", errors));
+            }
+        }
+        if (request.getActive() != null) flow.setActive(request.getActive());
+
         flow.setUpdatedAt(LocalDateTime.now());
 
         return toResponse(flowRepository.save(flow));
@@ -119,6 +131,15 @@ public class FlowService {
         if (!flow.getUser().getId().equals(userId)) {
             throw new ResourceNotFoundException("플로우를 찾을 수 없습니다.");
         }
+
+        // 비활성 → 활성 전환 시 검증
+        if (!flow.isActive()) {
+            List<String> errors = flowValidationService.validateForActivation(flow.getFlowData());
+            if (!errors.isEmpty()) {
+                throw new IllegalStateException("플로우를 활성화할 수 없습니다: " + String.join(", ", errors));
+            }
+        }
+
         flow.setActive(!flow.isActive());
         return toResponse(flowRepository.save(flow));
     }

@@ -393,6 +393,108 @@ export function validateGraph(nodes, edges) {
 }
 
 /**
+ * 활성화 전용 심화 검증.
+ * 저장은 가능하지만, 활성화(자동화 수행)하려면 이 검증을 통과해야 한다.
+ * 반환: { valid, errors: string[], warnings: string[] }
+ */
+export function validateForActivation(nodes, edges) {
+  // 먼저 기본 검증
+  const base = validateGraph(nodes, edges)
+  const errors = [...base.errors]
+  const warnings = []
+
+  if (!base.valid) {
+    return { valid: false, errors, warnings }
+  }
+
+  const nodeById = new Map(nodes.map(n => [n.id, n]))
+  const edgeBySource = new Map()
+  edges.forEach(e => {
+    if (!edgeBySource.has(e.source)) edgeBySource.set(e.source, [])
+    edgeBySource.get(e.source).push(e)
+  })
+  const inDegree = new Map(nodes.map(n => [n.id, 0]))
+  edges.forEach(e => inDegree.set(e.target, (inDegree.get(e.target) || 0) + 1))
+
+  const triggerNode = nodes.find(n => n.type === 'trigger')
+
+  // 1. 트리거에서 연결된 노드가 최소 1개
+  if (triggerNode) {
+    const triggerOuts = edgeBySource.get(triggerNode.id) || []
+    if (triggerOuts.length === 0) {
+      errors.push('트리거 노드에 연결된 다음 노드가 없습니다.')
+    }
+  }
+
+  // 2. 고아 노드 감지 (트리거에서 도달 불가능한 노드)
+  const reachable = new Set()
+  if (triggerNode) {
+    const queue = [triggerNode.id]
+    while (queue.length > 0) {
+      const cur = queue.shift()
+      if (reachable.has(cur)) continue
+      reachable.add(cur)
+      ;(edgeBySource.get(cur) || []).forEach(e => queue.push(e.target))
+    }
+  }
+  const orphans = nodes.filter(n => n.type !== 'trigger' && !reachable.has(n.id))
+  if (orphans.length > 0) {
+    const orphanLabels = orphans.map(n => {
+      const labels = {
+        message: '메시지', condition: '조건', action: '액션', delay: '딜레이',
+        webhook: '웹훅', carousel: '캐러셀', abtest: 'A/B 테스트', commentReply: '댓글 답장',
+        aiResponse: 'AI 응답', kakao: '카카오', optIn: '알림 구독', inventory: '재고 확인',
+      }
+      return labels[n.type] || n.type
+    })
+    errors.push(`연결되지 않은 노드 ${orphans.length}개: ${orphanLabels.join(', ')}. 트리거에서 도달할 수 없는 노드는 실행되지 않습니다.`)
+  }
+
+  // 3. 분기 노드(condition, abtest, webhook) 출력 엣지 검사
+  const branchingTypes = { condition: true, abtest: true, webhook: true }
+  nodes.forEach(n => {
+    if (!branchingTypes[n.type]) return
+    const outs = edgeBySource.get(n.id) || []
+    if (outs.length === 0) {
+      const label = n.type === 'condition'
+        ? { followCheck: '팔로우 확인', emailCheck: '이메일 수집', tagCheck: '태그 확인', timeRange: '시간 조건', customField: '필드 조건', random: '랜덤 분기' }[n.data?.conditionType] || '조건'
+        : n.type === 'abtest' ? 'A/B 테스트' : '웹훅'
+      errors.push(`"${label}" 노드에 연결된 분기가 없습니다. 최소 하나의 분기를 연결해 주세요.`)
+    }
+  })
+
+  // 4. 메시지 노드 내용 비어있는지 확인
+  nodes.forEach(n => {
+    if (n.type === 'message' && reachable.has(n.id)) {
+      const msg = n.data?.message || ''
+      if (!msg.trim()) {
+        const roleLabel = { opening: '오프닝 DM', main: '메인 DM', followup: '팔로업 DM' }[n.data?.role] || '메시지'
+        warnings.push(`"${roleLabel}" 노드의 메시지가 비어있습니다.`)
+      }
+    }
+  })
+
+  // 5. 트리거 키워드 비어있는지
+  if (triggerNode) {
+    const kw = triggerNode.data?.keywords || ''
+    if (!kw.trim()) {
+      errors.push('트리거 키워드가 설정되지 않았습니다.')
+    }
+  }
+
+  // 6. 웹훅 URL 비어있는지
+  nodes.forEach(n => {
+    if (n.type === 'webhook' && reachable.has(n.id)) {
+      if (!(n.data?.url || '').trim()) {
+        errors.push('웹훅 노드의 URL이 설정되지 않았습니다.')
+      }
+    }
+  })
+
+  return { valid: errors.length === 0, errors, warnings }
+}
+
+/**
  * v2 데이터에서 triggerType 추출 (FlowBuilderPage에서 사용)
  */
 export function extractTriggerType(flowData) {
