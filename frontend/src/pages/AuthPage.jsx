@@ -171,7 +171,7 @@ export default function AuthPage() {
 
   const handleInstagramOAuth = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE || 'http://localhost:8080'}/api/auth/instagram/signup-url`)
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/auth/instagram/signup-url`)
       const data = await res.json()
       if (data.url) {
         // 같은 창에서 이동 (콜백이 /auth/callback으로 리다이렉트)
