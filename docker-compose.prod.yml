@@ -1,16 +1,21 @@
-# docker-compose.prod.yml — 프로덕션 배포용
+# docker-compose.prod.yml — Lightsail 프로덕션 배포용
+# MySQL은 Lightsail Managed DB 사용 (컨테이너 X)
+#
 # 사용법:
 #   1. cp .env.example .env && nano .env  (실제 값 입력)
-#   2. GITHUB_REPO=your-org/sendit docker compose -f docker-compose.prod.yml up -d
-#
-# CI/CD에서는 자동으로 pull → up 실행
+#   2. docker compose -f docker-compose.prod.yml up -d --build
 
 services:
   # ── Frontend (Nginx + React SPA) ──
   frontend:
-    image: ghcr.io/${GITHUB_REPO}/frontend:latest
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api
+        VITE_WS_BASE_URL: /ws
     ports:
       - "80:80"
+      - "443:443"
     depends_on:
       - backend
     restart: always
@@ -19,36 +24,41 @@ services:
 
   # ── Backend (Spring Boot) ──
   backend:
-    image: ghcr.io/${GITHUB_REPO}/backend:latest
+    build:
+      context: ./backend
     ports:
       - "127.0.0.1:8080:8080"
-    depends_on:
-      mysql:
-        condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=sendit
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      # ── DB (Lightsail Managed MySQL) ──
+      - MYSQL_HOST=${DB_HOST}
+      - MYSQL_PORT=${DB_PORT:-3306}
+      - MYSQL_DATABASE=${DB_NAME:-sendit}
+      - MYSQL_USER=${DB_USERNAME}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      # ── Security ──
       - JWT_SECRET=${JWT_SECRET}
       - ENCRYPTION_SECRET=${ENCRYPTION_SECRET}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
       - APP_BASE_URL=${APP_BASE_URL}
+      # ── Instagram API ──
       - INSTAGRAM_APP_ID=${INSTAGRAM_APP_ID:-}
       - INSTAGRAM_APP_SECRET=${INSTAGRAM_APP_SECRET:-}
       - INSTAGRAM_OAUTH_REDIRECT_URI=${INSTAGRAM_OAUTH_REDIRECT_URI:-}
       - INSTAGRAM_WEBHOOK_VERIFY_TOKEN=${INSTAGRAM_WEBHOOK_VERIFY_TOKEN:-}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
-      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
-      - STRIPE_PRICE_PRO=${STRIPE_PRICE_PRO:-}
-      - STRIPE_PRICE_ENTERPRISE=${STRIPE_PRICE_ENTERPRISE:-}
+      # ── Paddle Billing ──
+      - PADDLE_API_KEY=${PADDLE_API_KEY:-}
+      - PADDLE_WEBHOOK_SECRET=${PADDLE_WEBHOOK_SECRET:-}
+      - PADDLE_ENVIRONMENT=${PADDLE_ENVIRONMENT:-sandbox}
+      - PADDLE_CLIENT_TOKEN=${PADDLE_CLIENT_TOKEN:-}
+      - PADDLE_PRICE_PRO=${PADDLE_PRICE_PRO:-}
+      - PADDLE_PRICE_ENTERPRISE=${PADDLE_PRICE_ENTERPRISE:-}
+      # ── Email ──
       - MAIL_HOST=${MAIL_HOST:-smtp.gmail.com}
       - MAIL_PORT=${MAIL_PORT:-587}
       - MAIL_USERNAME=${MAIL_USERNAME:-}
       - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      # ── Monitoring ──
       - SENTRY_DSN=${SENTRY_DSN:-}
     volumes:
       - backend-logs:/app/logs
@@ -60,48 +70,7 @@ services:
     networks:
       - sendit-network
 
-  # ── MySQL ──
-  mysql:
-    image: mysql:8.0
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=sendit
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - MYSQL_CHARACTER_SET_SERVER=utf8mb4
-      - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
-    volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-    networks:
-      - sendit-network
-
-  # ── Redis ──
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redis-data:/data
-    restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-    networks:
-      - sendit-network
-
 volumes:
-  mysql-data:
-  redis-data:
   backend-logs:
 
 networks:

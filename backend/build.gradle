@@ -39,9 +39,6 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-mysql'
 
-    // Stripe
-    implementation 'com.stripe:stripe-java:28.2.0'
-
     // Cache
     implementation 'com.github.ben-manes.caffeine:caffeine'
 

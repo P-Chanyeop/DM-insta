@@ -14,17 +14,16 @@ import java.nio.charset.StandardCharsets;
 @RequestMapping("/api/webhook")
 @RequiredArgsConstructor
 @Slf4j
-public class StripeWebhookController {
+public class PaddleWebhookController {
 
     private final BillingService billingService;
 
-    @PostMapping("/stripe")
-    public ResponseEntity<String> handleStripeWebhook(
+    @PostMapping("/paddle")
+    public ResponseEntity<String> handlePaddleWebhook(
             HttpServletRequest request,
-            @RequestHeader("Stripe-Signature") String sigHeader) throws IOException {
-        // Fix #5: raw bytes로 읽어 서명 검증 불일치 방지
+            @RequestHeader("Paddle-Signature") String signature) throws IOException {
         String payload = new String(request.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        billingService.handleWebhook(payload, sigHeader);
+        billingService.handleWebhook(payload, signature);
         return ResponseEntity.ok("ok");
     }
 }

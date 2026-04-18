@@ -6,6 +6,6 @@ import java.util.Optional;
 
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
     Optional<Subscription> findByUserId(Long userId);
-    Optional<Subscription> findByStripeSubscriptionId(String stripeSubscriptionId);
-    Optional<Subscription> findByStripeCustomerId(String stripeCustomerId);
+    Optional<Subscription> findByPaddleSubscriptionId(String paddleSubscriptionId);
+    Optional<Subscription> findByPaddleCustomerId(String paddleCustomerId);
 }

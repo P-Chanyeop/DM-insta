@@ -15,11 +15,17 @@ public class Subscription {
     @Column(name = "user_id", nullable = false, unique = true)
     private Long userId;
 
-    private String stripeCustomerId;
+    /** Paddle 고객 ID (ctm_...) */
+    @Column(name = "paddle_customer_id")
+    private String paddleCustomerId;
 
-    private String stripeSubscriptionId;
+    /** Paddle 구독 ID (sub_...) */
+    @Column(name = "paddle_subscription_id")
+    private String paddleSubscriptionId;
 
-    private String stripePriceId;
+    /** Paddle 가격 ID (pri_...) */
+    @Column(name = "paddle_price_id")
+    private String paddlePriceId;
 
     @Enumerated(EnumType.STRING)
     @Builder.Default
@@ -38,6 +44,6 @@ public class Subscription {
     private LocalDateTime updatedAt;
 
     public enum SubscriptionStatus {
-        ACTIVE, CANCELED, PAST_DUE, TRIALING, INCOMPLETE
+        ACTIVE, CANCELED, PAST_DUE, TRIALING, INCOMPLETE, PAUSED
     }
 }

@@ -1,6 +1,8 @@
 package com.instabot.backend.service;
 
-import com.instabot.backend.config.StripeConfig;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.instabot.backend.config.PaddleConfig;
 import com.instabot.backend.dto.BillingDto;
 import com.instabot.backend.entity.Subscription;
 import com.instabot.backend.entity.Subscription.SubscriptionStatus;
@@ -12,26 +14,28 @@ import com.instabot.backend.repository.ContactRepository;
 import com.instabot.backend.repository.FlowRepository;
 import com.instabot.backend.repository.SubscriptionRepository;
 import com.instabot.backend.repository.UserRepository;
-import com.stripe.exception.SignatureVerificationException;
-import com.stripe.exception.StripeException;
-import com.stripe.model.Customer;
-import com.stripe.model.Event;
-import com.stripe.model.EventDataObjectDeserializer;
-import com.stripe.model.Invoice;
-import com.stripe.model.StripeObject;
-import com.stripe.model.checkout.Session;
-import com.stripe.net.Webhook;
-import com.stripe.param.CustomerCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.OffsetDateTime;
+import java.util.HexFormat;
 
+/**
+ * Paddle Billing 서비스.
+ * Paddle Billing API (v2) 사용 — REST 기반.
+ * 카카오페이, 네이버페이, 삼성페이 등 한국 결제수단 네이티브 지원.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -42,86 +46,81 @@ public class BillingService {
     private final FlowRepository flowRepository;
     private final AutomationRepository automationRepository;
     private final ContactRepository contactRepository;
-    private final StripeConfig stripeConfig;
+    private final PaddleConfig paddleConfig;
+    private final ObjectMapper objectMapper;
+
+    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 
     @Value("${app.base-url}")
     private String baseUrl;
 
-    // ─── Checkout 세션 생성 ───
+    // ─── Checkout (Paddle Overlay) ───
 
-    @Transactional
+    /**
+     * Paddle은 프론트엔드 Paddle.js 오버레이로 체크아웃을 처리.
+     * 백엔드에서는 프론트에 필요한 정보(priceId, clientToken)만 반환.
+     */
     public BillingDto.CheckoutResponse createCheckoutSession(Long userId, String planType) {
         if ("ENTERPRISE".equalsIgnoreCase(planType)) {
             throw new BadRequestException("엔터프라이즈 플랜은 영업팀에 문의해주세요.");
         }
 
-        // Fix #4: 중복 활성 구독 방지
+        // 중복 활성 구독 방지
         subscriptionRepository.findByUserId(userId).ifPresent(sub -> {
             if (sub.getStatus() == SubscriptionStatus.ACTIVE) {
-                throw new BadRequestException("이미 활성 구독이 있습니다. 구독 관리 포털을 이용해주세요.");
+                throw new BadRequestException("이미 활성 구독이 있습니다. 구독 관리에서 변경해주세요.");
             }
         });
 
         String priceId = resolvePriceId(planType);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
-        try {
-            String customerId = getOrCreateStripeCustomer(user);
-
-            com.stripe.param.checkout.SessionCreateParams params =
-                    com.stripe.param.checkout.SessionCreateParams.builder()
-                            .setCustomer(customerId)
-                            .setMode(com.stripe.param.checkout.SessionCreateParams.Mode.SUBSCRIPTION)
-                            .setSuccessUrl(baseUrl + "/app/settings?tab=billing&session_id={CHECKOUT_SESSION_ID}")
-                            .setCancelUrl(baseUrl + "/app/settings?tab=billing")
-                            .addLineItem(
-                                    com.stripe.param.checkout.SessionCreateParams.LineItem.builder()
-                                            .setPrice(priceId)
-                                            .setQuantity(1L)
-                                            .build()
-                            )
-                            .putMetadata("userId", userId.toString())
-                            .build();
-
-            Session session = Session.create(params);
-            log.info("Checkout 세션 생성: userId={}, sessionId={}", userId, session.getId());
-
-            return BillingDto.CheckoutResponse.builder()
-                    .checkoutUrl(session.getUrl())
-                    .build();
-        } catch (StripeException e) {
-            log.error("Stripe checkout 세션 생성 실패: {}", e.getMessage(), e);
-            throw new BadRequestException("결제 세션 생성에 실패했습니다: " + e.getMessage());
-        }
+        // Paddle은 프론트에서 Paddle.js로 오버레이 체크아웃 → 결과를 웹훅으로 수신
+        // 백엔드에서는 priceId와 clientToken, customData를 반환
+        return BillingDto.CheckoutResponse.builder()
+                .checkoutUrl(priceId)  // 프론트에서 Paddle.Checkout.open({ items: [{ priceId }] }) 사용
+                .paddleClientToken(paddleConfig.getClientToken())
+                .paddleEnvironment(paddleConfig.getEnvironment())
+                .build();
     }
 
-    // ─── Customer Portal 세션 ───
+    // ─── Customer Portal (Paddle 관리 페이지) ───
 
     public BillingDto.PortalResponse createPortalSession(Long userId) {
         Subscription subscription = subscriptionRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("구독 정보를 찾을 수 없습니다."));
 
-        if (subscription.getStripeCustomerId() == null) {
-            throw new BadRequestException("Stripe 고객 정보가 없습니다.");
+        if (subscription.getPaddleSubscriptionId() == null) {
+            throw new BadRequestException("결제 정보가 없습니다.");
         }
 
         try {
-            com.stripe.param.billingportal.SessionCreateParams params =
-                    com.stripe.param.billingportal.SessionCreateParams.builder()
-                            .setCustomer(subscription.getStripeCustomerId())
-                            .setReturnUrl(baseUrl + "/app/settings?tab=billing")
-                            .build();
+            // Paddle API: 구독 업데이트 URL 생성
+            String url = paddleConfig.getApiBaseUrl()
+                    + "/subscriptions/" + subscription.getPaddleSubscriptionId()
+                    + "/update-payment-method-transaction";
 
-            com.stripe.model.billingportal.Session portalSession =
-                    com.stripe.model.billingportal.Session.create(params);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("Authorization", "Bearer " + paddleConfig.getApiKey())
+                    .header("Content-Type", "application/json")
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            JsonNode body = objectMapper.readTree(response.body());
+
+            // Paddle의 구독 관리 페이지 URL 반환
+            // 또는 update-payment-method-transaction 결과의 checkout URL 사용
+            String portalUrl = paddleConfig.isSandbox()
+                    ? "https://sandbox-buyer-portal.paddle.com/subscriptions/" + subscription.getPaddleSubscriptionId()
+                    : "https://customer-portal.paddle.com/subscriptions/" + subscription.getPaddleSubscriptionId();
 
             return BillingDto.PortalResponse.builder()
-                    .portalUrl(portalSession.getUrl())
+                    .portalUrl(portalUrl)
                     .build();
-        } catch (StripeException e) {
-            log.error("Portal 세션 생성 실패: {}", e.getMessage(), e);
-            throw new BadRequestException("포털 세션 생성에 실패했습니다: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("Paddle 포털 URL 생성 실패: {}", e.getMessage(), e);
+            throw new BadRequestException("포털 세션 생성에 실패했습니다.");
         }
     }
 
@@ -131,7 +130,6 @@ public class BillingService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
-        // S5/S16 fix: usage 카운트 포함 — 프론트 PlanContext가 isAtLimit() 판정에 사용
         long flowCount = flowRepository.countByUserId(userId);
         long automationCount = automationRepository.countByUserId(userId);
         long contactCount = contactRepository.countByUserId(userId);
@@ -157,120 +155,121 @@ public class BillingService {
                         .build());
     }
 
-    // ─── Webhook 처리 ───
+    // ─── Paddle Webhook 처리 ───
 
     @Transactional
-    public void handleWebhook(String payload, String sigHeader) {
-        Event event;
+    public void handleWebhook(String payload, String signature) {
+        // Paddle 웹훅 서명 검증
+        if (!verifyPaddleSignature(payload, signature)) {
+            log.error("Paddle 웹훅 서명 검증 실패");
+            throw new BadRequestException("웹훅 서명이 유효하지 않습니다.");
+        }
+
         try {
-            event = Webhook.constructEvent(payload, sigHeader, stripeConfig.getWebhookSecret());
-        } catch (SignatureVerificationException e) {
-            log.error("Webhook 서명 검증 실패: {}", e.getMessage());
-            throw new BadRequestException("Webhook 서명이 유효하지 않습니다.");
-        }
+            JsonNode event = objectMapper.readTree(payload);
+            String eventType = event.path("event_type").asText("");
+            JsonNode data = event.path("data");
 
-        log.info("Stripe webhook 수신: type={}, id={}", event.getType(), event.getId());
+            log.info("Paddle webhook 수신: type={}", eventType);
 
-        EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
-        if (deserializer.getObject().isEmpty()) {
-            log.warn("Webhook 데이터 역직렬화 실패: eventId={}", event.getId());
-            return;
-        }
-
-        StripeObject stripeObject = deserializer.getObject().get();
-
-        switch (event.getType()) {
-            case "checkout.session.completed" -> handleCheckoutCompleted((Session) stripeObject);
-            case "customer.subscription.updated" -> handleSubscriptionUpdated((com.stripe.model.Subscription) stripeObject);
-            case "customer.subscription.deleted" -> handleSubscriptionDeleted((com.stripe.model.Subscription) stripeObject);
-            case "invoice.payment_failed" -> handlePaymentFailed((Invoice) stripeObject);
-            default -> log.debug("처리하지 않는 webhook 이벤트: {}", event.getType());
+            switch (eventType) {
+                case "subscription.created" -> handleSubscriptionCreated(data);
+                case "subscription.updated" -> handleSubscriptionUpdated(data);
+                case "subscription.canceled" -> handleSubscriptionCanceled(data);
+                case "subscription.paused" -> handleSubscriptionPaused(data);
+                case "subscription.resumed" -> handleSubscriptionResumed(data);
+                case "transaction.completed" -> handleTransactionCompleted(data);
+                case "transaction.payment_failed" -> handlePaymentFailed(data);
+                default -> log.debug("처리하지 않는 Paddle 이벤트: {}", eventType);
+            }
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Paddle 웹훅 처리 실패: {}", e.getMessage(), e);
+            throw new RuntimeException("Paddle webhook processing failed", e);
         }
     }
 
     // ─── Private: Webhook 핸들러 ───
 
-    private void handleCheckoutCompleted(Session session) {
-        String stripeSubscriptionId = session.getSubscription();
-        String stripeCustomerId = session.getCustomer();
-        String userIdStr = session.getMetadata().get("userId");
+    private void handleSubscriptionCreated(JsonNode data) {
+        String paddleSubId = data.path("id").asText();
+        String paddleCustomerId = data.path("customer_id").asText();
+        String priceId = data.path("items").path(0).path("price").path("id").asText();
 
-        if (userIdStr == null) {
-            log.warn("Checkout 세션에 userId 메타데이터 없음: sessionId={}", session.getId());
+        // custom_data에서 userId 추출
+        Long userId = extractUserId(data);
+        if (userId == null) {
+            log.warn("구독 생성 이벤트에 userId 없음: paddleSubId={}", paddleSubId);
             return;
         }
 
-        Long userId = Long.valueOf(userIdStr);
-
-        // Fix #2: 멱등성 — 이미 동일 stripeSubscriptionId로 처리된 경우 스킵
-        if (subscriptionRepository.findByStripeSubscriptionId(stripeSubscriptionId)
+        // 멱등성 — 이미 처리된 경우 스킵
+        if (subscriptionRepository.findByPaddleSubscriptionId(paddleSubId)
                 .filter(s -> s.getStatus() == SubscriptionStatus.ACTIVE)
                 .isPresent()) {
-            log.info("이미 처리된 구독 — 스킵: stripeSubscriptionId={}", stripeSubscriptionId);
+            log.info("이미 처리된 구독 — 스킵: paddleSubId={}", paddleSubId);
             return;
         }
 
-        try {
-            com.stripe.model.Subscription stripeSub =
-                    com.stripe.model.Subscription.retrieve(stripeSubscriptionId);
+        Subscription subscription = subscriptionRepository.findByUserId(userId)
+                .orElse(Subscription.builder().userId(userId).build());
 
-            Subscription subscription = subscriptionRepository.findByUserId(userId)
-                    .orElse(Subscription.builder().userId(userId).build());
+        subscription.setPaddleCustomerId(paddleCustomerId);
+        subscription.setPaddleSubscriptionId(paddleSubId);
+        subscription.setPaddlePriceId(priceId);
+        subscription.setStatus(mapPaddleStatus(data.path("status").asText("active")));
+        subscription.setCurrentPeriodStart(parsePaddleDate(data.path("current_billing_period").path("starts_at").asText(null)));
+        subscription.setCurrentPeriodEnd(parsePaddleDate(data.path("current_billing_period").path("ends_at").asText(null)));
+        subscription.setCancelAtPeriodEnd(data.path("scheduled_change").has("action")
+                && "cancel".equals(data.path("scheduled_change").path("action").asText()));
+        subscription.setUpdatedAt(LocalDateTime.now());
+        subscriptionRepository.save(subscription);
 
-            subscription.setStripeCustomerId(stripeCustomerId);
-            subscription.setStripeSubscriptionId(stripeSubscriptionId);
-            subscription.setStripePriceId(stripeSub.getItems().getData().get(0).getPrice().getId());
-            subscription.setStatus(SubscriptionStatus.ACTIVE);
-            subscription.setCurrentPeriodStart(toLocalDateTime(stripeSub.getCurrentPeriodStart()));
-            subscription.setCurrentPeriodEnd(toLocalDateTime(stripeSub.getCurrentPeriodEnd()));
-            subscription.setCancelAtPeriodEnd(stripeSub.getCancelAtPeriodEnd());
-            subscription.setUpdatedAt(LocalDateTime.now());
+        // 사용자 플랜 업데이트
+        userRepository.findById(userId).ifPresent(user -> {
+            user.setPlan(resolvePlanType(priceId));
+            user.setUpdatedAt(LocalDateTime.now());
+            userRepository.save(user);
+        });
 
-            subscriptionRepository.save(subscription);
-
-            // 사용자 플랜 업데이트
-            User user = userRepository.findById(userId).orElse(null);
-            if (user != null) {
-                user.setPlan(resolvePlanType(subscription.getStripePriceId()));
-                user.setUpdatedAt(LocalDateTime.now());
-                userRepository.save(user);
-            }
-
-            log.info("구독 생성/업데이트 완료: userId={}, plan={}", userId,
-                    user != null ? user.getPlan() : "unknown");
-        } catch (StripeException e) {
-            // Fix #1: 예외를 다시 던져 webhook이 non-200 반환하도록 → Stripe 재시도 유도
-            log.error("Stripe 구독 조회 실패: {}", e.getMessage(), e);
-            throw new RuntimeException("Stripe subscription retrieval failed", e);
-        }
+        log.info("Paddle 구독 생성 완료: userId={}, paddleSubId={}", userId, paddleSubId);
     }
 
-    private void handleSubscriptionUpdated(com.stripe.model.Subscription stripeSub) {
-        subscriptionRepository.findByStripeSubscriptionId(stripeSub.getId())
+    private void handleSubscriptionUpdated(JsonNode data) {
+        String paddleSubId = data.path("id").asText();
+        subscriptionRepository.findByPaddleSubscriptionId(paddleSubId)
                 .ifPresent(subscription -> {
-                    subscription.setStatus(mapStripeStatus(stripeSub.getStatus()));
-                    subscription.setCurrentPeriodStart(toLocalDateTime(stripeSub.getCurrentPeriodStart()));
-                    subscription.setCurrentPeriodEnd(toLocalDateTime(stripeSub.getCurrentPeriodEnd()));
-                    subscription.setCancelAtPeriodEnd(stripeSub.getCancelAtPeriodEnd());
-                    subscription.setStripePriceId(
-                            stripeSub.getItems().getData().get(0).getPrice().getId());
+                    String priceId = data.path("items").path(0).path("price").path("id").asText(
+                            subscription.getPaddlePriceId());
+                    subscription.setStatus(mapPaddleStatus(data.path("status").asText("active")));
+                    subscription.setPaddlePriceId(priceId);
+                    subscription.setCurrentPeriodStart(parsePaddleDate(
+                            data.path("current_billing_period").path("starts_at").asText(null)));
+                    subscription.setCurrentPeriodEnd(parsePaddleDate(
+                            data.path("current_billing_period").path("ends_at").asText(null)));
+
+                    JsonNode scheduledChange = data.path("scheduled_change");
+                    subscription.setCancelAtPeriodEnd(
+                            scheduledChange.has("action") && "cancel".equals(scheduledChange.path("action").asText()));
+
                     subscription.setUpdatedAt(LocalDateTime.now());
                     subscriptionRepository.save(subscription);
 
-                    // 사용자 플랜 동기화
+                    // 플랜 동기화
                     userRepository.findById(subscription.getUserId()).ifPresent(user -> {
-                        user.setPlan(resolvePlanType(subscription.getStripePriceId()));
+                        user.setPlan(resolvePlanType(priceId));
                         user.setUpdatedAt(LocalDateTime.now());
                         userRepository.save(user);
                     });
 
-                    log.info("구독 업데이트: subscriptionId={}, status={}",
-                            stripeSub.getId(), subscription.getStatus());
+                    log.info("Paddle 구독 업데이트: paddleSubId={}, status={}", paddleSubId, subscription.getStatus());
                 });
     }
 
-    private void handleSubscriptionDeleted(com.stripe.model.Subscription stripeSub) {
-        subscriptionRepository.findByStripeSubscriptionId(stripeSub.getId())
+    private void handleSubscriptionCanceled(JsonNode data) {
+        String paddleSubId = data.path("id").asText();
+        subscriptionRepository.findByPaddleSubscriptionId(paddleSubId)
                 .ifPresent(subscription -> {
                     subscription.setStatus(SubscriptionStatus.CANCELED);
                     subscription.setUpdatedAt(LocalDateTime.now());
@@ -283,89 +282,130 @@ public class BillingService {
                         userRepository.save(user);
                     });
 
-                    log.info("구독 삭제 -> FREE 다운그레이드: userId={}", subscription.getUserId());
+                    log.info("Paddle 구독 취소 → FREE: userId={}", subscription.getUserId());
                 });
     }
 
-    private void handlePaymentFailed(Invoice invoice) {
-        String subscriptionId = invoice.getSubscription();
-        if (subscriptionId == null) return;
+    private void handleSubscriptionPaused(JsonNode data) {
+        String paddleSubId = data.path("id").asText();
+        subscriptionRepository.findByPaddleSubscriptionId(paddleSubId)
+                .ifPresent(subscription -> {
+                    subscription.setStatus(SubscriptionStatus.PAUSED);
+                    subscription.setUpdatedAt(LocalDateTime.now());
+                    subscriptionRepository.save(subscription);
+                    log.info("Paddle 구독 일시정지: paddleSubId={}", paddleSubId);
+                });
+    }
 
-        subscriptionRepository.findByStripeSubscriptionId(subscriptionId)
+    private void handleSubscriptionResumed(JsonNode data) {
+        String paddleSubId = data.path("id").asText();
+        subscriptionRepository.findByPaddleSubscriptionId(paddleSubId)
+                .ifPresent(subscription -> {
+                    subscription.setStatus(SubscriptionStatus.ACTIVE);
+                    subscription.setUpdatedAt(LocalDateTime.now());
+                    subscriptionRepository.save(subscription);
+                    log.info("Paddle 구독 재개: paddleSubId={}", paddleSubId);
+                });
+    }
+
+    private void handleTransactionCompleted(JsonNode data) {
+        // 결제 완료 — subscription.created와 함께 오므로 추가 로깅만
+        String transactionId = data.path("id").asText();
+        log.info("Paddle 결제 완료: transactionId={}", transactionId);
+    }
+
+    private void handlePaymentFailed(JsonNode data) {
+        String subId = data.path("subscription_id").asText(null);
+        if (subId == null) return;
+
+        subscriptionRepository.findByPaddleSubscriptionId(subId)
                 .ifPresent(subscription -> {
                     subscription.setStatus(SubscriptionStatus.PAST_DUE);
                     subscription.setUpdatedAt(LocalDateTime.now());
                     subscriptionRepository.save(subscription);
-
-                    log.warn("결제 실패 -> PAST_DUE: userId={}, subscriptionId={}",
-                            subscription.getUserId(), subscriptionId);
+                    log.warn("Paddle 결제 실패 → PAST_DUE: userId={}", subscription.getUserId());
                 });
     }
 
     // ─── Private: 유틸리티 ───
 
-    private String getOrCreateStripeCustomer(User user) throws StripeException {
-        // 기존 구독에서 customerId 확인
-        return subscriptionRepository.findByUserId(user.getId())
-                .map(Subscription::getStripeCustomerId)
-                .filter(id -> id != null && !id.isEmpty())
-                .orElseGet(() -> {
-                    try {
-                        CustomerCreateParams params = CustomerCreateParams.builder()
-                                .setEmail(user.getEmail())
-                                .setName(user.getName())
-                                .putMetadata("userId", user.getId().toString())
-                                .build();
-                        Customer customer = Customer.create(params);
-                        log.info("Stripe 고객 생성: userId={}, customerId={}", user.getId(), customer.getId());
+    private Long extractUserId(JsonNode data) {
+        // custom_data에서 userId 추출
+        JsonNode customData = data.path("custom_data");
+        if (customData.has("userId")) {
+            return customData.path("userId").asLong();
+        }
+        // passthrough에서도 시도
+        String passthrough = data.path("passthrough").asText(null);
+        if (passthrough != null) {
+            try {
+                JsonNode pt = objectMapper.readTree(passthrough);
+                return pt.path("userId").asLong();
+            } catch (Exception ignored) {}
+        }
+        return null;
+    }
 
-                        // Fix #3: 생성된 customerId를 즉시 저장
-                        Subscription sub = subscriptionRepository.findByUserId(user.getId())
-                                .orElse(Subscription.builder()
-                                        .userId(user.getId())
-                                        .status(SubscriptionStatus.INCOMPLETE)
-                                        .build());
-                        sub.setStripeCustomerId(customer.getId());
-                        sub.setUpdatedAt(LocalDateTime.now());
-                        subscriptionRepository.save(sub);
+    private boolean verifyPaddleSignature(String payload, String signature) {
+        if (signature == null || signature.isBlank()) return false;
+        try {
+            // Paddle Billing v2: ts=...;h1=... 형식
+            String[] parts = signature.split(";");
+            String ts = null;
+            String h1 = null;
+            for (String part : parts) {
+                if (part.startsWith("ts=")) ts = part.substring(3);
+                else if (part.startsWith("h1=")) h1 = part.substring(3);
+            }
+            if (ts == null || h1 == null) return false;
 
-                        return customer.getId();
-                    } catch (StripeException e) {
-                        log.error("Stripe 고객 생성 실패: {}", e.getMessage(), e);
-                        throw new RuntimeException("Stripe 고객 생성에 실패했습니다.", e);
-                    }
-                });
+            String signedPayload = ts + ":" + payload;
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(paddleConfig.getWebhookSecret().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] hash = mac.doFinal(signedPayload.getBytes(StandardCharsets.UTF_8));
+            String computed = HexFormat.of().formatHex(hash);
+
+            return computed.equals(h1);
+        } catch (Exception e) {
+            log.error("Paddle 서명 검증 오류: {}", e.getMessage());
+            return false;
+        }
     }
 
     private String resolvePriceId(String planType) {
         return switch (planType.toUpperCase()) {
-            case "PRO" -> stripeConfig.getProPriceId();
-            case "ENTERPRISE" -> stripeConfig.getEnterprisePriceId();
+            case "PRO" -> paddleConfig.getProPriceId();
+            case "ENTERPRISE" -> paddleConfig.getEnterprisePriceId();
             default -> throw new BadRequestException("유효하지 않은 플랜입니다: " + planType);
         };
     }
 
     private User.PlanType resolvePlanType(String priceId) {
-        if (priceId.equals(stripeConfig.getProPriceId())) {
+        if (priceId != null && priceId.equals(paddleConfig.getProPriceId())) {
             return User.PlanType.PRO;
-        } else if (priceId.equals(stripeConfig.getEnterprisePriceId())) {
+        } else if (priceId != null && priceId.equals(paddleConfig.getEnterprisePriceId())) {
             return User.PlanType.ENTERPRISE;
         }
         return User.PlanType.FREE;
     }
 
-    private SubscriptionStatus mapStripeStatus(String stripeStatus) {
-        return switch (stripeStatus) {
+    private SubscriptionStatus mapPaddleStatus(String paddleStatus) {
+        return switch (paddleStatus) {
             case "active" -> SubscriptionStatus.ACTIVE;
             case "canceled" -> SubscriptionStatus.CANCELED;
             case "past_due" -> SubscriptionStatus.PAST_DUE;
             case "trialing" -> SubscriptionStatus.TRIALING;
+            case "paused" -> SubscriptionStatus.PAUSED;
             default -> SubscriptionStatus.PAST_DUE;
         };
     }
 
-    private LocalDateTime toLocalDateTime(Long epochSeconds) {
-        if (epochSeconds == null) return null;
-        return LocalDateTime.ofInstant(Instant.ofEpochSecond(epochSeconds), ZoneId.of("Asia/Seoul"));
+    private LocalDateTime parsePaddleDate(String dateStr) {
+        if (dateStr == null || dateStr.isBlank()) return null;
+        try {
+            return OffsetDateTime.parse(dateStr).toLocalDateTime();
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

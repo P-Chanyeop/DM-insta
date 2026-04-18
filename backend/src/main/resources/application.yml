@@ -51,14 +51,15 @@ instagram:
   webhook:
     verify-token: ${INSTAGRAM_WEBHOOK_VERIFY_TOKEN:instabot-webhook-verify-token}
 
-# Stripe
-stripe:
-  secret-key: ${STRIPE_SECRET_KEY:sk_test_placeholder}
-  publishable-key: ${STRIPE_PUBLISHABLE_KEY:pk_test_placeholder}
-  webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_placeholder}
+# Paddle Billing
+paddle:
+  api-key: ${PADDLE_API_KEY:pdl_api_test_placeholder}
+  webhook-secret: ${PADDLE_WEBHOOK_SECRET:pdl_ntfset_placeholder}
+  environment: ${PADDLE_ENVIRONMENT:sandbox}
+  client-token: ${PADDLE_CLIENT_TOKEN:test_placeholder}
   prices:
-    pro: ${STRIPE_PRICE_PRO:price_pro_placeholder}
-    enterprise: ${STRIPE_PRICE_ENTERPRISE:price_enterprise_placeholder}
+    pro: ${PADDLE_PRICE_PRO:pri_pro_placeholder}
+    enterprise: ${PADDLE_PRICE_ENTERPRISE:pri_enterprise_placeholder}
 
 # Actuator
 management:

@@ -15,7 +15,9 @@ public class BillingDto {
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
     public static class CheckoutResponse {
-        private String checkoutUrl;
+        private String checkoutUrl;          // priceId (프론트에서 Paddle.Checkout.open에 사용)
+        private String paddleClientToken;    // Paddle client-side token
+        private String paddleEnvironment;    // "sandbox" 또는 "production"
     }
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder

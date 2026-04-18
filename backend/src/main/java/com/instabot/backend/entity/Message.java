@@ -35,6 +35,7 @@ public class Message {
     private String automationName;
 
     @Builder.Default
+    @Column(name = "`read`")
     private boolean read = false;
 
     @Builder.Default

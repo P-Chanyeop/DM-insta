@@ -32,5 +32,5 @@ public class Integration {
 
     private LocalDateTime lastSyncAt;
 
-    public enum IntegrationType { INSTAGRAM, SHOPIFY, GOOGLE_SHEETS, STRIPE, KLAVIYO, WEBHOOK, OPENAI, KAKAO_CHANNEL }
+    public enum IntegrationType { INSTAGRAM, SHOPIFY, GOOGLE_SHEETS, PADDLE, KLAVIYO, WEBHOOK, OPENAI, KAKAO_CHANNEL }
 }

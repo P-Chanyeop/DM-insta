@@ -41,7 +41,7 @@ const INTEGRATION_DEFS = [
   { id: 'kakaopay', name: '카카오페이', icon: 'ri-kakao-talk-fill', color: '#FEE500', description: 'DM 내 카카오페이 결제 링크 자동 발송', comingSoon: true },
   { id: 'naverpay', name: '네이버페이', icon: 'ri-shopping-cart-line', color: '#03C75A', description: '스마트스토어 연동 결제 자동화', comingSoon: true },
   { id: 'tosspay', name: '토스페이', icon: 'ri-bank-card-line', color: '#0064FF', description: '토스 결제/송금 링크 자동 발송', comingSoon: true },
-  { id: 'stripe', name: 'Stripe', icon: 'ri-bank-card-line', color: '#635BFF', description: '결제 이벤트 기반 자동화 트리거', comingSoon: true },
+  { id: 'paddle', name: 'Paddle', icon: 'ri-bank-card-line', color: '#3B82F6', description: '결제 이벤트 기반 자동화 트리거 (카카오페이·네이버페이 지원)', comingSoon: true },
   { id: 'klaviyo', name: 'Klaviyo', icon: 'ri-mail-send-line', color: '#000000', description: '이메일 마케팅 연동 및 세그먼트 동기화', comingSoon: true },
   { id: 'openai', name: 'OpenAI / ChatGPT', icon: 'ri-robot-line', color: '#10A37F', description: 'AI 기반 자동 응답 생성 (Flow Builder AI 노드에서 사용)' },
   { id: 'webhook', name: 'Webhook', icon: 'ri-link', color: '#6366F1', description: '외부 시스템과 커스텀 연동' },
@@ -426,10 +426,10 @@ export default function SettingsPage() {
     }
   }, [activeTab])
 
-  // Handle Stripe checkout success redirect — Fix #10: 폴링으로 webhook 처리 대기
+  // Handle Paddle checkout success redirect — 폴링으로 webhook 처리 대기
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    if (params.get('session_id')) {
+    if (params.get('paddle_success') || params.get('session_id')) {
       setActiveTab('billing')
       showToast('결제가 완료되었습니다!', 'success')
       window.history.replaceState({}, '', window.location.pathname)
@@ -722,7 +722,7 @@ export default function SettingsPage() {
     }
   }
 
-  // Plan upgrade via Stripe Checkout
+  // Plan upgrade via Paddle.js Overlay Checkout
   const handlePlanAction = async (planId) => {
     if (planId === 'enterprise') {
       window.location.href = 'mailto:sales@sendit.co.kr?subject=Enterprise 플랜 문의'
@@ -730,12 +730,34 @@ export default function SettingsPage() {
     }
     setPlanUpgrading(planId)
     try {
-      const { checkoutUrl } = await billingService.createCheckout({ planType: planId.toUpperCase() })
-      if (checkoutUrl) {
-        window.location.href = checkoutUrl
-      } else {
-        showToast('결제 페이지를 불러올 수 없습니다.', 'error')
+      const resp = await billingService.createCheckout({ planType: planId.toUpperCase() })
+      const priceId = resp.checkoutUrl  // 백엔드에서 priceId를 checkoutUrl 필드로 반환
+
+      if (!priceId || !window.Paddle) {
+        showToast('결제 모듈을 불러올 수 없습니다.', 'error')
+        return
       }
+
+      // Paddle.js 초기화 (한 번만)
+      if (!window.__paddleInitialized) {
+        if (resp.paddleEnvironment === 'sandbox') {
+          window.Paddle.Environment.set('sandbox')
+        }
+        window.Paddle.Initialize({ token: resp.paddleClientToken })
+        window.__paddleInitialized = true
+      }
+
+      // Paddle 오버레이 체크아웃
+      window.Paddle.Checkout.open({
+        items: [{ priceId, quantity: 1 }],
+        customData: { userId: String(profile.id || '') },
+        settings: {
+          displayMode: 'overlay',
+          theme: 'light',
+          locale: 'ko',
+          successUrl: window.location.origin + '/settings?paddle_success=1',
+        },
+      })
     } catch (err) {
       showToast(err.message || '결제 처리 중 오류가 발생했습니다.', 'error')
     } finally {
@@ -743,7 +765,7 @@ export default function SettingsPage() {
     }
   }
 
-  // Open Stripe Customer Portal
+  // Open Paddle Customer Portal
   const handleManageSubscription = async () => {
     setPortalLoading(true)
     try {
@@ -2215,7 +2237,7 @@ export default function SettingsPage() {
           ) : isSubscribed ? (
             <div className="billing-history-card">
               <i className="ri-file-list-3-line" />
-              <p>결제 내역 및 인보이스는 Stripe 고객 포털에서 확인할 수 있습니다.</p>
+              <p>결제 내역 및 인보이스는 Paddle 고객 포털에서 확인할 수 있습니다.</p>
               <button className="btn-secondary small" onClick={handleManageSubscription} disabled={portalLoading}>
                 {portalLoading ? <><i className="ri-loader-4-line spin" /> 로딩 중...</> : <><i className="ri-external-link-line" /> 결제 내역 보기</>}
               </button>

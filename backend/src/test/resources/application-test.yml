@@ -60,14 +60,15 @@ app:
 cors:
   allowed-origins: http://localhost:5173,http://localhost:3000
 
-# Stripe (dummy for tests)
-stripe:
-  secret-key: sk_test_dummy_key_for_testing
-  publishable-key: pk_test_dummy_key_for_testing
-  webhook-secret: whsec_test_dummy
+# Paddle (dummy for tests)
+paddle:
+  api-key: pdl_api_test_dummy
+  webhook-secret: pdl_ntfset_test_dummy
+  environment: sandbox
+  client-token: test_dummy_client_token
   prices:
-    pro: price_test_pro
-    enterprise: price_test_enterprise
+    pro: pri_test_pro
+    enterprise: pri_test_enterprise
 
 # Rate limiting
 rate-limit:
