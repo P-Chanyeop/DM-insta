@@ -29,12 +29,12 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Instagram OAuth 플로우 컨트롤러
+ * Instagram OAuth 플로우 컨트롤러 (Instagram Login 방식)
  *
  * 1. GET  /api/auth/instagram/signup-url       → 회원가입/로그인용 OAuth URL (인증 불필요)
  * 2. GET  /api/instagram/oauth-url             → 기존 유저 IG 연결 OAuth URL (인증 필요)
- * 3. GET  /api/auth/instagram/callback         → Meta OAuth 콜백 (통합)
- * 4. POST /api/instagram/retry-connect         → 저장된 FB 토큰으로 IG 연결 재시도 (OAuth 스킵)
+ * 3. GET  /api/auth/instagram/callback         → Instagram OAuth 콜백 (통합)
+ * 4. POST /api/instagram/retry-connect         → 저장된 IG 토큰으로 IG 연결 재시도
  * 5. POST /api/instagram/disconnect            → 연결 해제
  * 6. GET  /api/instagram/account               → 연결된 계정 정보 조회
  */
@@ -63,9 +63,9 @@ public class InstagramOAuthController {
     @Value("${cors.allowed-origins}")
     private String frontendOrigin;
 
+    // Instagram Login 스코프
     private static final String OAUTH_SCOPE =
-            "email,public_profile,instagram_basic,instagram_manage_messages," +
-            "instagram_manage_comments,pages_messaging,pages_show_list,business_management";
+            "instagram_basic,instagram_manage_messages,instagram_manage_comments";
 
     // ─── OAuth URL 생성 ───
 
@@ -83,24 +83,22 @@ public class InstagramOAuthController {
     }
 
     private String buildOAuthUrl(String state) {
-        return "https://www.facebook.com/v21.0/dialog/oauth"
+        return "https://www.instagram.com/oauth/authorize"
                 + "?client_id=" + appId
                 + "&redirect_uri=" + urlEncode(redirectUri)
                 + "&scope=" + OAUTH_SCOPE
                 + "&response_type=code"
-                + "&state=" + state;
+                + "&state=" + state
+                + "&enable_fb_login=0"
+                + "&force_authentication=0";
     }
 
     // ─── OAuth 콜백 (통합) ───
 
     /**
-     * Meta OAuth 콜백.
-     *  state="signup"           → 회원가입/로그인 + IG 연결 시도
+     * Instagram OAuth 콜백.
+     *  state="signup"           → 회원가입/로그인 + IG 연결
      *  state="connect:{userId}" → 기존 유저에 IG 연결
-     *
-     * 실패 리다이렉트는 모두 /app/onboarding?ig_error=... 로 통일.
-     * (팝업을 안 쓰고 full-page redirect 기준. 팝업을 쓴 경우엔 팝업 안에서 URL 이동되므로
-     *  프론트에서 postMessage로 닫아주면 됨)
      */
     @GetMapping("/api/auth/instagram/callback")
     public ResponseEntity<String> handleCallback(
@@ -109,18 +107,21 @@ public class InstagramOAuthController {
             @RequestParam(value = "error", required = false) String oauthError,
             @RequestParam(value = "error_reason", required = false) String oauthErrorReason) {
 
-        // Meta가 사용자 취소 등으로 error 파라미터를 돌려준 경우
+        // 사용자 취소 등으로 error 파라미터가 있는 경우
         if (code == null || (oauthError != null && !oauthError.isBlank())) {
-            log.warn("OAuth 콜백에서 Meta 에러: error={}, reason={}", oauthError, oauthErrorReason);
+            log.warn("OAuth 콜백에서 Instagram 에러: error={}, reason={}", oauthError, oauthErrorReason);
             String reason = oauthErrorReason != null ? oauthErrorReason : (oauthError != null ? oauthError : "no_code");
             return redirectAfterOAuth(state, null, "ig_error=oauth_cancelled&reason=" + urlEncode(reason));
         }
 
         try {
-            String shortLivedToken = exchangeCodeForToken(code);
+            // Instagram 토큰 교환 (short-lived)
+            JsonNode tokenResponse = exchangeCodeForToken(code);
+            String shortLivedToken = tokenResponse.get("access_token").asText();
+            String igUserId = String.valueOf(tokenResponse.get("user_id").asLong());
 
             if ("signup".equals(state)) {
-                return handleSignupFlow(shortLivedToken);
+                return handleSignupFlow(shortLivedToken, igUserId);
             }
 
             Long userId = parseUserIdFromState(state);
@@ -129,7 +130,7 @@ public class InstagramOAuthController {
                 log.error("OAuth 콜백: 유저를 찾을 수 없음. state={}", state);
                 return redirectAfterOAuth(state, null, "ig_error=user_not_found");
             }
-            return handleConnectFlow(user, shortLivedToken);
+            return handleConnectFlow(user, shortLivedToken, igUserId);
 
         } catch (Exception e) {
             log.error("OAuth 콜백 처리 실패: {}", e.getMessage(), e);
@@ -137,54 +138,56 @@ public class InstagramOAuthController {
         }
     }
 
-    /** 회원가입/로그인 플로우 — User 생성/조회 + FB 토큰 저장 + IG 연결 시도 */
-    private ResponseEntity<String> handleSignupFlow(String shortLivedToken) {
-        // 1. 장기 FB 토큰 교환
+    /** 회원가입/로그인 플로우 — Instagram 토큰으로 직접 연결 */
+    private ResponseEntity<String> handleSignupFlow(String shortLivedToken, String igUserId) {
+        // 1. 장기 토큰 교환
         String longLivedToken;
         try {
             longLivedToken = instagramApiService.exchangeLongLivedToken(shortLivedToken);
         } catch (Exception e) {
             log.error("장기 토큰 교환 실패: {}", e.getMessage());
-            return redirectToFrontend("/login", "error=fb_token_exchange_failed");
+            return redirectToFrontend("/login", "error=ig_token_exchange_failed");
         }
 
-        // 2. Facebook 프로필 조회 (id, email, name)
-        JsonNode fbProfile;
+        // 2. Instagram 프로필 조회
+        JsonNode igProfile;
         try {
-            fbProfile = fetchFacebookProfile(longLivedToken);
+            igProfile = fetchInstagramProfile(longLivedToken);
         } catch (Exception e) {
-            log.error("Facebook 프로필 조회 실패: {}", e.getMessage());
-            return redirectToFrontend("/login", "error=fb_profile_failed");
+            log.error("Instagram 프로필 조회 실패: {}", e.getMessage());
+            return redirectToFrontend("/login", "error=ig_profile_failed");
         }
 
-        String fbUserId = fbProfile.path("id").asText(null);
-        String email = fbProfile.path("email").asText(null);
-        String name = fbProfile.path("name").asText("사용자");
+        String username = igProfile.path("username").asText("");
+        String name = igProfile.path("name").asText(username);
+        String igId = igProfile.path("user_id").asText(igUserId);
 
-        if (fbUserId == null) {
-            return redirectToFrontend("/login", "error=facebook_profile_failed");
-        }
-        if (email == null) {
-            return redirectToFrontend("/login",
-                    "error=no_email&reason=" + urlEncode("Facebook에서 이메일을 받지 못했습니다. 이메일 권한을 허용해주세요."));
+        if (igId == null || igId.isEmpty()) {
+            igId = igUserId;
         }
 
-        // 3. find-or-create User
-        final boolean[] isNewUser = { false };
-        final String fbIdFinal = fbUserId;
-        final String emailFinal = email;
-        final String nameFinal = name;
+        // 3. find-or-create User (Instagram은 이메일을 제공하지 않으므로 facebookUserId 필드를 IG ID로 활용)
+        final boolean[] isNewUser = {false};
+        final String igIdFinal = igId;
+        final String nameFinal = name.isEmpty() ? username : name;
+        // Instagram은 이메일을 제공하지 않으므로 플레이스홀더 생성
+        final String placeholderEmail = "ig_" + igIdFinal + "@sendit.local";
 
-        User user = userRepository.findByFacebookUserId(fbIdFinal)
-                .or(() -> userRepository.findByEmail(emailFinal))
+        User user = userRepository.findByFacebookUserId(igIdFinal)
                 .orElseGet(() -> {
+                    // 기존에 같은 IG 계정으로 연결된 InstagramAccount가 있는지 확인
+                    Optional<InstagramAccount> existingIgAccount = instagramAccountRepository.findByIgUserId(igIdFinal);
+                    if (existingIgAccount.isPresent()) {
+                        return existingIgAccount.get().getUser();
+                    }
+
                     User u = User.builder()
-                            .email(emailFinal)
+                            .email(placeholderEmail)
                             .name(nameFinal)
                             .password(null)
-                            .authProvider(User.AuthProvider.FACEBOOK)
-                            .facebookUserId(fbIdFinal)
-                            .emailVerified(true)
+                            .authProvider(User.AuthProvider.INSTAGRAM)
+                            .facebookUserId(igIdFinal) // IG user ID 저장
+                            .emailVerified(true) // Instagram OAuth로 인증 간주
                             .plan(User.PlanType.FREE)
                             .build();
                     User saved = userRepository.save(u);
@@ -192,7 +195,7 @@ public class InstagramOAuthController {
                     return saved;
                 });
 
-        // 4. 신규 OAuth 유저면 OWNER TeamMember 생성
+        // 4. 신규 유저면 OWNER TeamMember 생성
         if (isNewUser[0]) {
             teamMemberRepository.save(TeamMember.builder()
                     .teamOwnerId(user.getId())
@@ -200,21 +203,21 @@ public class InstagramOAuthController {
                     .role(TeamMember.Role.OWNER)
                     .joinedAt(LocalDateTime.now())
                     .build());
-            log.info("OAuth 신규 가입: userId={}, email={}", user.getId(), user.getEmail());
+            log.info("Instagram OAuth 신규 가입: userId={}, username={}", user.getId(), username);
         }
 
-        // 5. FB 토큰 저장 (암호화) + fbUserId 갱신
-        user.setFacebookUserId(fbIdFinal);
+        // 5. IG 토큰 저장 (User 엔티티에 — 재시도용)
+        user.setFacebookUserId(igIdFinal);
         user.setFacebookAccessToken(encryptionUtil.encrypt(longLivedToken));
         user.setFacebookTokenExpiresAt(LocalDateTime.now().plusDays(60));
         userRepository.save(user);
 
-        // 6. IG 연결 시도 (실패해도 유저 생성은 완료된 상태 — 온보딩에서 재시도 가능)
+        // 6. Instagram 계정 직접 연결
         String igStatus = "none";
         String igErrorCode = null;
         String igErrorMsg = null;
         try {
-            InstagramAccount acc = instagramApiService.connectInstagramViaFacebook(user, longLivedToken);
+            InstagramAccount acc = instagramApiService.connectInstagramDirect(user, longLivedToken, igProfile);
             igStatus = "connected";
             log.info("Signup + IG 연결 성공: userId={}, igUsername={}", user.getId(), acc.getUsername());
         } catch (IgConnectionException e) {
@@ -237,28 +240,30 @@ public class InstagramOAuthController {
                 .append("&ig_status=").append(igStatus);
         if (igErrorCode != null) {
             params.append("&ig_error=").append(urlEncode(igErrorCode))
-                  .append("&ig_reason=").append(urlEncode(igErrorMsg != null ? igErrorMsg : ""));
+                    .append("&ig_reason=").append(urlEncode(igErrorMsg != null ? igErrorMsg : ""));
         }
         return redirectToFrontend("/auth/callback", params.toString());
     }
 
     /** 기존 유저 IG 연결 플로우 */
-    private ResponseEntity<String> handleConnectFlow(User user, String shortLivedToken) {
+    private ResponseEntity<String> handleConnectFlow(User user, String shortLivedToken, String igUserId) {
         // 장기 토큰 교환 + 저장
         String longLivedToken;
         try {
             longLivedToken = instagramApiService.exchangeLongLivedToken(shortLivedToken);
         } catch (Exception e) {
             log.error("장기 토큰 교환 실패: userId={}, error={}", user.getId(), e.getMessage());
-            return redirectToFrontend("/app/onboarding", "ig_error=fb_token_exchange_failed");
+            return redirectToFrontend("/app/onboarding", "ig_error=ig_token_exchange_failed");
         }
 
         user.setFacebookAccessToken(encryptionUtil.encrypt(longLivedToken));
         user.setFacebookTokenExpiresAt(LocalDateTime.now().plusDays(60));
         userRepository.save(user);
 
+        // Instagram 프로필 조회 + 직접 연결
         try {
-            InstagramAccount acc = instagramApiService.connectInstagramViaFacebook(user, longLivedToken);
+            JsonNode igProfile = fetchInstagramProfile(longLivedToken);
+            InstagramAccount acc = instagramApiService.connectInstagramDirect(user, longLivedToken, igProfile);
             log.info("IG 연결 성공: userId={}, igUsername={}", user.getId(), acc.getUsername());
             return redirectToFrontend("/app/onboarding",
                     "ig_connected=true&username=" + urlEncode(acc.getUsername()));
@@ -273,19 +278,13 @@ public class InstagramOAuthController {
         }
     }
 
-    // ─── 재시도 (저장된 FB 토큰 사용, OAuth 스킵) ───
+    // ─── 재시도 (저장된 IG 토큰 사용, OAuth 스킵) ───
 
-    /**
-     * 저장된 FB 토큰으로 IG 연결 재시도.
-     * OAuth 팝업/리다이렉트 없이 유저가 FB 페이지/IG 비즈니스 계정을 세팅 완료한 후
-     * "재시도" 버튼만 누르면 바로 연결 시도.
-     */
     @PostMapping("/api/instagram/retry-connect")
     public ResponseEntity<Map<String, Object>> retryConnect() {
         Long userId = SecurityUtils.currentUserId();
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
-            // JWT는 유효하지만 DB에 유저가 없음 (ex: DB 리셋 후) → 재로그인 유도
             return ResponseEntity.ok(Map.of(
                     "success", false,
                     "error", "SESSION_EXPIRED",
@@ -298,25 +297,26 @@ public class InstagramOAuthController {
                 || user.getFacebookTokenExpiresAt().isBefore(LocalDateTime.now())) {
             return ResponseEntity.ok(Map.of(
                     "success", false,
-                    "error", "FB_TOKEN_MISSING",
-                    "message", "Facebook 인증이 필요합니다. Instagram 연결하기를 다시 눌러주세요."
+                    "error", "IG_TOKEN_MISSING",
+                    "message", "Instagram 인증이 필요합니다. Instagram 연결하기를 다시 눌러주세요."
             ));
         }
 
-        String fbToken;
+        String igToken;
         try {
-            fbToken = encryptionUtil.decrypt(encryptedToken);
+            igToken = encryptionUtil.decrypt(encryptedToken);
         } catch (Exception e) {
-            log.error("FB 토큰 복호화 실패: userId={}", userId);
+            log.error("IG 토큰 복호화 실패: userId={}", userId);
             return ResponseEntity.ok(Map.of(
                     "success", false,
-                    "error", "FB_TOKEN_INVALID",
-                    "message", "저장된 Facebook 토큰이 유효하지 않습니다. 다시 로그인해주세요."
+                    "error", "IG_TOKEN_INVALID",
+                    "message", "저장된 Instagram 토큰이 유효하지 않습니다. 다시 로그인해주세요."
             ));
         }
 
         try {
-            InstagramAccount acc = instagramApiService.connectInstagramViaFacebook(user, fbToken);
+            JsonNode igProfile = fetchInstagramProfile(igToken);
+            InstagramAccount acc = instagramApiService.connectInstagramDirect(user, igToken, igProfile);
             Map<String, Object> ok = new HashMap<>();
             ok.put("success", true);
             ok.put("username", acc.getUsername());
@@ -376,8 +376,12 @@ public class InstagramOAuthController {
 
     // ─── 내부 헬퍼 ───
 
-    private String exchangeCodeForToken(String code) {
-        String url = "https://graph.facebook.com/v21.0/oauth/access_token";
+    /**
+     * Instagram OAuth 코드 → 단기 액세스 토큰 교환
+     * 응답: { "access_token": "...", "user_id": 12345 }
+     */
+    private JsonNode exchangeCodeForToken(String code) {
+        String url = "https://api.instagram.com/oauth/access_token";
 
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("client_id", appId);
@@ -392,11 +396,17 @@ public class InstagramOAuthController {
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
         ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, request, JsonNode.class);
 
-        return response.getBody().get("access_token").asText();
+        return response.getBody();
     }
 
-    private JsonNode fetchFacebookProfile(String accessToken) {
-        String url = "https://graph.facebook.com/v21.0/me?fields=id,name,email&access_token=" + accessToken;
+    /**
+     * Instagram Graph API로 프로필 조회
+     * 응답: { "user_id", "username", "name", "profile_picture_url", "followers_count", "account_type" }
+     */
+    private JsonNode fetchInstagramProfile(String accessToken) {
+        String url = "https://graph.instagram.com/v21.0/me"
+                + "?fields=user_id,username,name,profile_picture_url,followers_count,account_type"
+                + "&access_token=" + accessToken;
         return restTemplate.getForObject(url, JsonNode.class);
     }
 
@@ -421,11 +431,6 @@ public class InstagramOAuthController {
         return new ResponseEntity<>(headers, HttpStatus.FOUND);
     }
 
-    /**
-     * state 값에 따라 적절한 프론트 경로로 리다이렉트:
-     *  - "signup" → /login (에러만 가능: 성공 시는 handleSignupFlow가 /auth/callback으로)
-     *  - "connect:xxx" → /app/onboarding
-     */
     private ResponseEntity<String> redirectAfterOAuth(String state, String successPath, String queryParams) {
         String path;
         if (state != null && state.startsWith("connect:")) {

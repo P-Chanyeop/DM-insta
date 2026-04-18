@@ -46,14 +46,14 @@ public class InstagramApiService {
     // ─── OAuth ───
 
     /**
-     * Short-lived Facebook 토큰 → Long-lived 토큰으로 교환
+     * Short-lived Instagram 토큰 → Long-lived 토큰으로 교환
+     * Instagram Login API: GET https://graph.instagram.com/access_token
      */
     public String exchangeLongLivedToken(String shortLivedToken) {
-        String url = "https://graph.facebook.com/v21.0/oauth/access_token"
-                + "?grant_type=fb_exchange_token"
-                + "&client_id=" + appId
+        String url = "https://graph.instagram.com/access_token"
+                + "?grant_type=ig_exchange_token"
                 + "&client_secret=" + appSecret
-                + "&fb_exchange_token=" + shortLivedToken;
+                + "&access_token=" + shortLivedToken;
 
         ResponseEntity<JsonNode> resp = restTemplate.getForEntity(url, JsonNode.class);
         return resp.getBody().get("access_token").asText();
@@ -186,6 +186,70 @@ public class InstagramApiService {
         }
 
         return instagramAccountRepository.save(account);
+    }
+
+    /**
+     * Instagram Login OAuth로 직접 IG 계정 연결 (Facebook 페이지 경유 불필요)
+     *
+     * Instagram OAuth에서 받은 토큰 + 프로필 정보로 바로 InstagramAccount 생성/업데이트.
+     * Facebook Login 방식과 달리 페이지 조회 없이 직접 Instagram 계정 정보를 사용.
+     *
+     * @param user 유저 엔티티
+     * @param igAccessToken 장기 Instagram User Access Token
+     * @param igProfile Instagram Graph API /me 응답 (user_id, username, name, profile_picture_url, followers_count)
+     * @return 저장된 InstagramAccount
+     */
+    public InstagramAccount connectInstagramDirect(
+            com.instabot.backend.entity.User user, String igAccessToken, JsonNode igProfile) {
+
+        String igUserId = igProfile.path("user_id").asText(null);
+        if (igUserId == null || igUserId.isEmpty()) {
+            igUserId = String.valueOf(igProfile.path("id").asLong(0));
+        }
+        if (igUserId == null || igUserId.equals("0")) {
+            throw new IgConnectionException("NO_IG_USER_ID",
+                    "Instagram 사용자 ID를 가져올 수 없습니다. 다시 시도해주세요.");
+        }
+
+        String username = igProfile.path("username").asText("");
+        String accountType = igProfile.path("account_type").asText("");
+
+        // 비즈니스/크리에이터 계정 확인 (BUSINESS, MEDIA_CREATOR, CREATOR_ACCOUNT 등)
+        // Instagram Login은 비즈니스/크리에이터 계정만 지원
+        log.info("Instagram 계정 타입: userId={}, igUserId={}, accountType={}", user.getId(), igUserId, accountType);
+
+        // 기존 계정 있으면 업데이트, 없으면 생성
+        InstagramAccount account = instagramAccountRepository.findByIgUserId(igUserId)
+                .orElse(InstagramAccount.builder()
+                        .user(user)
+                        .igUserId(igUserId)
+                        .build());
+
+        // 소유자 검증: 이미 다른 유저가 연결한 계정이면 거부
+        if (account.getId() != null && !account.getUser().getId().equals(user.getId())) {
+            throw new IgConnectionException(
+                    "IG_ALREADY_OWNED",
+                    "이미 다른 센드잇 계정에 연결된 Instagram 계정입니다.");
+        }
+
+        account.setUsername(username);
+        // Instagram User Access Token 직접 저장 (Page Token이 아닌 User Token)
+        account.setAccessToken(encryptionUtil.encrypt(igAccessToken));
+        account.setConnected(true);
+        account.setActive(true);
+        account.setConnectedAt(LocalDateTime.now());
+        account.setTokenExpiresAt(LocalDateTime.now().plusDays(60));
+
+        if (igProfile.has("profile_picture_url")) {
+            account.setProfilePictureUrl(igProfile.path("profile_picture_url").asText());
+        }
+        if (igProfile.has("followers_count")) {
+            account.setFollowersCount(igProfile.path("followers_count").asLong());
+        }
+
+        InstagramAccount saved = instagramAccountRepository.save(account);
+        log.info("Instagram 계정 연결 완료: userId={}, igUserId={}, username={}", user.getId(), igUserId, username);
+        return saved;
     }
 
     /**

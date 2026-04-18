@@ -70,5 +70,5 @@ public class User {
 
     public enum PlanType { FREE, PRO, ENTERPRISE }
 
-    public enum AuthProvider { EMAIL, FACEBOOK }
+    public enum AuthProvider { EMAIL, FACEBOOK, INSTAGRAM }
 }
