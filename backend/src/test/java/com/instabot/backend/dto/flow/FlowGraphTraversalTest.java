@@ -100,6 +100,17 @@ class FlowGraphTraversalTest {
     }
 
     @Test
+    void branchMismatch_noDefaultEdge_returnsNull() {
+        // branch="fail"이지만 fail 엣지도 null-handle 엣지도 없으면 → null (플로우 종료)
+        FlowGraph graph = new FlowGraph(
+                List.of(node("cond", "condition"), node("yes", "message")),
+                List.of(edge("e1", "cond", "yes", "pass"))
+        );
+        // "pass" 엣지만 있고, "fail" 요청 → null 반환 (잘못된 라우팅 방지)
+        assertThat(graph.chooseNext("cond", "fail")).isNull();
+    }
+
+    @Test
     void multipleEdges_firstMatchWins() {
         FlowGraph graph = new FlowGraph(
                 List.of(node("s", "trigger"), node("a", "message"), node("b", "message")),

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface PendingFlowActionRepository extends JpaRepository<PendingFlowAction, Long> {
@@ -24,6 +25,13 @@ public interface PendingFlowActionRepository extends JpaRepository<PendingFlowAc
             "AND p.pendingStep <> 'COMPLETED' AND p.expiresAt > :now " +
             "ORDER BY p.createdAt DESC")
     Optional<PendingFlowAction> findActiveBySenderIgId(String senderIgId, LocalDateTime now);
+
+    /**
+     * 재개 시각이 도래한 AWAITING_DELAY 액션 조회
+     */
+    @Query("SELECT p FROM PendingFlowAction p WHERE p.pendingStep = 'AWAITING_DELAY' " +
+            "AND p.scheduledResumeAt <= :now AND p.expiresAt > :now")
+    List<PendingFlowAction> findDelayActionsReadyToResume(LocalDateTime now);
 
     /**
      * 만료된 PendingFlowAction 정리

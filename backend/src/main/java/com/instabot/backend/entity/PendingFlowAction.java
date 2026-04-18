@@ -73,6 +73,10 @@ public class PendingFlowAction {
         return LocalDateTime.now().isAfter(expiresAt);
     }
 
+    /** v2 딜레이 노드: 스케줄된 재개 시각 */
+    @Column(name = "scheduled_resume_at")
+    private LocalDateTime scheduledResumeAt;
+
     public enum PendingStep {
         /** 오프닝 DM 버튼 클릭 대기 */
         AWAITING_POSTBACK,
@@ -80,6 +84,8 @@ public class PendingFlowAction {
         AWAITING_FOLLOW,
         /** 이메일 입력 대기 */
         AWAITING_EMAIL,
+        /** 딜레이 노드 — 지정 시간 후 자동 재개 */
+        AWAITING_DELAY,
         /** 완료 (메인DM 발송됨) */
         COMPLETED
     }

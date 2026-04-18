@@ -100,7 +100,10 @@ public class ConditionNodeExecutor implements NodeExecutor {
                 int probability = data.path("probability").asInt(50);
                 yield ThreadLocalRandom.current().nextInt(100) < probability;
             }
-            default -> true;
+            default -> {
+                log.warn("미지원 조건 타입 — 기본 실패 처리: condType={}", condType);
+                yield false;
+            }
         };
     }
 }

@@ -36,6 +36,8 @@ public class FollowUpSchedulerService {
     private final InstagramApiService instagramApiService;
     private final ContactRepository contactRepository;
     private final ObjectMapper objectMapper;
+    @org.springframework.context.annotation.Lazy
+    private final FlowExecutionService flowExecutionService;
 
     private static final Pattern VARIABLE_PATTERN = Pattern.compile(
             "\\{(이름|name|username|키워드|keyword|날짜|date|custom\\.[\\w]+)\\}");
@@ -123,6 +125,35 @@ public class FollowUpSchedulerService {
             return fields.path(fieldName).asText("");
         } catch (Exception e) {
             return "";
+        }
+    }
+
+    /**
+     * 매분 실행: 딜레이 노드의 재개 시각이 도래한 플로우 자동 재개
+     */
+    @Scheduled(fixedRate = 60_000) // 1분마다
+    @Transactional
+    public void processDelayResumes() {
+        List<PendingFlowAction> delayActions = pendingFlowActionRepository
+                .findDelayActionsReadyToResume(LocalDateTime.now());
+
+        if (delayActions.isEmpty()) return;
+
+        log.info("딜레이 재개 처리: {}건", delayActions.size());
+
+        for (PendingFlowAction action : delayActions) {
+            try {
+                action.setPendingStep(PendingFlowAction.PendingStep.COMPLETED);
+                pendingFlowActionRepository.save(action);
+
+                // FlowExecutionService에서 그래프 순회 재개
+                flowExecutionService.resumeAfterDelay(action);
+
+                log.info("딜레이 재개 성공: flowId={}, sender={}, nodeId={}",
+                        action.getFlow().getId(), action.getSenderIgId(), action.getCurrentNodeId());
+            } catch (Exception e) {
+                log.error("딜레이 재개 실패: id={}, error={}", action.getId(), e.getMessage());
+            }
         }
     }
 

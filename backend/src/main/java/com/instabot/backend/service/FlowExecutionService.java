@@ -247,7 +247,25 @@ public class FlowExecutionService {
                 // v1 레거시
                 proceedToRequirementsAfterFollow(flow, igAccount, senderIgId, flowData, triggerKeyword);
             } else {
-                // ❌ 아직 팔로우 안 됨 → 재확인 메시지 + 버튼 다시 발송
+                // ❌ 아직 팔로우 안 됨
+                String currentNodeId = pending.getCurrentNodeId();
+
+                // v2: "fail" 엣지가 연결된 경우 → fail 분기로 진행
+                if (currentNodeId != null) {
+                    FlowGraph graph = FlowGraphParser.parse(flowData.toString());
+                    String failTarget = graph.chooseNext(currentNodeId, "fail");
+                    if (failTarget != null) {
+                        log.info("팔로우 미확인 → fail 분기 진행: flowId={}, sender={}", flow.getId(), senderIgId);
+                        String triggerKeyword = pending.getTriggerKeyword();
+                        pending.setPendingStep(PendingStep.COMPLETED);
+                        pendingFlowActionRepository.save(pending);
+                        resumeFlowGraph(flow, igAccount, senderIgId, triggerKeyword,
+                                currentNodeId, pending.getCommentId(), "fail");
+                        return;
+                    }
+                }
+
+                // fail 엣지 없으면 기존 동작: 재확인 메시지 + 버튼 다시 발송
                 log.info("팔로우 미확인 → 재확인 버튼 발송: flowId={}, sender={}", flow.getId(), senderIgId);
                 sendFollowRetryMessage(botIgId, senderIgId, accessToken, igAccount, flow);
             }
@@ -926,7 +944,23 @@ public class FlowExecutionService {
                 // 사용자 응답 대기 → PendingFlowAction 저장 후 중단
                 savePendingAction(ctx.getFlow(), ctx.getIgAccount(), ctx.getSenderIgId(),
                         ctx.getCommentId(), result.getAwaitStep(), ctx.getTriggerKeyword(), currentId);
-                log.info("사용자 응답 대기: nodeId={}, step={}", currentId, result.getAwaitStep());
+
+                // AWAITING_DELAY인 경우 scheduledResumeAt 설정
+                if (result.getAwaitStep() == PendingStep.AWAITING_DELAY) {
+                    String delayMin = String.valueOf(ctx.getVariables().getOrDefault("delayMinutes", "30"));
+                    long minutes = Long.parseLong(delayMin);
+                    PendingFlowAction lastPending = pendingFlowActionRepository
+                            .findFirstBySenderIgIdAndPendingStepOrderByCreatedAtDesc(
+                                    ctx.getSenderIgId(), PendingStep.AWAITING_DELAY)
+                            .orElse(null);
+                    if (lastPending != null) {
+                        lastPending.setScheduledResumeAt(LocalDateTime.now().plusMinutes(minutes));
+                        pendingFlowActionRepository.save(lastPending);
+                    }
+                    log.info("딜레이 대기 저장: nodeId={}, resumeAt={}분 후", currentId, delayMin);
+                } else {
+                    log.info("사용자 응답 대기: nodeId={}, step={}", currentId, result.getAwaitStep());
+                }
                 break;
             }
 
@@ -984,6 +1018,20 @@ public class FlowExecutionService {
         } catch (Exception e) {
             log.error("v2 그래프 순회 재개 실패: flowId={}, error={}", flow.getId(), e.getMessage(), e);
         }
+    }
+
+    /**
+     * 딜레이 노드 재개 — 스케줄러에서 호출
+     */
+    public void resumeAfterDelay(PendingFlowAction action) {
+        resumeFlowGraph(
+                action.getFlow(),
+                action.getInstagramAccount(),
+                action.getSenderIgId(),
+                action.getTriggerKeyword(),
+                action.getCurrentNodeId(),
+                action.getCommentId()
+        );
     }
 
     // ─── Recurring Notification 옵트인 노드 ───

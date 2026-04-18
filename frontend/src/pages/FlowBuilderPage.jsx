@@ -222,25 +222,26 @@ export default function FlowBuilderPage() {
   // 팔레트 클릭으로 노드 추가
   const onPaletteClick = useCallback(
     (nodeType, nodeData) => {
-      // 마지막 노드의 아래쪽에 배치
-      const lastNode = nodes.length > 0
-        ? nodes.reduce((a, b) => (a.position.y > b.position.y ? a : b))
-        : null
-      const position = lastNode
-        ? { x: lastNode.position.x, y: lastNode.position.y + 180 }
-        : { x: 300, y: 100 }
+      setNodes((nds) => {
+        // 최신 nodes 배열에서 가장 아래 노드를 찾아 그 아래에 배치
+        const lastNode = nds.length > 0
+          ? nds.reduce((a, b) => (a.position.y > b.position.y ? a : b))
+          : null
+        const position = lastNode
+          ? { x: lastNode.position.x, y: lastNode.position.y + 180 }
+          : { x: 300, y: 100 }
 
-      const newNode = {
-        id: generateNodeId(nodeType),
-        type: nodeType,
-        position,
-        data: { ...nodeData },
-      }
-
-      setNodes((nds) => [...nds, newNode])
+        const newNode = {
+          id: generateNodeId(nodeType),
+          type: nodeType,
+          position,
+          data: { ...nodeData },
+        }
+        return [...nds, newNode]
+      })
       setPaletteOpen(false)
     },
-    [nodes, setNodes]
+    [setNodes]
   )
 
   return (
@@ -639,26 +640,32 @@ function PhonePreview({ nodes, edges }) {
         return { long: '실패', short: '실패' }
       }
     }
-    // 랜덤/AB
-    if (/^a$/i.test(h)) {
-      const pct = sourceNode?.data?.variantA
-      return { long: `A 변형${pct != null ? ` (${pct}%)` : ''}`, short: `A${pct != null ? ` ${pct}%` : ''}` }
+    // A/B 테스트 노드
+    if (sourceNode?.type === 'abtest') {
+      const pct = sourceNode.data?.variantA ?? 50
+      if (/^a$/i.test(h)) return { long: `A 변형 (${pct}%)`, short: `A ${pct}%` }
+      if (/^b$/i.test(h)) return { long: `B 변형 (${100 - pct}%)`, short: `B ${100 - pct}%` }
     }
-    if (/^b$/i.test(h)) {
-      const pct = sourceNode?.data?.variantA
-      return { long: `B 변형${pct != null ? ` (${100 - pct}%)` : ''}`, short: `B${pct != null ? ` ${100 - pct}%` : ''}` }
+    // 랜덤 조건 (condition.random) — probability 사용
+    if (sourceNode?.type === 'condition' && sourceNode.data?.conditionType === 'random') {
+      const prob = sourceNode.data?.probability ?? 50
+      if (/^a$/i.test(h) || /pass/i.test(h)) return { long: `통과 (${prob}%)`, short: `통과 ${prob}%` }
+      if (/^b$/i.test(h) || /fail/i.test(h)) return { long: `불통과 (${100 - prob}%)`, short: `불통과 ${100 - prob}%` }
     }
-    // 웹훅 응답
-    if (/success|2xx/i.test(h)) return { long: '응답 성공', short: '2xx ✓' }
-    if (/error|fail|4xx|5xx/i.test(h)) return { long: '응답 실패', short: 'Err ✗' }
+    // 웹훅 응답 (webhook 노드만)
+    if (sourceNode?.type === 'webhook') {
+      if (/success|2xx|pass/i.test(h)) return { long: '응답 성공', short: '2xx ✓' }
+      if (/error|fail|4xx|5xx/i.test(h)) return { long: '응답 실패', short: 'Err ✗' }
+    }
     return null
   }
 
   // A안: 분기 노드의 "진짜 미사용" 케이스만 감지 (양쪽 다 미연결)
   // 한쪽만 비어있는 건 "그 분기에서 대화 종료" 의도로 허용
+  const branchingTypes = new Set(['condition', 'abtest', 'webhook'])
   const incompleteBranchNodeIds = new Set()
   nodes.forEach(n => {
-    if (n.type !== 'condition') return
+    if (!branchingTypes.has(n.type)) return
     const outs = edgeBySource.get(n.id) || []
     if (outs.length === 0) incompleteBranchNodeIds.add(n.id)
   })

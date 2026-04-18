@@ -65,7 +65,7 @@ public class FlowGraph {
             }
         }
 
-        // 엣지가 있지만 매칭 안 되면 첫 번째 반환 (fallback)
-        return outs.get(0).getTarget();
+        // 매칭 엣지 없으면 플로우 종료 (잘못된 분기로 라우팅 방지)
+        return null;
     }
 }
