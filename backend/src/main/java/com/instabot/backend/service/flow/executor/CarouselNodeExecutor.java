@@ -33,7 +33,7 @@ public class CarouselNodeExecutor implements NodeExecutor {
     @Override
     public NodeExecResult execute(FlowContext ctx, FlowNode node) {
         JsonNode data = node.getData();
-        if (data == null || !data.path("enabled").asBoolean(false)) return NodeExecResult.ok();
+        if (data == null) return NodeExecResult.ok();
 
         JsonNode cards = data.get("cards");
         if (cards == null || !cards.isArray() || cards.isEmpty()) return NodeExecResult.ok();

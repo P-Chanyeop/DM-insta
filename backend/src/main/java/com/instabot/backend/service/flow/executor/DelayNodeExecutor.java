@@ -14,7 +14,14 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 
 /**
- * 딜레이(타이머) 노드 — 팔로업 메시지를 DB에 스케줄링
+ * 딜레이(타이머) 노드 — 그래프 순회를 지정된 시간만큼 지연시킨다.
+ *
+ * v1에서는 delay 노드가 직접 메시지를 포함했지만,
+ * v2에서는 delay 노드는 시간만 지정하고, 실제 메시지는 다음 노드(예: 팔로업 DM)에서 처리.
+ *
+ * TODO: v2 그래프에서는 delay 후 다음 노드를 자동 재개하는 메커니즘 필요.
+ *       현재는 v1 호환 모드(message 포함 시)만 동작. v2 delay 노드는
+ *       PendingFlowAction + 스케줄러 기반 재개로 구현해야 함.
  */
 @Slf4j
 @Component

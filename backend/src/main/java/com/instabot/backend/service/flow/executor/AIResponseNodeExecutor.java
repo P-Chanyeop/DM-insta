@@ -36,7 +36,7 @@ public class AIResponseNodeExecutor implements NodeExecutor {
     @Override
     public NodeExecResult execute(FlowContext ctx, FlowNode node) {
         JsonNode data = node.getData();
-        if (data == null || !data.path("enabled").asBoolean(false)) return NodeExecResult.ok();
+        if (data == null) return NodeExecResult.ok();
 
         String userMessage = ctx.getTriggerKeyword() != null ? ctx.getTriggerKeyword() : "";
         if (userMessage.isBlank()) return NodeExecResult.ok();

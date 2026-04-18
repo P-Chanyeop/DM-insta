@@ -8,6 +8,7 @@ import com.instabot.backend.entity.Contact;
 import com.instabot.backend.service.flow.NodeExecutor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.time.ZoneId;
@@ -15,7 +16,8 @@ import java.time.ZonedDateTime;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 조건 분기 노드 — 조건 평가 후 "pass" / "fail" 분기
+ * 조건 분기 노드 — conditionType에 따라 분기.
+ * followCheck/emailCheck는 실제 Executor에 위임.
  */
 @Slf4j
 @Component
@@ -23,6 +25,8 @@ import java.util.concurrent.ThreadLocalRandom;
 public class ConditionNodeExecutor implements NodeExecutor {
 
     private final NodeExecutorUtils utils;
+    @Lazy private final FollowCheckNodeExecutor followCheckExecutor;
+    @Lazy private final EmailCollectionNodeExecutor emailCollectionExecutor;
 
     @Override
     public String[] supportedTypes() {
@@ -35,13 +39,22 @@ public class ConditionNodeExecutor implements NodeExecutor {
         if (data == null) return NodeExecResult.branch("pass");
 
         String condType = data.path("conditionType").asText(data.path("type").asText(""));
+
+        // 대기형 조건: 별도 Executor에 위임
+        if ("followCheck".equals(condType)) {
+            return followCheckExecutor.execute(ctx, node);
+        }
+        if ("emailCheck".equals(condType)) {
+            return emailCollectionExecutor.execute(ctx, node);
+        }
+
+        // 즉시 평가형 조건
         boolean passed = evaluateCondition(condType, data, ctx.getContact());
         return NodeExecResult.branch(passed ? "pass" : "fail");
     }
 
     private boolean evaluateCondition(String condType, JsonNode data, Contact contact) {
         return switch (condType) {
-            case "followCheck" -> true;
             case "tagCheck" -> {
                 String tagName = data.path("tagName").asText("").trim();
                 if (tagName.isEmpty()) yield true;
@@ -65,7 +78,6 @@ public class ConditionNodeExecutor implements NodeExecutor {
                     default -> true;
                 };
             }
-            case "emailCheck" -> true;
             case "timeRange" -> {
                 int startHour = data.path("startHour").asInt(9);
                 int endHour = data.path("endHour").asInt(18);

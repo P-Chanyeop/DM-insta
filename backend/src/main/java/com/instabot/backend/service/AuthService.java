@@ -72,6 +72,7 @@ public class AuthService {
         teamMemberRepository.save(ownerMember);
 
         // 인증 메일 발송 (비동기)
+        log.info("[DEV] 인증 코드: email={}, code={}", user.getEmail(), verificationCode);
         emailService.sendVerificationEmail(user.getEmail(), verificationCode);
 
         String token = generateToken(user);
