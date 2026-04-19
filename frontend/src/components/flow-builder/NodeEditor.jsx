@@ -515,6 +515,42 @@ function ActionEditor({ data, update }) {
 
 /* ── 웹훅 편집기 ── */
 function WebhookEditor({ data, update }) {
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState(null)
+
+  const handleTest = async () => {
+    const url = (data.url || '').trim()
+    if (!url) {
+      setTestResult({ success: false, message: 'URL을 입력해주세요.' })
+      return
+    }
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+      const token = localStorage.getItem('authToken')
+      const res = await fetch(`${BASE_URL}/integrations/webhook/test`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          url,
+          method: data.method || 'POST',
+          headers: data.headers || '{}',
+          body: data.body || '',
+        }),
+      })
+      const result = await res.json()
+      setTestResult(result)
+    } catch {
+      setTestResult({ success: false, message: '테스트 요청에 실패했습니다.' })
+    } finally {
+      setTesting(false)
+    }
+  }
+
   return (
     <>
       <div className="ne-field">
@@ -549,6 +585,26 @@ function WebhookEditor({ data, update }) {
           onChange={e => update({ body: e.target.value })}
           placeholder={'{"user": "{username}", "email": "{이메일}"}'} />
         <div className="ne-hint">변수를 사용할 수 있습니다: {'{이름}'}, {'{username}'}, {'{이메일}'}</div>
+      </div>
+      <div className="ne-field">
+        <button
+          type="button"
+          className={`ne-test-btn ${testing ? 'testing' : ''}`}
+          onClick={handleTest}
+          disabled={testing}
+        >
+          {testing ? (
+            <><i className="ri-loader-4-line ri-spin" /> 테스트 중...</>
+          ) : (
+            <><i className="ri-send-plane-line" /> 연결 테스트</>
+          )}
+        </button>
+        {testResult && (
+          <div className={`ne-test-result ${testResult.success ? 'success' : 'fail'}`}>
+            <i className={testResult.success ? 'ri-check-line' : 'ri-close-line'} />
+            {testResult.message}
+          </div>
+        )}
       </div>
     </>
   )

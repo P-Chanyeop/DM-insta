@@ -1131,6 +1131,21 @@
   background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
 }
 .ne-hint { font-size: 11px; color: var(--gray-400); margin-top: 4px; line-height: 1.4; }
+.ne-test-btn {
+  width: 100%; padding: 10px; border: 1px solid var(--primary); border-radius: 10px;
+  background: rgba(79,70,229,.06); color: var(--primary); font-size: 13px; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all .2s;
+}
+.ne-test-btn:hover:not(:disabled) { background: rgba(79,70,229,.12); }
+.ne-test-btn:disabled { opacity: .6; cursor: not-allowed; }
+.ne-test-btn.testing { color: var(--gray-500); border-color: var(--gray-300); background: var(--gray-50); }
+.ne-test-result {
+  margin-top: 8px; padding: 8px 12px; border-radius: 8px; font-size: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+.ne-test-result.success { background: #F0FDF4; color: #16A34A; border: 1px solid #BBF7D0; }
+.ne-test-result.fail { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
 .ne-field-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .ne-field-header label { margin-bottom: 0; }
 

@@ -109,6 +109,62 @@ public class IntegrationService {
         }
     }
 
+    /**
+     * Webhook URL 연결 테스트 — test ping 전송 후 응답 확인
+     */
+    public Map<String, Object> testWebhook(String url, String method, String headersJson, String body) {
+        if (url == null || (!url.startsWith("http://") && !url.startsWith("https://"))) {
+            return Map.of("success", false, "status", 0, "message", "올바른 URL을 입력해주세요 (http:// 또는 https://)");
+        }
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            // 사용자 정의 헤더 파싱
+            if (headersJson != null && !headersJson.isBlank()) {
+                try {
+                    JsonNode headerNode = objectMapper.readTree(headersJson);
+                    headerNode.fields().forEachRemaining(entry ->
+                            headers.set(entry.getKey(), entry.getValue().asText()));
+                } catch (Exception e) {
+                    return Map.of("success", false, "status", 0, "message", "헤더 JSON 형식이 올바르지 않습니다.");
+                }
+            }
+
+            // 테스트 페이로드
+            String payload = (body != null && !body.isBlank()) ? body :
+                    objectMapper.writeValueAsString(Map.of(
+                            "event", "test",
+                            "message", "센드잇 웹훅 연결 테스트",
+                            "timestamp", LocalDateTime.now().toString()
+                    ));
+
+            HttpMethod httpMethod = HttpMethod.valueOf(method != null ? method.toUpperCase() : "POST");
+            HttpEntity<String> request = new HttpEntity<>(
+                    httpMethod == HttpMethod.GET || httpMethod == HttpMethod.DELETE ? null : payload,
+                    headers
+            );
+
+            ResponseEntity<String> response = restTemplate.exchange(url, httpMethod, request, String.class);
+            int status = response.getStatusCode().value();
+            boolean ok = response.getStatusCode().is2xxSuccessful();
+
+            return Map.of(
+                    "success", ok,
+                    "status", status,
+                    "message", ok ? "연결 성공! (HTTP " + status + ")" : "서버가 응답했지만 오류입니다. (HTTP " + status + ")"
+            );
+        } catch (org.springframework.web.client.ResourceAccessException e) {
+            return Map.of("success", false, "status", 0, "message", "서버에 연결할 수 없습니다. URL을 확인해주세요.");
+        } catch (org.springframework.web.client.HttpClientErrorException | org.springframework.web.client.HttpServerErrorException e) {
+            int status = e.getStatusCode().value();
+            return Map.of("success", false, "status", status, "message", "서버 오류 (HTTP " + status + ")");
+        } catch (Exception e) {
+            return Map.of("success", false, "status", 0, "message", "연결 실패: " + e.getMessage());
+        }
+    }
+
     private String extractWebhookUrl(String config) {
         if (config == null) return null;
         try {

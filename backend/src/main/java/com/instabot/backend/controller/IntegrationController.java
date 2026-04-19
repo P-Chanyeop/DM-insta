@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/integrations")
@@ -35,5 +36,15 @@ public class IntegrationController {
     public ResponseEntity<Void> deleteIntegration(@PathVariable Long id) {
         integrationService.deleteIntegration(SecurityUtils.currentUserId(), id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/webhook/test")
+    public ResponseEntity<Map<String, Object>> testWebhook(@RequestBody Map<String, String> request) {
+        return ResponseEntity.ok(integrationService.testWebhook(
+                request.get("url"),
+                request.get("method"),
+                request.get("headers"),
+                request.get("body")
+        ));
     }
 }
