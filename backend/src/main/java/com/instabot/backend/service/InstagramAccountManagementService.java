@@ -23,8 +23,9 @@ public class InstagramAccountManagementService {
     private final AutomationRepository automationRepo;
 
     private static final int FREE_ACCOUNT_LIMIT = 1;
-    private static final int PRO_ACCOUNT_LIMIT = 3;
-    private static final int ENTERPRISE_ACCOUNT_LIMIT = 10;
+    private static final int STARTER_ACCOUNT_LIMIT = 2;
+    private static final int PRO_ACCOUNT_LIMIT = 5;
+    private static final int BUSINESS_ACCOUNT_LIMIT = 100;
 
     public List<AccountResponse> listAccounts(Long userId) {
         return accountRepo.findByUserIdOrderByActiveDescConnectedAtDesc(userId).stream()
@@ -186,8 +187,9 @@ public class InstagramAccountManagementService {
     private int getAccountLimit(User.PlanType plan) {
         return switch (plan) {
             case FREE -> FREE_ACCOUNT_LIMIT;
+            case STARTER -> STARTER_ACCOUNT_LIMIT;
             case PRO -> PRO_ACCOUNT_LIMIT;
-            case ENTERPRISE -> ENTERPRISE_ACCOUNT_LIMIT;
+            case BUSINESS -> BUSINESS_ACCOUNT_LIMIT;
         };
     }
 

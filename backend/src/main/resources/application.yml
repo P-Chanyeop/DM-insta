@@ -58,8 +58,9 @@ paddle:
   environment: ${PADDLE_ENVIRONMENT:sandbox}
   client-token: ${PADDLE_CLIENT_TOKEN:test_placeholder}
   prices:
+    starter: ${PADDLE_PRICE_STARTER:pri_starter_placeholder}
     pro: ${PADDLE_PRICE_PRO:pri_pro_placeholder}
-    enterprise: ${PADDLE_PRICE_ENTERPRISE:pri_enterprise_placeholder}
+    business: ${PADDLE_PRICE_BUSINESS:pri_business_placeholder}
 
 # Actuator
 management:

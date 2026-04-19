@@ -309,45 +309,56 @@ export default function LandingPage() {
               <div className="price-header"><h3>무료</h3><p>인스타그램 자동화를 처음 시작하는 분</p></div>
               <div className="price-amount"><span className="currency">&#8361;</span><span className="amount">0</span><span className="period">/월</span></div>
               <ul className="price-features">
-                <li><i className="ri-check-line" /> 연락처 최대 1,000명</li>
-                <li><i className="ri-check-line" /> 기본 플로우 빌더</li>
-                <li><i className="ri-check-line" /> DM 키워드 자동응답 (3개)</li>
-                <li><i className="ri-check-line" /> 댓글 자동 응답 (1개 게시물)</li>
+                <li><i className="ri-check-line" /> 월 300건 DM 발송</li>
+                <li><i className="ri-check-line" /> 플로우 3개</li>
+                <li><i className="ri-check-line" /> 기본 자동응답</li>
                 <li><i className="ri-check-line" /> 환영 메시지</li>
                 <li><i className="ri-check-line" /> 기본 분석</li>
                 <li className="disabled"><i className="ri-close-line" /> 브로드캐스팅</li>
-                <li className="disabled"><i className="ri-close-line" /> A/B 테스트</li>
+                <li className="disabled"><i className="ri-close-line" /> AI 자동 응답</li>
               </ul>
               <Link to="/signup" className="btn-price">무료로 시작하기</Link>
+            </div>
+            <div className="price-card">
+              <div className="price-header"><h3>스타터</h3><p>소규모 쇼핑몰 & 크리에이터</p></div>
+              <div className="price-amount"><span className="currency">&#8361;</span><span className="amount">{isAnnual ? '15,920' : '19,900'}</span><span className="period">/월</span></div>
+              <ul className="price-features">
+                <li><i className="ri-check-line" /> 월 3,000건 DM 발송</li>
+                <li><i className="ri-check-line" /> 플로우 5개</li>
+                <li><i className="ri-check-line" /> Instagram 계정 2개</li>
+                <li><i className="ri-check-line" /> 팀 멤버 2명</li>
+                <li><i className="ri-check-line" /> 브로드캐스팅</li>
+                <li><i className="ri-check-line" /> 센드잇 브랜딩 제거</li>
+                <li className="disabled"><i className="ri-close-line" /> AI 자동 응답</li>
+              </ul>
+              <Link to="/signup" className="btn-price">스타터 시작하기</Link>
             </div>
             <div className="price-card popular">
               <div className="popular-badge">가장 인기</div>
               <div className="price-header"><h3>프로</h3><p>본격적으로 인스타 마케팅을 하는 사업자</p></div>
-              <div className="price-amount"><span className="currency">&#8361;</span><span className="amount">{isAnnual ? '23,200' : '29,000'}</span><span className="period">/월</span></div>
+              <div className="price-amount"><span className="currency">&#8361;</span><span className="amount">{isAnnual ? '39,920' : '49,900'}</span><span className="period">/월</span></div>
               <ul className="price-features">
-                <li><i className="ri-check-line" /> 연락처 최대 15,000명</li>
-                <li><i className="ri-check-line" /> 고급 플로우 빌더</li>
-                <li><i className="ri-check-line" /> 무제한 키워드 자동응답</li>
-                <li><i className="ri-check-line" /> 무제한 댓글 자동 응답</li>
-                <li><i className="ri-check-line" /> 스토리 멘션/답장 자동화</li>
-                <li><i className="ri-check-line" /> 브로드캐스팅</li>
-                <li><i className="ri-check-line" /> A/B 테스트</li>
+                <li><i className="ri-check-line" /> 월 30,000건 DM 발송</li>
+                <li><i className="ri-check-line" /> 무제한 플로우 & 자동화</li>
+                <li><i className="ri-check-line" /> Instagram 계정 5개</li>
+                <li><i className="ri-check-line" /> 팀 멤버 5명</li>
+                <li><i className="ri-check-line" /> AI 자동 응답</li>
+                <li><i className="ri-check-line" /> 시퀀스 & A/B 테스트</li>
                 <li><i className="ri-check-line" /> 고급 분석</li>
               </ul>
               <Link to="/signup" className="btn-price primary">프로 시작하기</Link>
             </div>
             <div className="price-card">
               <div className="price-header"><h3>비즈니스</h3><p>대규모 운영과 팀 협업이 필요한 기업</p></div>
-              <div className="price-amount"><span className="currency">&#8361;</span><span className="amount">{isAnnual ? '71,200' : '89,000'}</span><span className="period">/월</span></div>
+              <div className="price-amount"><span className="currency">&#8361;</span><span className="amount">{isAnnual ? '119,920' : '149,900'}</span><span className="period">/월</span></div>
               <ul className="price-features">
-                <li><i className="ri-check-line" /> 무제한 연락처</li>
-                <li><i className="ri-check-line" /> 모든 프로 기능 포함</li>
-                <li><i className="ri-check-line" /> 무제한 팀 멤버</li>
-                <li><i className="ri-check-line" /> API & 웹훅 연동</li>
-                <li><i className="ri-check-line" /> 시퀀스 (드립 캠페인)</li>
-                <li><i className="ri-check-line" /> 우선 지원</li>
-                <li><i className="ri-check-line" /> 전용 매니저</li>
-                <li><i className="ri-check-line" /> 화이트라벨</li>
+                <li><i className="ri-check-line" /> 무제한 DM 발송</li>
+                <li><i className="ri-check-line" /> 무제한 플로우 & 자동화</li>
+                <li><i className="ri-check-line" /> 무제한 계정 & 팀</li>
+                <li><i className="ri-check-line" /> API & Webhook 접근</li>
+                <li><i className="ri-check-line" /> 전담 매니저</li>
+                <li><i className="ri-check-line" /> 우선 지원 & SLA 보장</li>
+                <li><i className="ri-check-line" /> 온보딩 지원</li>
               </ul>
               <Link to="/signup" className="btn-price">비즈니스 시작하기</Link>
             </div>

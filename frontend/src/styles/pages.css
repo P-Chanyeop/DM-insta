@@ -814,6 +814,7 @@
 .ca-avatar {
   width: 48px; height: 48px; border-radius: 50%; display: flex;
   align-items: center; justify-content: center; flex-shrink: 0;
+  overflow: hidden;
 }
 .ca-info strong { display: block; font-size: 15px; color: var(--gray-900); }
 .ca-info > div > span { display: block; font-size: 12px; color: var(--gray-500); }
@@ -1841,7 +1842,7 @@ label.ne-radio {
 .settings-section { margin-bottom: 28px; }
 .connected-account { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: var(--gray-50, #F9FAFB); border-radius: var(--radius-md, 12px); border: 1px solid var(--gray-100, #F3F4F6); }
 .ca-info { display: flex; align-items: center; gap: 14px; }
-.ca-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ca-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
 .ca-connected { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #10B981; font-weight: 600; }
 .ca-actions { display: flex; gap: 8px; }
 .integ-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }

@@ -33,10 +33,10 @@ export default function UpgradeModal({ open, onClose, feature, description }) {
           {description || '이 기능은 프로 플랜 이상에서 사용할 수 있습니다. 업그레이드하여 모든 기능을 활용하세요.'}
         </p>
         <div className="upgrade-benefits">
-          <div className="upgrade-benefit"><i className="ri-check-line" /> 무제한 자동화 플로우</div>
+          <div className="upgrade-benefit"><i className="ri-check-line" /> 월 최대 30,000건 DM 발송</div>
+          <div className="upgrade-benefit"><i className="ri-check-line" /> 무제한 플로우 & 자동화</div>
+          <div className="upgrade-benefit"><i className="ri-check-line" /> AI 자동 응답</div>
           <div className="upgrade-benefit"><i className="ri-check-line" /> 브로드캐스팅 & 시퀀스</div>
-          <div className="upgrade-benefit"><i className="ri-check-line" /> 최대 15,000 연락처</div>
-          <div className="upgrade-benefit"><i className="ri-check-line" /> 고급 분석 & A/B 테스트</div>
         </div>
         <div className="upgrade-actions">
           <button className="btn-primary upgrade-btn" onClick={handleUpgrade}>

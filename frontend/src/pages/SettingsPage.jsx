@@ -12,7 +12,7 @@ const TABS = [
   { key: 'profile', icon: 'ri-user-line', label: '프로필' },
   { key: 'team', icon: 'ri-team-line', label: '팀 멤버' },
   { key: 'recurring', icon: 'ri-repeat-line', label: '알림 구독' },
-  { key: 'kakao', icon: 'ri-kakao-talk-fill', label: '카카오 채널' },
+  { key: 'kakao', icon: 'ri-kakao-talk-fill', label: '카카오 채널', comingSoon: true },
   { key: 'notifications', icon: 'ri-notification-3-line', label: '알림' },
   { key: 'integrations', icon: 'ri-plug-line', label: '연동 (API)' },
   { key: 'billing', icon: 'ri-bank-card-line', label: '결제 & 요금제' },
@@ -84,44 +84,60 @@ const PLANS = [
     monthlyPrice: 0,
     annualPrice: 0,
     features: [
-      { text: '연락처 1,000명', included: true },
-      { text: '기본 자동화 5개', included: true },
+      { text: '월 300건 DM 발송', included: true },
+      { text: '플로우 3개', included: true },
       { text: 'Instagram 계정 1개', included: true },
       { text: '커뮤니티 지원', included: true },
       { text: '브로드캐스팅', included: false },
+      { text: 'AI 자동 응답', included: false },
+      { text: '시퀀스 (드립)', included: false },
+    ],
+  },
+  {
+    id: 'starter',
+    name: 'Starter',
+    monthlyPrice: 19900,
+    annualPrice: 15920,
+    features: [
+      { text: '월 3,000건 DM 발송', included: true },
+      { text: '플로우 5개', included: true },
+      { text: 'Instagram 계정 2개', included: true },
+      { text: '팀 멤버 2명', included: true },
+      { text: '브로드캐스팅', included: true },
+      { text: '브랜딩 제거', included: true },
+      { text: 'AI 자동 응답', included: false },
       { text: '시퀀스 (드립)', included: false },
     ],
   },
   {
     id: 'pro',
     name: 'Pro',
-    monthlyPrice: 29000,
-    annualPrice: 23200,
+    monthlyPrice: 49900,
+    annualPrice: 39920,
     popular: true,
     features: [
-      { text: '연락처 15,000명', included: true },
-      { text: '무제한 자동화', included: true },
+      { text: '월 30,000건 DM 발송', included: true },
+      { text: '무제한 플로우 & 자동화', included: true },
       { text: 'Instagram 계정 5개', included: true },
       { text: '팀 멤버 5명', included: true },
+      { text: 'AI 자동 응답', included: true },
       { text: '브로드캐스팅 & 시퀀스', included: true },
       { text: '고급 분석 & A/B 테스트', included: true },
-      { text: '우선 지원', included: true },
     ],
   },
   {
-    id: 'enterprise',
+    id: 'business',
     name: 'Business',
-    monthlyPrice: 89000,
-    annualPrice: 71200,
+    monthlyPrice: 149900,
+    annualPrice: 119920,
     features: [
-      { text: '무제한 연락처', included: true },
-      { text: '무제한 자동화', included: true },
+      { text: '무제한 DM 발송', included: true },
+      { text: '무제한 플로우 & 자동화', included: true },
       { text: '무제한 계정 & 팀', included: true },
+      { text: 'API & Webhook 접근', included: true },
       { text: '전담 매니저', included: true },
-      { text: 'SLA 보장', included: true },
-      { text: '커스텀 연동 & 웹훅', included: true },
+      { text: '우선 지원 & SLA 보장', included: true },
       { text: '온보딩 지원', included: true },
-      { text: '화이트 라벨', included: true },
     ],
   },
 ]
@@ -204,6 +220,7 @@ export default function SettingsPage() {
     username: '',
     type: '비즈니스 계정',
     followers: 0,
+    profilePictureUrl: '',
   })
   const [accountRefreshing, setAccountRefreshing] = useState(false)
 
@@ -370,6 +387,7 @@ export default function SettingsPage() {
           username: '@' + (data.username || ''),
           type: '비즈니스 계정',
           followers: data.followersCount || 0,
+          profilePictureUrl: data.profilePictureUrl || '',
         })
       } else {
         setConnectedAccount(prev => ({ ...prev, connected: false }))
@@ -734,8 +752,8 @@ export default function SettingsPage() {
 
   // Plan upgrade via Paddle.js Overlay Checkout
   const handlePlanAction = async (planId) => {
-    if (planId === 'enterprise') {
-      window.location.href = 'mailto:sales@sendit.co.kr?subject=Enterprise 플랜 문의'
+    if (planId === 'business') {
+      window.location.href = 'mailto:sales@sendit.co.kr?subject=Business 플랜 문의'
       return
     }
     setPlanUpgrading(planId)
@@ -1069,9 +1087,11 @@ export default function SettingsPage() {
             <div className="ca-info">
               <div
                 className="ca-avatar"
-                style={{ background: 'linear-gradient(135deg, #833AB4, #FD1D1D, #FCAF45)' }}
+                style={{ background: connectedAccount.profilePictureUrl ? 'transparent' : 'linear-gradient(135deg, #833AB4, #FD1D1D, #FCAF45)' }}
               >
-                <i className="ri-instagram-line" style={{ color: 'white', fontSize: 24 }} />
+                {connectedAccount.profilePictureUrl
+                  ? <img src={connectedAccount.profilePictureUrl} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                  : <i className="ri-instagram-line" style={{ color: 'white', fontSize: 24 }} />}
               </div>
               <div>
                 <strong>{connectedAccount.username}</strong>
@@ -2053,9 +2073,9 @@ export default function SettingsPage() {
 
     const getPlanButton = (plan) => {
       const isCurrent = plan.id === currentUserPlan.toLowerCase()
-      if (plan.id === 'enterprise') {
+      if (plan.id === 'business') {
         return (
-          <button className="btn-primary billing-plan-btn" onClick={() => handlePlanAction('enterprise')}>
+          <button className="btn-primary billing-plan-btn" onClick={() => handlePlanAction('business')}>
             <i className="ri-mail-send-line" /> 영업팀 문의
           </button>
         )
@@ -2283,13 +2303,15 @@ export default function SettingsPage() {
             <a
               href="#"
               key={tab.key}
-              className={`settings-nav-item${activeTab === tab.key ? ' active' : ''}`}
+              className={`settings-nav-item${activeTab === tab.key ? ' active' : ''}${tab.comingSoon ? ' coming-soon' : ''}`}
               onClick={(e) => {
                 e.preventDefault()
-                setActiveTab(tab.key)
+                if (!tab.comingSoon) setActiveTab(tab.key)
               }}
+              style={tab.comingSoon ? { opacity: 0.5, cursor: 'default' } : undefined}
             >
               <i className={tab.icon} /> {tab.label}
+              {tab.comingSoon && <span style={{ fontSize: 10, background: '#e5e7eb', color: '#6b7280', padding: '1px 6px', borderRadius: 8, marginLeft: 6 }}>준비중</span>}
             </a>
           ))}
         </div>

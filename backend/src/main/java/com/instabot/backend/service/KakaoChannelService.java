@@ -44,6 +44,9 @@ public class KakaoChannelService {
                     throw new BadRequestException("이미 카카오 채널이 연결되어 있습니다. 기존 연결을 해제 후 다시 시도하세요.");
                 });
 
+        // API 키 검증 — 비즈뿌리오 토큰 발급 시도
+        validateApiCredentials(req.getApiKey(), req.getSenderKey());
+
         Map<String, String> config = new HashMap<>();
         config.put("channelId", req.getChannelId());
         config.put("searchId", req.getSearchId());
@@ -63,8 +66,48 @@ public class KakaoChannelService {
 
             integration = integrationRepository.save(integration);
             return toResponse(integration, config);
+        } catch (BadRequestException e) {
+            throw e;
         } catch (Exception e) {
             throw new BadRequestException("카카오 채널 연결 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 비즈뿌리오 API 키 검증 — 토큰 발급 시도로 자격 증명 유효성 확인
+     */
+    private void validateApiCredentials(String apiKey, String senderKey) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", "Bearer " + apiKey);
+
+            // 발신프로필 조회 API로 senderKey 유효성 검증
+            String url = KAKAO_BIZ_API_URL + "/sender/key/" + senderKey;
+            ResponseEntity<JsonNode> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class);
+
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                throw new BadRequestException("API 키 또는 발신프로필 키가 유효하지 않습니다. 비즈뿌리오 설정을 확인해주세요.");
+            }
+
+            log.info("카카오 채널 API 검증 성공: senderKey={}", senderKey);
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            HttpStatusCode status = e.getStatusCode();
+            if (status.value() == 401 || status.value() == 403) {
+                throw new BadRequestException("API 키가 유효하지 않습니다. 비즈뿌리오에서 발급받은 올바른 API 키를 입력해주세요.");
+            } else if (status.value() == 404) {
+                throw new BadRequestException("발신프로필 키(Sender Key)가 유효하지 않습니다. 비즈뿌리오에서 등록된 발신프로필을 확인해주세요.");
+            } else {
+                throw new BadRequestException("카카오 채널 검증 실패 (HTTP " + status.value() + "). 입력 정보를 다시 확인해주세요.");
+            }
+        } catch (org.springframework.web.client.ResourceAccessException e) {
+            throw new BadRequestException("비즈뿌리오 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+        } catch (Exception e) {
+            log.error("카카오 채널 검증 중 예외: {}", e.getMessage());
+            throw new BadRequestException("카카오 채널 연결 검증에 실패했습니다: " + e.getMessage());
         }
     }
 

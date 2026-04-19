@@ -22,11 +22,14 @@ public class PaddleConfig {
     @Value("${paddle.environment:sandbox}")
     private String environment;
 
+    @Value("${paddle.prices.starter}")
+    private String starterPriceId;
+
     @Value("${paddle.prices.pro}")
     private String proPriceId;
 
-    @Value("${paddle.prices.enterprise}")
-    private String enterprisePriceId;
+    @Value("${paddle.prices.business}")
+    private String businessPriceId;
 
     @Value("${paddle.client-token}")
     private String clientToken;

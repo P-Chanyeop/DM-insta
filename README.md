@@ -11,7 +11,7 @@ Instagram DM 자동화 플랫폼 by 소프트캣
 - 라이브 채팅
 - 분석 대시보드
 - 팀 멤버 관리 (OWNER / ADMIN / MEMBER / VIEWER)
-- Stripe 결제 (FREE / PRO / ENTERPRISE)
+- Paddle 결제 (FREE / STARTER / PRO / BUSINESS)
 
 ## 기술 스택
 
@@ -20,7 +20,7 @@ Instagram DM 자동화 플랫폼 by 소프트캣
 | Backend | Spring Boot 3.4.4, Java 21, MySQL 8 |
 | Frontend | React 19, Vite 5 |
 | 인증 | JWT + 이메일 인증 |
-| 결제 | Stripe (구독 / 웹훅) |
+| 결제 | Paddle (구독 / 웹훅) |
 | 실시간 | WebSocket (STOMP + SockJS) |
 | 마이그레이션 | Flyway |
 | 테스트 | JUnit 5, Vitest |
@@ -91,11 +91,13 @@ cd frontend && npm test
 | `INSTAGRAM_APP_SECRET` | Instagram App Secret | (필수) |
 | `INSTAGRAM_OAUTH_REDIRECT_URI` | OAuth 콜백 URL | `http://localhost:8080/api/auth/instagram/callback` |
 | `INSTAGRAM_WEBHOOK_VERIFY_TOKEN` | 웹훅 검증 토큰 | (필수) |
-| `STRIPE_SECRET_KEY` | Stripe Secret Key | (필수) |
-| `STRIPE_PUBLISHABLE_KEY` | Stripe Publishable Key | (필수) |
-| `STRIPE_WEBHOOK_SECRET` | Stripe 웹훅 시크릿 | (필수) |
-| `STRIPE_PRICE_PRO` | Pro 플랜 Price ID | (필수) |
-| `STRIPE_PRICE_ENTERPRISE` | Enterprise 플랜 Price ID | (필수) |
+| `PADDLE_API_KEY` | Paddle API Key | (필수) |
+| `PADDLE_WEBHOOK_SECRET` | Paddle 웹훅 시크릿 | (필수) |
+| `PADDLE_ENVIRONMENT` | Paddle 환경 (sandbox/production) | `sandbox` |
+| `PADDLE_CLIENT_TOKEN` | Paddle Client Token | (필수) |
+| `PADDLE_PRICE_STARTER` | Starter 플랜 Price ID | (필수) |
+| `PADDLE_PRICE_PRO` | Pro 플랜 Price ID | (필수) |
+| `PADDLE_PRICE_BUSINESS` | Business 플랜 Price ID | (필수) |
 | `MAIL_HOST` | SMTP 호스트 | `smtp.gmail.com` |
 | `MAIL_PORT` | SMTP 포트 | `587` |
 | `MAIL_USERNAME` | SMTP 사용자 | (필수) |
@@ -151,7 +153,7 @@ sendit/
 | 연동 | `/api/integrations/**` | 외부 서비스 연동 |
 | Instagram | `/api/auth/instagram/**` | Instagram OAuth |
 | 웹훅 | `/api/webhooks/**` | Instagram 웹훅 |
-| Stripe 웹훅 | `/api/stripe/webhook` | Stripe 웹훅 |
+| Paddle 웹훅 | `/api/paddle/webhook` | Paddle 결제 웹훅 |
 
 ## 배포
 

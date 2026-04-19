@@ -7,49 +7,74 @@ const PlanContext = createContext(null)
 const PLAN_LIMITS = {
   FREE: {
     label: '무료',
-    contacts: 1000,
+    price: 0,
+    monthlyDM: 300,
     flows: 3,
     automations: 5,
     broadcast: false,
     sequences: false,
     abTesting: false,
     advancedAnalytics: false,
+    aiResponse: false,
     teamMembers: 1,
     igAccounts: 1,
     apiWebhooks: false,
+    branding: true,  // 센드잇 브랜딩 표시
+  },
+  STARTER: {
+    label: '스타터',
+    price: 19900,
+    monthlyDM: 3000,
+    flows: 5,
+    automations: 10,
+    broadcast: true,
+    sequences: false,
+    abTesting: false,
+    advancedAnalytics: false,
+    aiResponse: false,
+    teamMembers: 2,
+    igAccounts: 2,
+    apiWebhooks: false,
+    branding: false,
   },
   PRO: {
     label: '프로',
-    contacts: 15000,
+    price: 49900,
+    monthlyDM: 30000,
     flows: Infinity,
     automations: Infinity,
     broadcast: true,
     sequences: true,
     abTesting: true,
     advancedAnalytics: true,
+    aiResponse: true,
     teamMembers: 5,
     igAccounts: 5,
     apiWebhooks: false,
+    branding: false,
   },
-  ENTERPRISE: {
+  BUSINESS: {
     label: '비즈니스',
-    contacts: Infinity,
+    price: 149900,
+    monthlyDM: Infinity,
     flows: Infinity,
     automations: Infinity,
     broadcast: true,
     sequences: true,
     abTesting: true,
     advancedAnalytics: true,
+    aiResponse: true,
     teamMembers: Infinity,
     igAccounts: Infinity,
     apiWebhooks: true,
+    branding: false,
   },
 }
 
 export function PlanProvider({ children }) {
   const [plan, setPlan] = useState('FREE')
   const [subscription, setSubscription] = useState(null)
-  const [usage, setUsage] = useState({ contacts: 0, flows: 0, automations: 0 })
+  const [usage, setUsage] = useState({ contacts: 0, flows: 0, automations: 0, monthlyDM: 0 })
   const [loading, setLoading] = useState(true)
 
   const fetchBilling = useCallback(async () => {
@@ -62,6 +87,7 @@ export function PlanProvider({ children }) {
           contacts: info.contactCount || 0,
           flows: info.flowCount || 0,
           automations: info.automationCount || 0,
+          monthlyDM: info.monthlyDMCount || 0,
         })
       }
       return true

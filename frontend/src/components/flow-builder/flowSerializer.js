@@ -590,7 +590,7 @@ export const NODE_PALETTE = [
   { type: 'optIn', label: '알림 구독', icon: 'ri-notification-3-line', color: '#8B5CF6',
     defaultData: { topic: 'general', topicLabel: '소식 알림', message: '새 소식을 받아보시겠어요?', frequency: 'WEEKLY' } },
   { type: 'kakao', label: '카카오 알림톡', icon: 'ri-kakao-talk-fill', color: '#FEE500',
-    defaultData: { kakaoType: 'alimtalk', templateCode: '', message: '', imageUrl: '' } },
+    defaultData: { kakaoType: 'alimtalk', templateCode: '', message: '', imageUrl: '' }, comingSoon: true },
   { type: 'aiResponse', label: 'AI 자동 응답', icon: 'ri-robot-line', color: '#0EA5E9',
     defaultData: {
       mode: 'faq',

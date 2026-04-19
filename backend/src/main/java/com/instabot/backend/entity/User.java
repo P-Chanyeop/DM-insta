@@ -68,7 +68,7 @@ public class User {
 
     private LocalDateTime updatedAt;
 
-    public enum PlanType { FREE, PRO, ENTERPRISE }
+    public enum PlanType { FREE, STARTER, PRO, BUSINESS }
 
     public enum AuthProvider { EMAIL, FACEBOOK, INSTAGRAM }
 }

@@ -61,8 +61,8 @@ public class BillingService {
      * 백엔드에서는 프론트에 필요한 정보(priceId, clientToken)만 반환.
      */
     public BillingDto.CheckoutResponse createCheckoutSession(Long userId, String planType) {
-        if ("ENTERPRISE".equalsIgnoreCase(planType)) {
-            throw new BadRequestException("엔터프라이즈 플랜은 영업팀에 문의해주세요.");
+        if ("BUSINESS".equalsIgnoreCase(planType)) {
+            throw new BadRequestException("비즈니스 플랜은 영업팀에 문의해주세요.");
         }
 
         // 중복 활성 구독 방지
@@ -374,17 +374,20 @@ public class BillingService {
 
     private String resolvePriceId(String planType) {
         return switch (planType.toUpperCase()) {
+            case "STARTER" -> paddleConfig.getStarterPriceId();
             case "PRO" -> paddleConfig.getProPriceId();
-            case "ENTERPRISE" -> paddleConfig.getEnterprisePriceId();
+            case "BUSINESS" -> paddleConfig.getBusinessPriceId();
             default -> throw new BadRequestException("유효하지 않은 플랜입니다: " + planType);
         };
     }
 
     private User.PlanType resolvePlanType(String priceId) {
-        if (priceId != null && priceId.equals(paddleConfig.getProPriceId())) {
+        if (priceId != null && priceId.equals(paddleConfig.getStarterPriceId())) {
+            return User.PlanType.STARTER;
+        } else if (priceId != null && priceId.equals(paddleConfig.getProPriceId())) {
             return User.PlanType.PRO;
-        } else if (priceId != null && priceId.equals(paddleConfig.getEnterprisePriceId())) {
-            return User.PlanType.ENTERPRISE;
+        } else if (priceId != null && priceId.equals(paddleConfig.getBusinessPriceId())) {
+            return User.PlanType.BUSINESS;
         }
         return User.PlanType.FREE;
     }

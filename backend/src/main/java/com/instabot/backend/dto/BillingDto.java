@@ -9,7 +9,7 @@ public class BillingDto {
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor
     public static class CreateCheckoutRequest {
         @NotBlank
-        @Pattern(regexp = "(?i)^(PRO|ENTERPRISE)$", message = "플랜은 PRO 또는 ENTERPRISE만 가능합니다.")
+        @Pattern(regexp = "(?i)^(STARTER|PRO|BUSINESS)$", message = "플랜은 STARTER, PRO 또는 BUSINESS만 가능합니다.")
         private String planType;
     }
 
