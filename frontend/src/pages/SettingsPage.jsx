@@ -35,36 +35,44 @@ const LANGUAGES = [
 ]
 
 const INTEGRATION_DEFS = [
-  { id: 'instagram', name: 'Instagram Graph API', icon: 'ri-instagram-line', color: '#E1306C', description: 'Instagram 메시지, 댓글, 스토리 자동화' },
-  { id: 'shopify', name: 'Shopify', icon: 'ri-shopping-bag-line', color: '#96BF48', description: '주문 이벤트 기반 자동 DM 발송' },
-  { id: 'google-sheets', name: 'Google Sheets', icon: 'ri-file-excel-line', color: '#0F9D58', description: '연락처 및 데이터 자동 동기화' },
+  // ── 실제 구현된 연동 ──
+  {
+    id: 'openai', name: 'OpenAI / ChatGPT', icon: 'ri-robot-line', color: '#10A37F',
+    description: '고객 질문에 AI가 자동으로 답변합니다',
+    guide: [
+      { text: 'OpenAI 사이트에서 API Key 발급', link: 'https://platform.openai.com/api-keys' },
+      { text: '아래에 API Key 붙여넣기' },
+      { text: '연결하기 클릭하면 끝!' },
+    ],
+  },
+  {
+    id: 'webhook', name: 'Webhook (고급)', icon: 'ri-link', color: '#6366F1',
+    description: 'DM 수신, 댓글, 결제 등 이벤트가 발생하면 지정한 URL로 자동 알림을 보냅니다',
+    helpText: '예: 새 DM이 오면 → 내 서버/노션/슬랙으로 자동 전달. 개발자이거나 Zapier/Make 등 자동화 도구를 사용하는 분께 추천합니다.',
+  },
+  // ── 준비중 ──
+  { id: 'shopify', name: 'Shopify', icon: 'ri-shopping-bag-line', color: '#96BF48', description: '주문 이벤트 기반 자동 DM 발송', comingSoon: true },
+  { id: 'google-sheets', name: 'Google Sheets', icon: 'ri-file-excel-line', color: '#0F9D58', description: '연락처 및 데이터 자동 동기화', comingSoon: true },
+  { id: 'klaviyo', name: 'Klaviyo', icon: 'ri-mail-send-line', color: '#000000', description: '이메일 마케팅 연동 및 세그먼트 동기화', comingSoon: true },
   { id: 'kakaopay', name: '카카오페이', icon: 'ri-kakao-talk-fill', color: '#FEE500', description: 'DM 내 카카오페이 결제 링크 자동 발송', comingSoon: true },
   { id: 'naverpay', name: '네이버페이', icon: 'ri-shopping-cart-line', color: '#03C75A', description: '스마트스토어 연동 결제 자동화', comingSoon: true },
   { id: 'tosspay', name: '토스페이', icon: 'ri-bank-card-line', color: '#0064FF', description: '토스 결제/송금 링크 자동 발송', comingSoon: true },
-  { id: 'paddle', name: 'Paddle', icon: 'ri-bank-card-line', color: '#3B82F6', description: '결제 이벤트 기반 자동화 트리거 (카카오페이·네이버페이 지원)', comingSoon: true },
-  { id: 'klaviyo', name: 'Klaviyo', icon: 'ri-mail-send-line', color: '#000000', description: '이메일 마케팅 연동 및 세그먼트 동기화', comingSoon: true },
-  { id: 'openai', name: 'OpenAI / ChatGPT', icon: 'ri-robot-line', color: '#10A37F', description: 'AI 기반 자동 응답 생성 (Flow Builder AI 노드에서 사용)' },
-  { id: 'webhook', name: 'Webhook', icon: 'ri-link', color: '#6366F1', description: '외부 시스템과 커스텀 연동' },
 ]
 
 const NOTIFICATION_KEYS = [
-  { key: 'newFollower', title: '새 팔로워', desc: '새로운 팔로워가 생기면 알림을 받습니다' },
   { key: 'newMessage', title: '새 메시지', desc: '새로운 DM이 도착하면 알림을 받습니다' },
   { key: 'automationError', title: '자동화 오류', desc: '자동화 실행 중 오류 발생 시 알림을 받습니다' },
   { key: 'dailyReport', title: '일일 리포트', desc: '매일 성과 요약을 이메일로 받습니다' },
   { key: 'weeklyReport', title: '주간 리포트', desc: '매주 월요일 주간 성과를 이메일로 받습니다' },
-  { key: 'teamActivity', title: '팀 활동', desc: '팀 멤버의 주요 활동에 대해 알림을 받습니다' },
   { key: 'billingAlerts', title: '결제 알림', desc: '결제 및 요금 관련 알림을 받습니다' },
   { key: 'systemUpdates', title: '시스템 업데이트', desc: '서비스 업데이트 및 새 기능 안내를 받습니다' },
 ]
 
 const DEFAULT_NOTIFICATIONS = {
-  newFollower: true,
   newMessage: true,
   automationError: true,
   dailyReport: false,
   weeklyReport: true,
-  teamActivity: false,
   billingAlerts: true,
   systemUpdates: true,
 }
@@ -1114,7 +1122,6 @@ export default function SettingsPage() {
         <div className="settings-checklist">
           {[
             ['Instagram 비즈니스 또는 크리에이터 계정', true],
-            ['Facebook 페이지와 연결된 계정', true],
             ['Instagram Graph API 접근 권한', connectedAccount.connected],
             ['메시지 권한 (instagram_manage_messages)', connectedAccount.connected],
           ].map(([text, done]) => (
@@ -1419,54 +1426,7 @@ export default function SettingsPage() {
         )}
       </div>
 
-      <div className="settings-section">
-        <h3>비밀번호 변경</h3>
-        <div className="settings-form">
-          <div className="settings-form-group">
-            <label className="settings-label">현재 비밀번호</label>
-            <input
-              type="password"
-              className="setting-input"
-              value={passwordForm.currentPassword}
-              onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
-              placeholder="현재 비밀번호 입력"
-            />
-          </div>
-          <div className="settings-form-group">
-            <label className="settings-label">새 비밀번호</label>
-            <input
-              type="password"
-              className="setting-input"
-              value={passwordForm.newPassword}
-              onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-              placeholder="새 비밀번호 입력 (최소 6자)"
-            />
-          </div>
-          <div className="settings-form-group">
-            <label className="settings-label">새 비밀번호 확인</label>
-            <input
-              type="password"
-              className="setting-input"
-              value={passwordForm.confirmPassword}
-              onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-              placeholder="새 비밀번호 다시 입력"
-            />
-          </div>
-          <div className="settings-form-actions">
-            <button
-              className="btn-primary"
-              onClick={handlePasswordChange}
-              disabled={passwordSaving}
-            >
-              {passwordSaving ? (
-                <><i className="ri-loader-4-line spin" /> 변경 중...</>
-              ) : (
-                '비밀번호 변경'
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* 비밀번호 변경은 로그인 페이지의 "비밀번호 찾기"에서 처리 */}
     </>
   )
 
@@ -1750,18 +1710,46 @@ export default function SettingsPage() {
                 </div>
               </div>
               <p className="settings-integration-desc">{def.description}</p>
+
+              {/* 준비중 */}
               {def.comingSoon && (
                 <div className="settings-integration-coming-soon">
                   <i className="ri-time-line" /> 곧 출시 예정입니다
                 </div>
               )}
+
+              {/* 연결 안 됨 — 가이드 + 입력 */}
               {!def.comingSoon && !isConnected && (
                 <div className="settings-integration-key">
+                  {/* 단계별 가이드 */}
+                  {def.guide && (
+                    <div className="integration-guide">
+                      {def.guide.map((step, i) => (
+                        <div className="integration-guide-step" key={i}>
+                          <span className="integration-guide-num">{i + 1}</span>
+                          {step.link ? (
+                            <a href={step.link} target="_blank" rel="noopener noreferrer">
+                              {step.text} <i className="ri-external-link-line" />
+                            </a>
+                          ) : (
+                            <span>{step.text}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Webhook 도움말 */}
+                  {def.helpText && (
+                    <div className="integration-help-box">
+                      <i className="ri-lightbulb-line" />
+                      <span>{def.helpText}</span>
+                    </div>
+                  )}
                   <div className="settings-key-input-wrapper">
                     <input
                       type={isKeyVisible ? 'text' : 'password'}
                       className="setting-input"
-                      placeholder={def.id === 'openai' ? 'sk-... 형식의 API Key 입력' : 'API Key 입력'}
+                      placeholder={def.id === 'openai' ? 'sk-... 형식의 API Key 붙여넣기' : def.id === 'webhook' ? 'https://your-server.com/webhook' : 'API Key 입력'}
                       value={apiKeys[def.id] || ''}
                       onChange={(e) => handleApiKeyChange(def.id, e.target.value)}
                     />
@@ -1799,23 +1787,21 @@ export default function SettingsPage() {
                       )}
                     </div>
                   )}
-                  {def.id === 'openai' && (
-                    <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6, lineHeight: 1.5 }}>
-                      <i className="ri-information-line" /> Flow Builder의 AI 자동 응답 노드 (스마트 모드)에서 사용됩니다.
-                      API 키는 암호화하여 저장되며, 사용량은 OpenAI 대시보드에서 확인하세요.
-                    </p>
-                  )}
+                  <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6, lineHeight: 1.5 }}>
+                    <i className="ri-shield-check-line" /> API 키는 암호화하여 안전하게 저장됩니다.
+                  </p>
                 </div>
               )}
-              {/* OpenAI 연결됨 상태: 사용 정보 표시 */}
+
+              {/* OpenAI 연결됨 상태 */}
               {def.id === 'openai' && isConnected && (
                 <div className="settings-openai-usage">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#F0FDF4', borderRadius: 8, border: '1px solid #BBF7D0' }}>
                     <i className="ri-checkbox-circle-fill" style={{ color: '#10B981', fontSize: 16 }} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#065F46' }}>API 연결 활성</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#065F46' }}>AI 자동응답 활성화됨</div>
                       <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
-                        모델: gpt-4o-mini &middot; Flow Builder AI 노드에서 사용 가능
+                        Flow Builder에서 AI 응답 노드를 추가하면 바로 사용됩니다
                       </div>
                     </div>
                   </div>
@@ -1825,10 +1811,12 @@ export default function SettingsPage() {
                     rel="noopener noreferrer"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#10A37F', marginTop: 8, textDecoration: 'none' }}
                   >
-                    <i className="ri-external-link-line" /> OpenAI 사용량 대시보드 열기
+                    <i className="ri-external-link-line" /> OpenAI 사용량 확인
                   </a>
                 </div>
               )}
+
+              {/* 연결/해제 버튼 */}
               {!def.comingSoon && (
               <div className="settings-integration-actions">
                 {isConnected ? (
@@ -2004,10 +1992,13 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <button className="btn btn-primary" style={{ marginTop: 16, background: '#FEE500', color: '#3C1E1E', border: 'none' }}
+              <button className="btn-primary" style={{
+                marginTop: 20, marginBottom: 8, background: '#FEE500', color: '#3C1E1E', border: 'none',
+                maxWidth: 240, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
                 onClick={handleKakaoConnect} disabled={kakaoConnecting}>
                 {kakaoConnecting ? (
-                  <><div className="spinner" style={{ width: 16, height: 16 }} /> 연결 중...</>
+                  <><i className="ri-loader-4-line spin" /> 연결 중...</>
                 ) : (
                   <><i className="ri-kakao-talk-fill" /> 카카오 채널 연결하기</>
                 )}

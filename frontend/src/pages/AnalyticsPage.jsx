@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import * as XLSX from 'xlsx'
 import PageLoader from '../components/PageLoader'
 import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
 import { analyticsService } from '../api/services'
+
+// XLSX를 글로벌에 노출 (generateExcelReport에서 사용)
+if (typeof window !== 'undefined') window.__XLSX = XLSX
 
 const PERIODS = [
   { value: '7d', label: '최근 7일' },
@@ -94,58 +98,72 @@ function mapContactGrowth(dailyNewContacts, totalContacts) {
 }
 
 /* ── CSV Export ── */
-function generateCSVReport({ period, overview, trendData, topFlows, funnel, engagementData, contactData }) {
+function generateExcelReport({ period, overview, trendData, topFlows, funnel, engagementData, contactData }) {
+  const XLSX = window.__XLSX
+  if (!XLSX) return null
+
   const periodLabel = period === '7d' ? '최근 7일' : period === '30d' ? '최근 30일' : '최근 90일'
-  const lines = []
-  lines.push('DM 자동발송기 분석 리포트')
-  lines.push(`기간: ${periodLabel}`)
-  lines.push(`생성일: ${new Date().toLocaleString('ko-KR')}`)
-  lines.push('')
+  const wb = XLSX.utils.book_new()
 
-  lines.push('[개요]')
-  lines.push('지표,값,변화율,방향')
-  lines.push(`총 발송,${overview.sent.value},${overview.sent.change}%,${overview.sent.up ? '상승' : '하락'}`)
-  lines.push(`열림률,${overview.openRate.value}%,${overview.openRate.change}%,${overview.openRate.up ? '상승' : '하락'}`)
-  lines.push(`클릭률,${overview.clickRate.value}%,${overview.clickRate.change}%,${overview.clickRate.up ? '상승' : '하락'}`)
-  lines.push(`전환율,${overview.conversionRate.value}%,${overview.conversionRate.change}%,${overview.conversionRate.up ? '상승' : '하락'}`)
-  lines.push(`구독 해지율,${overview.unsubRate.value}%,${overview.unsubRate.change}%,${overview.unsubRate.up ? '상승' : '하락'}`)
-  lines.push('')
+  // 1) 개요 시트
+  const overviewData = [
+    ['센드잇 분석 리포트'],
+    [`기간: ${periodLabel}`, '', `생성일: ${new Date().toLocaleString('ko-KR')}`],
+    [],
+    ['지표', '값', '변화율', '방향'],
+    ['총 발송', overview.sent.value, `${overview.sent.change}%`, overview.sent.up ? '상승' : '하락'],
+    ['열림률', `${overview.openRate.value}%`, `${overview.openRate.change}%`, overview.openRate.up ? '상승' : '하락'],
+    ['클릭률', `${overview.clickRate.value}%`, `${overview.clickRate.change}%`, overview.clickRate.up ? '상승' : '하락'],
+    ['전환율', `${overview.conversionRate.value}%`, `${overview.conversionRate.change}%`, overview.conversionRate.up ? '상승' : '하락'],
+    ['구독 해지율', `${overview.unsubRate.value}%`, `${overview.unsubRate.change}%`, overview.unsubRate.up ? '상승' : '하락'],
+  ]
+  const ws1 = XLSX.utils.aoa_to_sheet(overviewData)
+  ws1['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 8 }]
+  ws1['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }]
+  XLSX.utils.book_append_sheet(wb, ws1, '개요')
 
-  lines.push('[성과 추이]')
-  lines.push('날짜,발송,열림,클릭')
+  // 2) 성과 추이 시트
+  const trendRows = [['날짜', '발송', '열림', '클릭']]
   trendData.labels.forEach((label, i) => {
-    lines.push(`${label},${trendData.sent[i]},${trendData.opened[i]},${trendData.clicked[i]}`)
+    trendRows.push([label, trendData.sent[i], trendData.opened[i], trendData.clicked[i]])
   })
-  lines.push('')
+  const ws2 = XLSX.utils.aoa_to_sheet(trendRows)
+  ws2['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }]
+  XLSX.utils.book_append_sheet(wb, ws2, '성과 추이')
 
-  lines.push('[플로우별 성과 TOP 5]')
-  lines.push('순위,플로우명,건수,비율')
+  // 3) 플로우 TOP 5 시트
+  const flowRows = [['순위', '플로우명', '건수', '비율']]
   topFlows.forEach((flow, i) => {
-    lines.push(`${i + 1},${flow.name},${flow.value},${flow.pct}%`)
+    flowRows.push([i + 1, flow.name, flow.value, `${flow.pct}%`])
   })
-  lines.push('')
+  const ws3 = XLSX.utils.aoa_to_sheet(flowRows)
+  ws3['!cols'] = [{ wch: 6 }, { wch: 24 }, { wch: 10 }, { wch: 8 }]
+  XLSX.utils.book_append_sheet(wb, ws3, '플로우 TOP5')
 
-  lines.push('[전환 퍼널]')
-  lines.push('단계,건수,비율')
+  // 4) 전환 퍼널 시트
+  const funnelRows = [['단계', '건수', '비율']]
   funnel.forEach(step => {
-    lines.push(`${step.label},${step.value},${step.pct}%`)
+    funnelRows.push([step.label, step.value, `${step.pct}%`])
   })
-  lines.push('')
+  const ws4 = XLSX.utils.aoa_to_sheet(funnelRows)
+  ws4['!cols'] = [{ wch: 16 }, { wch: 10 }, { wch: 8 }]
+  XLSX.utils.book_append_sheet(wb, ws4, '전환 퍼널')
 
-  lines.push('[시간대별 참여율]')
-  lines.push('시간,참여 건수')
-  engagementData.forEach(d => {
-    lines.push(`${d.hour}시,${d.value}`)
-  })
-  lines.push('')
+  // 5) 시간대별 참여율
+  const engRows = [['시간', '참여 건수']]
+  engagementData.forEach(d => engRows.push([`${d.hour}시`, d.value]))
+  const ws5 = XLSX.utils.aoa_to_sheet(engRows)
+  ws5['!cols'] = [{ wch: 8 }, { wch: 12 }]
+  XLSX.utils.book_append_sheet(wb, ws5, '시간대별 참여')
 
-  lines.push('[연락처 증가 추이]')
-  lines.push('날짜,총 연락처')
-  contactData.forEach(d => {
-    lines.push(`${d.date},${d.value}`)
-  })
+  // 6) 연락처 증가 추이
+  const contactRows = [['날짜', '총 연락처']]
+  contactData.forEach(d => contactRows.push([d.date, d.value]))
+  const ws6 = XLSX.utils.aoa_to_sheet(contactRows)
+  ws6['!cols'] = [{ wch: 12 }, { wch: 12 }]
+  XLSX.utils.book_append_sheet(wb, ws6, '연락처 추이')
 
-  return '\uFEFF' + lines.join('\n')
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
 }
 
 /* ── SVG Line Chart ── */
@@ -502,7 +520,7 @@ export default function AnalyticsPage() {
     // Small delay to show loading state
     setTimeout(() => {
       try {
-        const csv = generateCSVReport({
+        const xlsxData = generateExcelReport({
           period,
           overview,
           trendData,
@@ -511,13 +529,13 @@ export default function AnalyticsPage() {
           engagementData,
           contactData,
         })
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+        const blob = new Blob([xlsxData], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
         const url = URL.createObjectURL(blob)
         const link = document.createElement('a')
         const periodLabel = period === '7d' ? '7일' : period === '30d' ? '30일' : '90일'
         const dateStr = new Date().toISOString().slice(0, 10)
         link.href = url
-        link.download = `분석리포트_${periodLabel}_${dateStr}.csv`
+        link.download = `센드잇_분석리포트_${periodLabel}_${dateStr}.xlsx`
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)

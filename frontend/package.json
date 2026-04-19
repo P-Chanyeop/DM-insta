@@ -19,7 +19,8 @@
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.14.0",
     "remixicon": "^4.9.1",
-    "sockjs-client": "^1.6.1"
+    "sockjs-client": "^1.6.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

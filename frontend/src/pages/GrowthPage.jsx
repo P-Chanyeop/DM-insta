@@ -235,7 +235,7 @@ function WidgetCard({ tool }) {
   data-color="${color}"
   data-position="${position}"
   data-greeting="${greeting}"
-  data-account="${tool.config.account || 'my_brand_kr'}">
+  data-account="${tool.config.account || 'your_account'}">
 </script>`
 
   return (
@@ -466,11 +466,11 @@ export default function GrowthPage() {
     try {
       const data = await growthToolService.create({
         type: backendType,
-        name: meta ? null : type,
+        name: meta?.description ? `새 ${meta.description}` : type,
       })
       if (data) setTools(prev => [...prev, mapBackendToFrontend(data)])
-    } catch {
-      // silent
+    } catch (e) {
+      alert(e.message || '도구 생성에 실패했습니다. 다시 시도해주세요.')
     }
     setShowAddMenu(false)
   }

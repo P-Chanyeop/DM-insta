@@ -1823,6 +1823,19 @@ label.ne-radio {
   .billing-plans-header { flex-direction: column; gap: 12px; align-items: flex-start; }
 }
 
+/* ===== Settings Form Layout ===== */
+.settings-form { display: flex; flex-direction: column; gap: 20px; }
+.settings-form-group { display: flex; flex-direction: column; gap: 6px; }
+.settings-label { font-size: 14px; font-weight: 600; color: var(--gray-700, #374151); }
+.settings-form-actions { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.settings-save-feedback { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: #10B981; font-weight: 500; animation: fadeIn 0.3s; }
+.settings-empty-state { text-align: center; padding: 40px 20px; }
+.settings-empty-icon { font-size: 40px; color: var(--gray-300, #D1D5DB); margin-bottom: 12px; }
+.settings-empty-state p { margin: 4px 0; font-size: 14px; color: var(--gray-500, #6B7280); }
+.settings-empty-desc { font-size: 13px !important; color: var(--gray-400, #9CA3AF) !important; margin-bottom: 16px !important; }
+.settings-checklist { display: flex; flex-direction: column; gap: 8px; }
+.settings-checklist-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+
 /* ===== Enhanced Settings ===== */
 .settings-section h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--gray-900, #111827); }
 .settings-section { margin-bottom: 28px; }
@@ -1850,17 +1863,103 @@ label.ne-radio {
 .pricing-features li { padding: 6px 0; font-size: 13px; color: var(--gray-600, #4B5563); display: flex; align-items: center; gap: 8px; }
 .pricing-features li i { color: #10B981; }
 
-/* Coming Soon integration cards */
-.settings-integration-card.coming-soon { opacity: 0.65; }
+/* ===== API Integration Cards ===== */
+.settings-integrations-grid {
+  display: flex; flex-direction: column; gap: 16px;
+}
+.settings-integration-card {
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 14px;
+  padding: 20px 24px; transition: box-shadow 0.2s;
+}
+.settings-integration-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.settings-integration-card.connected { border-color: #A7F3D0; background: #F0FDF4; }
+.settings-integration-card.coming-soon { opacity: 0.6; }
+
+.settings-integration-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
+}
+.settings-integration-icon {
+  width: 40px; height: 40px; min-width: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+}
+.settings-integration-title {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.settings-integration-title strong { font-size: 15px; font-weight: 700; color: #1E293B; }
+
+.settings-integration-status {
+  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+}
+.settings-integration-status.connected {
+  color: #059669; background: #D1FAE5;
+}
+.settings-integration-status.disconnected {
+  color: #9CA3AF; background: #F3F4F6;
+}
 .settings-integration-status.coming-soon {
   font-size: 11px; font-weight: 700; color: var(--primary, #6366F1);
   background: var(--primary-50, #EEF2FF); padding: 2px 8px; border-radius: 10px;
 }
+
+.settings-integration-desc {
+  font-size: 13px; color: #64748B; margin: 0 0 12px 0; line-height: 1.5;
+}
 .settings-integration-coming-soon {
   font-size: 13px; color: var(--gray-400, #9CA3AF);
   display: flex; align-items: center; gap: 6px;
-  padding: 8px 0; font-style: italic;
+  padding: 4px 0; font-style: italic;
 }
+
+.settings-integration-key { margin-top: 4px; }
+.settings-key-input-wrapper {
+  display: flex; align-items: center; gap: 0;
+  border: 1px solid #E5E7EB; border-radius: 10px; background: #F9FAFB;
+  overflow: hidden; max-width: 400px;
+}
+.settings-key-input-wrapper .setting-input {
+  border: none; background: transparent; flex: 1;
+  padding: 10px 14px; font-size: 13px; outline: none; min-width: 0;
+}
+.settings-key-toggle {
+  background: none; border: none; padding: 8px 12px;
+  color: #9CA3AF; cursor: pointer; font-size: 16px;
+  display: flex; align-items: center;
+}
+.settings-key-toggle:hover { color: #6B7280; }
+
+.settings-integration-actions {
+  margin-top: 12px; display: flex; align-items: center; gap: 8px;
+}
+
+/* Integration guide steps */
+.integration-guide {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-bottom: 14px; padding: 12px 14px;
+  background: #F8FAFC; border-radius: 10px; border: 1px solid #E2E8F0;
+}
+.integration-guide-step {
+  display: flex; align-items: center; gap: 10px; font-size: 13px; color: #334155;
+}
+.integration-guide-num {
+  width: 22px; height: 22px; min-width: 22px; border-radius: 50%;
+  background: var(--primary, #7C3AED); color: #fff;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.integration-guide-step a {
+  color: var(--primary, #7C3AED); text-decoration: none; font-weight: 500;
+}
+.integration-guide-step a:hover { text-decoration: underline; }
+.integration-guide-step a i { font-size: 12px; margin-left: 2px; }
+
+/* Integration help box */
+.integration-help-box {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 14px; margin-bottom: 14px;
+  background: #FFFBEB; border-radius: 10px; border: 1px solid #FDE68A;
+  font-size: 12px; color: #92400E; line-height: 1.6;
+}
+.integration-help-box i { font-size: 16px; color: #F59E0B; margin-top: 1px; min-width: 16px; }
 
 /* ===== OpenAI Integration Usage ===== */
 .settings-openai-usage {
@@ -2857,6 +2956,14 @@ label.ne-radio {
 .kakao-feature-card i { font-size: 24px; }
 .kakao-feature-card strong { font-size: 14px; color: var(--text-primary, #1a1a1a); }
 .kakao-feature-card p { font-size: 12px; color: var(--text-secondary, #666); margin: 0; line-height: 1.5; }
+
+.settings-section-card {
+  background: white; border-radius: var(--radius-lg, 16px); padding: 24px;
+  border: 1px solid var(--gray-100, #F3F4F6); margin-bottom: 20px;
+}
+.settings-section-card .settings-section-header { margin-bottom: 20px; }
+.settings-section-card .settings-section-header h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; color: var(--gray-900, #111827); }
+.settings-section-card .settings-section-header p { font-size: 13px; color: var(--gray-500, #6B7280); margin: 0; }
 
 .kakao-connect-form { display: flex; flex-direction: column; gap: 16px; }
 .kakao-connect-guide {

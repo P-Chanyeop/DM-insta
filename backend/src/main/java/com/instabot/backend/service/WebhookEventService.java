@@ -38,6 +38,7 @@ public class WebhookEventService {
     private final ConversationService conversationService;
     private final ContactRepository contactRepository;
     private final PendingFlowActionRepository pendingFlowActionRepository;
+    private final IntegrationService integrationService;
     private final ObjectMapper objectMapper;
 
     // 중복 실행 방지: senderIgId + flowId → 마지막 실행 시간
@@ -108,6 +109,10 @@ public class WebhookEventService {
             String payload = event.path("postback").path("payload").asText("");
             log.info("Postback 수신: sender={}, payload={}", senderId, payload);
 
+            // 외부 Webhook 전달
+            integrationService.forwardWebhookEvent(user.getId(), "postback",
+                    Map.of("senderIgId", senderId, "payload", payload));
+
             // FlowExecutionService에서 requirements 진행
             flowExecutionService.handlePostback(senderId, payload);
             return; // postback은 여기서 처리 끝
@@ -120,6 +125,10 @@ public class WebhookEventService {
 
             // 수신 메시지 저장
             conversationService.handleInboundMessage(user, senderId, null, text, Message.MessageType.TEXT);
+
+            // 외부 Webhook 전달
+            integrationService.forwardWebhookEvent(user.getId(), "dm_received",
+                    Map.of("senderIgId", senderId, "text", text));
 
             // 이메일 추출 시도 + AWAITING_EMAIL 상태 처리
             flowExecutionService.extractEmail(text).ifPresent(email -> {
@@ -197,6 +206,10 @@ public class WebhookEventService {
 
         if (senderId.equals(igAccount.getIgUserId())) return; // 자기 댓글 무시
 
+        // 외부 Webhook 전달
+        integrationService.forwardWebhookEvent(user.getId(), "comment_received",
+                Map.of("commentId", commentId, "senderIgId", senderId, "text", text, "mediaId", mediaId));
+
         List<Automation> automations = automationRepository.findByUserIdAndActiveTrue(user.getId()).stream()
                 .filter(a -> a.getType() == Automation.AutomationType.COMMENT_TRIGGER)
                 .toList();
@@ -219,6 +232,10 @@ public class WebhookEventService {
         String senderId = value.path("sender_id").asText(
                 value.path("from").path("id").asText(""));
 
+        // 외부 Webhook 전달
+        integrationService.forwardWebhookEvent(user.getId(), "story_mention",
+                Map.of("senderIgId", senderId));
+
         List<Automation> automations = automationRepository.findByUserIdAndActiveTrue(user.getId()).stream()
                 .filter(a -> a.getType() == Automation.AutomationType.STORY_MENTION)
                 .toList();
@@ -233,6 +250,10 @@ public class WebhookEventService {
         String senderId = value.path("sender_id").asText(
                 value.path("from").path("id").asText(""));
         String text = value.path("text").asText("스토리 답장");
+
+        // 외부 Webhook 전달
+        integrationService.forwardWebhookEvent(user.getId(), "story_reply",
+                Map.of("senderIgId", senderId, "text", text));
 
         List<Automation> automations = automationRepository.findByUserIdAndActiveTrue(user.getId()).stream()
                 .filter(a -> a.getType() == Automation.AutomationType.STORY_REPLY)

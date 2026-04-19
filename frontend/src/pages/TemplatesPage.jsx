@@ -49,7 +49,7 @@ function normalizeTemplate(raw) {
     icon: raw.icon || visual.icon,
     bg: raw.gradientColors || visual.bg,
     uses: raw.usageCount || 0,
-    rating: raw.rating ? raw.rating.toFixed(1) : '4.8',
+    rating: raw.rating ? raw.rating.toFixed(1) : null,
     flowData: raw.flowData,
   }
 }
@@ -95,7 +95,11 @@ export default function TemplatesPage() {
   async function handleUse(tpl) {
     try {
       const result = await templateService.use(tpl.id)
-      navigate('/app/flows/builder', { state: { template: result || tpl } })
+      if (result?.id) {
+        navigate(`/app/flows/builder/${result.id}`)
+      } else {
+        navigate('/app/flows/builder', { state: { flowId: result?.id, template: result || tpl } })
+      }
     } catch {
       navigate('/app/flows/builder', { state: { template: tpl } })
     }
@@ -130,19 +134,29 @@ export default function TemplatesPage() {
         </div>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ position: 'relative', maxWidth: 400 }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{
+          position: 'relative', maxWidth: 400,
+          background: '#F8FAFC', borderRadius: 12,
+          border: '1px solid #E2E8F0',
+          transition: 'all 0.2s',
+        }}>
           <i
             className="ri-search-line"
-            style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#888' }}
+            style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', fontSize: 18 }}
           />
           <input
             type="text"
-            className="input"
-            placeholder="템플릿 검색..."
+            placeholder="템플릿 이름, 카테고리로 검색..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ paddingLeft: 36, width: '100%' }}
+            style={{
+              paddingLeft: 40, paddingRight: 14,
+              width: '100%', height: 44,
+              border: 'none', background: 'transparent',
+              fontSize: 14, color: '#1E293B',
+              outline: 'none', borderRadius: 12,
+            }}
           />
         </div>
       </div>
@@ -184,9 +198,9 @@ export default function TemplatesPage() {
                     <span>
                       <i className="ri-download-2-line" /> {formatNumber(t.uses)}
                     </span>
-                    <span>
+                    {t.rating && <span>
                       <i className="ri-star-fill" /> {t.rating}
-                    </span>
+                    </span>}
                   </div>
                   <button className="btn-primary small" onClick={() => handleUse(t)}>
                     사용하기

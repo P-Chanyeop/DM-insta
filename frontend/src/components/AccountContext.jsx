@@ -3,18 +3,9 @@ import { accountService } from '../api/services'
 
 const AccountContext = createContext(null)
 
-const DEMO_ACCOUNTS = [
-  {
-    id: 1, igUserId: '17841400001', username: 'my_brand_kr',
-    profilePictureUrl: null, followersCount: 12500,
-    accountType: '비즈니스 계정', connected: true, active: true,
-    connectedAt: '2025-01-15T10:00:00',
-  },
-]
-
 export function AccountProvider({ children }) {
-  const [accounts, setAccounts] = useState(DEMO_ACCOUNTS)
-  const [activeAccount, setActiveAccount] = useState(DEMO_ACCOUNTS[0])
+  const [accounts, setAccounts] = useState([])
+  const [activeAccount, setActiveAccount] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const fetchAccounts = useCallback(async () => {
@@ -24,10 +15,12 @@ export function AccountProvider({ children }) {
         setAccounts(list)
         const active = list.find(a => a.active)
         setActiveAccount(active || list[0])
+      } else {
+        setAccounts([])
+        setActiveAccount(null)
       }
-      // API 실패 or 빈 응답 → 데모 데이터 유지
     } catch {
-      // API 실패 시 데모 데이터 유지
+      // API 실패 시 빈 상태 유지
     } finally {
       setLoading(false)
     }

@@ -11,14 +11,14 @@ const NAV_SECTIONS = [
     title: '메인',
     items: [
       { to: '/app', icon: 'ri-dashboard-3-line', label: '대시보드', end: true },
-      { to: '/app/flows', icon: 'ri-flow-chart', label: '자동화 플로우', badge: '12' },
+      { to: '/app/flows', icon: 'ri-flow-chart', label: '자동화 플로우' },
       { to: '/app/automation', icon: 'ri-robot-2-line', label: '자동화 트리거' },
     ]
   },
   {
     title: '메시징',
     items: [
-      { to: '/app/livechat', icon: 'ri-chat-3-line', label: '라이브 채팅', badge: '5', badgeType: 'red' },
+      { to: '/app/livechat', icon: 'ri-chat-3-line', label: '라이브 채팅' },
       { to: '/app/broadcast', icon: 'ri-broadcast-line', label: '브로드캐스팅' },
       { to: '/app/sequences', icon: 'ri-time-line', label: '시퀀스' },
       { to: '/app/group-buys', icon: 'ri-shopping-bag-line', label: '공동구매' },
@@ -27,7 +27,7 @@ const NAV_SECTIONS = [
   {
     title: '성장',
     items: [
-      { to: '/app/contacts', icon: 'ri-contacts-book-2-line', label: '연락처', count: '8,432' },
+      { to: '/app/contacts', icon: 'ri-contacts-book-2-line', label: '연락처' },
       { to: '/app/growth', icon: 'ri-seedling-line', label: '성장 도구' },
       { to: '/app/analytics', icon: 'ri-line-chart-line', label: '분석' },
     ]

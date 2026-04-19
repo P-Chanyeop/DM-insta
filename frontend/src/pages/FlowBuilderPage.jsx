@@ -13,6 +13,7 @@ import {
 import '@xyflow/react/dist/style.css'
 
 import { flowService } from '../api/services'
+import { useAccount } from '../components/AccountContext'
 import { nodeTypeMap } from '../components/flow-builder/nodeTypes'
 import NodeEditor from '../components/flow-builder/NodeEditor'
 import ABTestPanel from '../components/flow-builder/ABTestPanel'
@@ -41,6 +42,7 @@ export default function FlowBuilderPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { id: urlFlowId } = useParams()
+  const { activeAccount } = useAccount()
   const reactFlowWrapper = useRef(null)
   const tourRef = useRef(null)
   const [reactFlowInstance, setReactFlowInstance] = useState(null)
@@ -818,7 +820,7 @@ function PhonePreview({ nodes, edges }) {
               <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop stop-color='%23FCAF45'/%3E%3Cstop offset='.5' stop-color='%23FD1D1D'/%3E%3Cstop offset='1' stop-color='%23833AB4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='16' fill='url(%23g)'/%3E%3Ctext x='16' y='21' text-anchor='middle' fill='white' font-size='14' font-weight='bold' font-family='sans-serif'%3EB%3C/text%3E%3C/svg%3E" alt="" />
             </div>
             <div className="ig-header-info">
-              <strong>my_brand</strong>
+              <strong>{activeAccount?.username || '내 계정'}</strong>
               <span>Business chat</span>
             </div>
             <div className="ig-header-actions">
@@ -1030,7 +1032,7 @@ function PhonePreview({ nodes, edges }) {
             <div className="fb-comment-item reply">
               <div className="fb-comment-avatar brand">B</div>
               <div>
-                <strong>@my_brand</strong>
+                <strong>@{activeAccount?.username || '내 계정'}</strong>
                 <p>{preview(commentReplyNode.data.replies[0])}</p>
               </div>
             </div>

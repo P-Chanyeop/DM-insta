@@ -102,9 +102,9 @@ export default function AgencyPage() {
 
   return (
     <div className="agency-page">
-      <div className="page-header-row">
+      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h1>에이전시 대시보드</h1>
+          <h2>에이전시 대시보드</h2>
           <p className="page-desc">멀티 계정을 관리하고 전환하세요</p>
         </div>
         <button
@@ -261,7 +261,7 @@ export default function AgencyPage() {
               </div>
               <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>새 Instagram 계정 연결</h3>
               <p style={{ fontSize: 14, color: 'var(--text-secondary, #666)', lineHeight: 1.6, marginBottom: 24 }}>
-                Facebook 로그인을 통해 Instagram 비즈니스 또는 크리에이터 계정을 연결합니다.
+                Instagram 로그인을 통해 비즈니스 또는 크리에이터 계정을 연결합니다.
                 연결 후 해당 계정의 DM 자동화를 설정할 수 있습니다.
               </p>
 
@@ -269,7 +269,7 @@ export default function AgencyPage() {
                 <div className="agency-connect-checklist">
                   {[
                     'Instagram 비즈니스 또는 크리에이터 계정',
-                    'Facebook 페이지와 연결된 계정',
+                    'Instagram Graph API 접근 권한',
                     'instagram_manage_messages 권한 허용',
                   ].map(item => (
                     <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', fontSize: 13, color: 'var(--text-secondary, #555)' }}>
@@ -286,8 +286,8 @@ export default function AgencyPage() {
                 disabled={connecting}
                 style={{ width: '100%', padding: '12px 24px', fontSize: 15, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
               >
-                <i className="ri-facebook-circle-fill" />
-                {connecting ? '연결 중...' : 'Facebook으로 계정 연결하기'}
+                <i className="ri-instagram-line" />
+                {connecting ? '연결 중...' : 'Instagram으로 계정 연결하기'}
               </button>
               <p style={{ fontSize: 12, color: 'var(--text-tertiary, #aaa)', marginTop: 12 }}>
                 현재 {accountList.length} / {maxAccounts}개 계정 사용 중
