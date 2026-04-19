@@ -179,5 +179,11 @@ export const conversationService = {
   get: (id) => api.get(`/conversations/${id}`),
   getMessages: (id) => api.get(`/conversations/${id}/messages`),
   sendMessage: (id, content) => api.post(`/conversations/${id}/messages`, { content }),
+  sendImage: (id, mediaUrl) => api.post(`/conversations/${id}/messages`, { type: 'IMAGE', mediaUrl }),
+  sendCard: (id, { title, subtitle, buttonText, buttonUrl }) =>
+    api.post(`/conversations/${id}/messages`, {
+      type: 'CARD', cardTitle: title, cardSubtitle: subtitle,
+      cardButtonText: buttonText, cardButtonUrl: buttonUrl,
+    }),
   update: (id, data) => api.patch(`/conversations/${id}`, data),
 }

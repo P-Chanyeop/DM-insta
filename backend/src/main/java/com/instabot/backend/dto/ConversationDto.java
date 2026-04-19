@@ -42,9 +42,27 @@ public class ConversationDto {
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor
     public static class SendMessageRequest {
-        @NotBlank(message = "메시지 내용은 필수입니다")
         @Size(max = 1000, message = "메시지는 최대 1000자까지 가능합니다")
         private String content;
+
+        /** TEXT (기본), IMAGE, CARD */
+        private Message.MessageType type;
+
+        /** IMAGE: 이미지 URL */
+        private String mediaUrl;
+
+        /** CARD: 카드 제목 */
+        private String cardTitle;
+        /** CARD: 카드 부제목 */
+        private String cardSubtitle;
+        /** CARD: 버튼 텍스트 */
+        private String cardButtonText;
+        /** CARD: 버튼 URL */
+        private String cardButtonUrl;
+
+        public Message.MessageType getResolvedType() {
+            return type != null ? type : Message.MessageType.TEXT;
+        }
     }
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor

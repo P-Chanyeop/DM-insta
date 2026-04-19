@@ -95,3 +95,20 @@ export const api = {
   patch: (path, body) => request(path, { method: 'PATCH', body }),
   delete: (path) => request(path, { method: 'DELETE' }),
 }
+
+/** 파일 업로드 (multipart/form-data) */
+export async function uploadFile(file) {
+  const token = getToken()
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await fetch(`${BASE_URL}/files/upload`, {
+    method: 'POST',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: formData,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: '업로드 실패' }))
+    throw new Error(err.error || '파일 업로드에 실패했습니다.')
+  }
+  return res.json()
+}

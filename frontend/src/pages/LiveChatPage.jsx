@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import EmptyState from '../components/EmptyState'
 import PageLoader from '../components/PageLoader'
 import { conversationService } from '../api/services'
+import { uploadFile } from '../api/client'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 
@@ -57,15 +58,17 @@ function mapConversation(conv) {
 
 // Map backend message object to the shape used by the UI
 function mapMessage(msg) {
+  const msgType = (msg.type || '').toUpperCase()
   return {
     id: msg.id,
     type: msg.direction === 'inbound' ? 'received' : msg.direction === 'outbound' ? 'sent' : msg.type || 'received',
     text: msg.content || msg.text || '',
     time: msg.sentAt ? formatTime(msg.sentAt) : (msg.time || ''),
-    auto: msg.auto || msg.isAutomated || false,
+    auto: msg.auto || msg.isAutomated || msg.automated || false,
     buttons: msg.buttons || undefined,
-    card: msg.card || undefined,
-    isImage: msg.isImage || false,
+    card: msg.card || (msgType === 'CARD' ? { title: msg.content || '카드', desc: '', btnText: '' } : undefined),
+    isImage: msg.isImage || msgType === 'IMAGE',
+    mediaUrl: msg.mediaUrl || undefined,
   }
 }
 
@@ -390,25 +393,84 @@ export default function LiveChatPage() {
     fileInputRef.current?.click()
   }
 
-  const handleFileSelected = (e) => {
+  const handleFileSelected = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    addMessage(selectedId, {
-      type: 'sent',
-      text: `[이미지 첨부: ${file.name}]`,
-      time: now(),
-      isImage: true,
-    })
     e.target.value = ''
+
+    if (!selectedId) return
+
+    // Optimistic UI
+    const tempId = Date.now()
+    addMessage(selectedId, {
+      id: tempId, type: 'sent', text: `[이미지 전송 중... ${file.name}]`,
+      time: now(), isImage: true,
+    })
+
+    try {
+      // 1. 서버에 파일 업로드
+      const uploaded = await uploadFile(file)
+      // 2. Instagram으로 이미지 DM 발송
+      const savedMsg = await conversationService.sendImage(selectedId, uploaded.url)
+      // 3. Optimistic → 실제 메시지로 교체
+      if (savedMsg?.id) {
+        setChats((prev) => {
+          const msgs = [...(prev[selectedId] || [])]
+          const idx = msgs.findIndex((m) => m.id === tempId)
+          if (idx >= 0) msgs[idx] = { ...msgs[idx], id: savedMsg.id, text: '[이미지]', mediaUrl: uploaded.url }
+          return { ...prev, [selectedId]: msgs }
+        })
+      }
+    } catch (err) {
+      // 실패 시 에러 표시
+      setChats((prev) => {
+        const msgs = [...(prev[selectedId] || [])]
+        const idx = msgs.findIndex((m) => m.id === tempId)
+        if (idx >= 0) msgs[idx] = { ...msgs[idx], text: `[이미지 전송 실패: ${err.message}]` }
+        return { ...prev, [selectedId]: msgs }
+      })
+    }
   }
 
+  const [showCardModal, setShowCardModal] = useState(false)
+  const [cardForm, setCardForm] = useState({ title: '', subtitle: '', buttonText: '', buttonUrl: '' })
+
   const handleSendCard = () => {
+    if (!selectedId) return
+    setCardForm({ title: '', subtitle: '', buttonText: '', buttonUrl: '' })
+    setShowCardModal(true)
+  }
+
+  const handleCardSubmit = async () => {
+    if (!cardForm.title.trim()) return
+    setShowCardModal(false)
+
+    const tempId = Date.now()
     addMessage(selectedId, {
-      type: 'sent',
-      text: '상품 카드를 전송합니다.',
-      card: { title: '인기 상품', desc: '지금 구매시 20% 할인!', btnText: '자세히 보기' },
+      id: tempId, type: 'sent',
+      text: `[카드] ${cardForm.title}`,
+      card: { title: cardForm.title, desc: cardForm.subtitle, btnText: cardForm.buttonText },
       time: now(),
     })
+
+    try {
+      const savedMsg = await conversationService.sendCard(selectedId, cardForm)
+      if (savedMsg?.id) {
+        setChats((prev) => {
+          const msgs = [...(prev[selectedId] || [])]
+          const idx = msgs.findIndex((m) => m.id === tempId)
+          if (idx >= 0) msgs[idx] = { ...msgs[idx], id: savedMsg.id }
+          return { ...prev, [selectedId]: msgs }
+        })
+      }
+    } catch (err) {
+      setChats((prev) => {
+        const msgs = [...(prev[selectedId] || [])]
+        const idx = msgs.findIndex((m) => m.id === tempId)
+        if (idx >= 0) msgs[idx] = { ...msgs[idx], text: `[카드 전송 실패: ${err.message}]` }
+        return { ...prev, [selectedId]: msgs }
+      })
+    }
   }
 
   const handleQuickReply = async (reply) => {
@@ -785,10 +847,31 @@ export default function LiveChatPage() {
                 {msg.auto && (
                   <div className="msg-auto-badge"><i className="ri-robot-2-line" /> 자동 응답</div>
                 )}
-                {msg.isImage ? (
-                  <p style={{ fontStyle: 'italic', color: '#666' }}>
-                    <i className="ri-image-line" style={{ marginRight: 4 }} />{msg.text}
-                  </p>
+                {msg.isImage || msg.mediaUrl ? (
+                  <div className="msg-image-wrap">
+                    {msg.mediaUrl ? (
+                      <img
+                        src={msg.mediaUrl}
+                        alt="이미지"
+                        style={{ maxWidth: 240, maxHeight: 240, borderRadius: 10, cursor: 'pointer' }}
+                        onClick={() => window.open(msg.mediaUrl, '_blank')}
+                        onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block' }}
+                      />
+                    ) : null}
+                    <p style={{ fontStyle: msg.mediaUrl ? 'normal' : 'italic', color: msg.mediaUrl ? '#374151' : '#666', display: msg.mediaUrl ? 'none' : 'block' }}>
+                      <i className="ri-image-line" style={{ marginRight: 4 }} />{msg.text}
+                    </p>
+                  </div>
+                ) : msg.card ? (
+                  <div className="msg-card" style={{ background: '#F8FAFC', borderRadius: 10, padding: 12, border: '1px solid #E2E8F0', maxWidth: 260 }}>
+                    <strong style={{ fontSize: 14, color: '#1E293B' }}>{msg.card.title}</strong>
+                    {msg.card.desc && <p style={{ fontSize: 12, color: '#64748B', margin: '4px 0 8px' }}>{msg.card.desc}</p>}
+                    {msg.card.btnText && (
+                      <span style={{ fontSize: 12, color: '#7C3AED', fontWeight: 600 }}>
+                        <i className="ri-external-link-line" /> {msg.card.btnText}
+                      </span>
+                    )}
+                  </div>
                 ) : (
                   <p>{msg.text}</p>
                 )}
@@ -1017,6 +1100,69 @@ export default function LiveChatPage() {
                 key={selectedChat.id}
                 onBlur={handleMemoBlur}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 카드 전송 모달 */}
+      {showCardModal && (
+        <div className="modal-overlay" onClick={() => setShowCardModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3>카드 메시지 전송</h3>
+              <button className="modal-close" onClick={() => setShowCardModal(false)}>
+                <i className="ri-close-line" />
+              </button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }}>제목 *</label>
+                <input
+                  className="input"
+                  placeholder="예: 인기 상품 안내"
+                  value={cardForm.title}
+                  onChange={(e) => setCardForm({ ...cardForm, title: e.target.value })}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }}>부제목</label>
+                <input
+                  className="input"
+                  placeholder="예: 지금 구매 시 20% 할인!"
+                  value={cardForm.subtitle}
+                  onChange={(e) => setCardForm({ ...cardForm, subtitle: e.target.value })}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }}>버튼 텍스트</label>
+                <input
+                  className="input"
+                  placeholder="예: 자세히 보기"
+                  value={cardForm.buttonText}
+                  onChange={(e) => setCardForm({ ...cardForm, buttonText: e.target.value })}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' }}>버튼 URL</label>
+                <input
+                  className="input"
+                  placeholder="https://..."
+                  value={cardForm.buttonUrl}
+                  onChange={(e) => setCardForm({ ...cardForm, buttonUrl: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-outline" onClick={() => setShowCardModal(false)}>취소</button>
+              <button
+                className="btn-primary"
+                disabled={!cardForm.title.trim()}
+                onClick={handleCardSubmit}
+              >
+                <i className="ri-send-plane-fill" /> 전송
+              </button>
             </div>
           </div>
         </div>

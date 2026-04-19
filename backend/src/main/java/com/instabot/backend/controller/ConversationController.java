@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/conversations")
@@ -73,6 +74,7 @@ public class ConversationController {
 
     /**
      * 수동 메시지 발송 (Instagram API 호출 + DB 저장)
+     * 지원 타입: TEXT, IMAGE, CARD
      */
     @PostMapping("/{id}/messages")
     public ResponseEntity<ConversationDto.MessageResponse> sendMessage(
@@ -84,20 +86,51 @@ public class ConversationController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
-        // Instagram 계정 조회
         InstagramAccount igAccount = instagramApiService.getConnectedAccount(userId);
         if (igAccount == null) {
             throw new ResourceNotFoundException("연결된 Instagram 계정이 없습니다.");
         }
 
-        // Instagram API로 메시지 발송
         String accessToken = instagramApiService.getDecryptedToken(igAccount);
         String recipientIgId = conversation.getContact().getIgUserId();
-        instagramApiService.sendTextMessage(igAccount.getIgUserId(), recipientIgId, request.getContent(), accessToken);
+        String igUserId = igAccount.getIgUserId();
 
-        // DB에 발신 메시지 저장
+        Message.MessageType msgType = request.getResolvedType();
+
+        switch (msgType) {
+            case IMAGE -> {
+                if (request.getMediaUrl() == null || request.getMediaUrl().isBlank()) {
+                    throw new IllegalArgumentException("이미지 URL이 필요합니다.");
+                }
+                instagramApiService.sendImageMessage(igUserId, recipientIgId, request.getMediaUrl(), accessToken);
+            }
+            case CARD -> {
+                String title = request.getCardTitle();
+                if (title == null || title.isBlank()) title = "카드";
+                instagramApiService.sendGenericTemplate(
+                        igUserId, recipientIgId, title,
+                        request.getCardSubtitle(),
+                        request.getCardButtonText() != null && request.getCardButtonUrl() != null
+                                ? List.of(Map.of("title", request.getCardButtonText(), "url", request.getCardButtonUrl()))
+                                : List.of(),
+                        accessToken);
+            }
+            default -> {
+                if (request.getContent() == null || request.getContent().isBlank()) {
+                    throw new IllegalArgumentException("메시지 내용이 필요합니다.");
+                }
+                instagramApiService.sendTextMessage(igUserId, recipientIgId, request.getContent(), accessToken);
+            }
+        }
+
+        // DB 저장
         Message message = conversationService.saveOutboundMessage(
-                user, recipientIgId, request.getContent(), false, null);
+                user, recipientIgId,
+                msgType == Message.MessageType.IMAGE ? request.getMediaUrl()
+                        : msgType == Message.MessageType.CARD ? request.getCardTitle()
+                        : request.getContent(),
+                false, null, msgType,
+                msgType == Message.MessageType.IMAGE ? request.getMediaUrl() : null);
 
         return ResponseEntity.ok(toMessageResponse(message));
     }

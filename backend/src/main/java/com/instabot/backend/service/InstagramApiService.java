@@ -413,6 +413,25 @@ public class InstagramApiService {
         return postToInstagram(url, body, accessToken);
     }
 
+    /**
+     * 이미지 DM 발송 (URL 기반)
+     */
+    public JsonNode sendImageMessage(String igUserId, String recipientId, String imageUrl, String accessToken) {
+        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messages";
+
+        Map<String, Object> body = Map.of(
+                "recipient", Map.of("id", recipientId),
+                "message", Map.of(
+                        "attachment", Map.of(
+                                "type", "image",
+                                "payload", Map.of("url", imageUrl)
+                        )
+                )
+        );
+
+        return postToInstagram(url, body, accessToken);
+    }
+
     // ─── 댓글 답장 ───
 
     /**

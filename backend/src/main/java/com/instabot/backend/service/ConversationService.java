@@ -78,21 +78,33 @@ public class ConversationService {
     @Transactional
     public Message saveOutboundMessage(User user, String recipientIgId, String content,
                                         boolean automated, String automationName) {
+        return saveOutboundMessage(user, recipientIgId, content, automated, automationName,
+                Message.MessageType.TEXT, null);
+    }
+
+    @Transactional
+    public Message saveOutboundMessage(User user, String recipientIgId, String content,
+                                        boolean automated, String automationName,
+                                        Message.MessageType type, String mediaUrl) {
         Contact contact = contactRepository.findByUserIdAndIgUserId(user.getId(), recipientIgId)
                 .orElse(null);
         if (contact == null) return null;
 
         Conversation conversation = getOrCreateConversation(user, contact);
-        conversation.setLastMessage(content != null && content.length() > 200
-                ? content.substring(0, 200) : content);
+        String preview = type == Message.MessageType.IMAGE ? "[이미지]"
+                : type == Message.MessageType.CARD ? "[카드] " + (content != null ? content : "")
+                : content;
+        conversation.setLastMessage(preview != null && preview.length() > 200
+                ? preview.substring(0, 200) : preview);
         conversation.setLastMessageAt(LocalDateTime.now());
         conversationRepository.save(conversation);
 
         Message message = messageRepository.save(Message.builder()
                 .conversation(conversation)
                 .direction(Message.Direction.OUTBOUND)
-                .type(Message.MessageType.TEXT)
+                .type(type)
                 .content(content)
+                .mediaUrl(mediaUrl)
                 .automated(automated)
                 .automationName(automationName)
                 .build());
