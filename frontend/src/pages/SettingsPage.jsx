@@ -343,7 +343,9 @@ export default function SettingsPage() {
         if (!mounted) return
         const map = {}
         ;(list || []).forEach((item) => {
-          map[item.id] = item
+          // 백엔드 type(OPENAI, WEBHOOK 등)을 프론트 id(openai, webhook)로 매핑
+          const key = item.type?.toLowerCase()
+          if (key) map[key] = { ...item, connected: true }
         })
         setIntegrations(map)
       } catch {
@@ -632,17 +634,21 @@ export default function SettingsPage() {
 
   const handleConnect = async (integrationId) => {
     setIntegrationLoading((prev) => ({ ...prev, [integrationId]: true }))
+    const def = INTEGRATION_DEFS.find(d => d.id === integrationId)
     try {
+      const apiKey = apiKeys[integrationId] || ''
+      const config = integrationId === 'webhook'
+        ? JSON.stringify({ url: apiKey })
+        : JSON.stringify({ apiKey })
       const result = await integrationService.create({
-        id: integrationId,
-        apiKey: apiKeys[integrationId] || '',
+        type: integrationId.toUpperCase(),
+        name: def?.name || integrationId,
+        config,
       })
       setIntegrations((prev) => ({ ...prev, [integrationId]: { ...result, connected: true } }))
-      showToast(`${INTEGRATION_DEFS.find(d => d.id === integrationId)?.name || integrationId} 연결에 성공했습니다.`)
-    } catch {
-      // Simulate success for demo
-      setIntegrations((prev) => ({ ...prev, [integrationId]: { id: integrationId, connected: true } }))
-      showToast(`${INTEGRATION_DEFS.find(d => d.id === integrationId)?.name || integrationId} 연결에 성공했습니다.`)
+      showToast(`${def?.name || integrationId} 연결에 성공했습니다.`)
+    } catch (err) {
+      showToast(err.message || '연결에 실패했습니다.', 'error')
     } finally {
       setIntegrationLoading((prev) => ({ ...prev, [integrationId]: false }))
     }
@@ -650,6 +656,7 @@ export default function SettingsPage() {
 
   const handleDisconnect = (integrationId) => {
     const defName = INTEGRATION_DEFS.find(d => d.id === integrationId)?.name || integrationId
+    const existing = integrations[integrationId]
     showConfirm({
       title: '연동 해제',
       message: `${defName} 연동을 해제하시겠습니까? 이 연동을 사용하는 자동화가 중단될 수 있습니다.`,
@@ -659,9 +666,11 @@ export default function SettingsPage() {
         closeConfirm()
         setIntegrationLoading((prev) => ({ ...prev, [integrationId]: true }))
         try {
-          await integrationService.delete(integrationId)
+          if (existing?.id) {
+            await integrationService.delete(existing.id)
+          }
         } catch {
-          // proceed anyway for demo
+          // proceed anyway
         }
         setIntegrations((prev) => {
           const next = { ...prev }
