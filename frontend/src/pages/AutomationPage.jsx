@@ -238,13 +238,11 @@ export default function AutomationPage() {
                   <td><span className="flow-link">{flowNameOf(t.flowId)}</span></td>
                   <td>{formatNumber(t.triggeredCount)}</td>
                   <td>
-                    <span
-                      className={`status-badge ${t.active ? 'active' : 'inactive'}`}
+                    <div
+                      className={`flow-card-toggle${t.active ? ' active' : ''}`}
                       onClick={() => handleToggle(t.id)}
                       style={{ cursor: 'pointer' }}
-                    >
-                      {t.active ? '활성' : '비활성'}
-                    </span>
+                    />
                   </td>
                   <td>
                     <button className="icon-btn" onClick={() => handleDelete(t.id)}>
@@ -299,13 +297,11 @@ export default function AutomationPage() {
               </div>
               <div className="ct-stats">
                 <span>발동: {formatNumber(c.triggeredCount)}</span>
-                <span
-                  className={`status-badge ${c.active ? 'active' : 'inactive'}`}
+                <div
+                  className={`flow-card-toggle${c.active ? ' active' : ''}`}
                   onClick={() => handleToggle(c.id)}
                   style={{ cursor: 'pointer' }}
-                >
-                  {c.active ? '활성' : '비활성'}
-                </span>
+                />
                 <button className="icon-btn" onClick={() => handleDelete(c.id)}>
                   <i className="ri-delete-bin-line" />
                 </button>
