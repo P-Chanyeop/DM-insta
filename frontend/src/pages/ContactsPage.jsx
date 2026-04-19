@@ -2,8 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SkeletonRow } from '../components/PageLoader'
 import { useToast } from '../components/Toast'
-import { usePlan } from '../components/PlanContext'
-import { QuotaBar } from '../components/UpgradeModal'
 import { useConfirm } from '../components/ConfirmDialog'
 import EmptyState from '../components/EmptyState'
 import { contactService } from '../api/services'
@@ -43,7 +41,6 @@ export default function ContactsPage() {
   const fileInputRef = useRef(null)
   const toast = useToast()
   const confirmDialog = useConfirm()
-  const { getLimit } = usePlan()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -282,9 +279,6 @@ export default function ContactsPage() {
         <div>
           <h2>연락처 관리</h2>
           <p>총 {totalElements.toLocaleString('ko-KR')}명의 구독자를 관리하세요</p>
-          {getLimit('contacts') !== Infinity && (
-            <QuotaBar current={totalElements} max={getLimit('contacts')} label="연락처" loading={loading} />
-          )}
         </div>
         <div className="header-actions">
           <button className="btn-secondary" onClick={handleExport}>
