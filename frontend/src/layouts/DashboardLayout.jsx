@@ -412,13 +412,13 @@ export default function DashboardLayout() {
               <div
                 className="usage-fill"
                 style={{
-                  width: `${getLimit('contacts') === Infinity ? 5 : Math.min(100, Math.round((getUsage('contacts') / getLimit('contacts')) * 100))}%`,
-                  background: getLimit('contacts') !== Infinity && getUsage('contacts') / getLimit('contacts') >= 0.8 ? '#F59E0B' : undefined,
+                  width: `${getLimit('monthlyDM') === Infinity ? 5 : Math.min(100, Math.round(((getUsage('monthlyDM') || 0) / getLimit('monthlyDM')) * 100))}%`,
+                  background: getLimit('monthlyDM') !== Infinity && (getUsage('monthlyDM') || 0) / getLimit('monthlyDM') >= 0.8 ? '#F59E0B' : undefined,
                 }}
               />
             </div>
             <span>
-              {getUsage('contacts').toLocaleString()} / {getLimit('contacts') === Infinity ? '무제한' : getLimit('contacts').toLocaleString()} 연락처
+              {(getUsage('monthlyDM') || 0).toLocaleString()} / {getLimit('monthlyDM') === Infinity ? '무제한' : getLimit('monthlyDM').toLocaleString()} DM
             </span>
           </div>
         </div>

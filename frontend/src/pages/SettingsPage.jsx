@@ -2111,7 +2111,7 @@ export default function SettingsPage() {
     }
 
     const usageItems = [
-      { label: '연락처', current: planUsage.contacts, max: planLimits.contacts, icon: 'ri-contacts-book-2-line' },
+      { label: '월 DM 발송', current: planUsage.monthlyDM || 0, max: planLimits.monthlyDM, icon: 'ri-message-3-line' },
       { label: '자동화 플로우', current: planUsage.flows, max: planLimits.flows, icon: 'ri-flow-chart' },
       { label: '트리거', current: planUsage.automations, max: planLimits.automations, icon: 'ri-robot-2-line' },
     ]
