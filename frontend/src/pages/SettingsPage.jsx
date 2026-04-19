@@ -262,6 +262,8 @@ export default function SettingsPage() {
   const [integrationLoading, setIntegrationLoading] = useState({})
   const [openaiTestResult, setOpenaiTestResult] = useState(null) // 'success' | 'error' | null
   const [openaiTestLoading, setOpenaiTestLoading] = useState(false)
+  const [webhookTestResult, setWebhookTestResult] = useState(null) // { success, message } | null
+  const [webhookTestLoading, setWebhookTestLoading] = useState(false)
 
   // Billing state — plan comes from PlanContext (currentUserPlan)
   const [planUpgrading, setPlanUpgrading] = useState(null)
@@ -711,6 +713,40 @@ export default function SettingsPage() {
       showToast('네트워크 오류: OpenAI 서버에 연결할 수 없습니다.', 'error')
     } finally {
       setOpenaiTestLoading(false)
+    }
+  }
+
+  // Webhook 연결 테스트
+  const handleWebhookTest = async () => {
+    const url = (apiKeys['webhook'] || '').trim()
+    if (!url) {
+      showToast('Webhook URL을 입력해 주세요.', 'warning')
+      return
+    }
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      showToast('http:// 또는 https://로 시작하는 URL을 입력해 주세요.', 'warning')
+      return
+    }
+    setWebhookTestLoading(true)
+    setWebhookTestResult(null)
+    try {
+      const result = await api.post('/integrations/webhook/test', {
+        url,
+        method: 'POST',
+        headers: '{}',
+        body: '',
+      })
+      setWebhookTestResult(result)
+      if (result.success) {
+        showToast('Webhook 연결이 정상입니다!', 'success')
+      } else {
+        showToast(result.message || 'Webhook 연결에 실패했습니다.', 'error')
+      }
+    } catch {
+      setWebhookTestResult({ success: false, message: '테스트 요청에 실패했습니다.' })
+      showToast('테스트 요청에 실패했습니다.', 'error')
+    } finally {
+      setWebhookTestLoading(false)
     }
   }
 
@@ -1812,6 +1848,32 @@ export default function SettingsPage() {
                       {openaiTestResult === 'error' && (
                         <span style={{ color: '#EF4444', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
                           <i className="ri-error-warning-fill" /> 연결 실패
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {def.id === 'webhook' && (
+                    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button
+                        className="btn-outline small"
+                        disabled={webhookTestLoading || !apiKeys['webhook']}
+                        onClick={handleWebhookTest}
+                        style={{ fontSize: 12 }}
+                      >
+                        {webhookTestLoading ? (
+                          <><i className="ri-loader-4-line spin" /> 테스트 중...</>
+                        ) : (
+                          <><i className="ri-send-plane-line" /> 연결 테스트</>
+                        )}
+                      </button>
+                      {webhookTestResult?.success === true && (
+                        <span style={{ color: '#10B981', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <i className="ri-checkbox-circle-fill" /> {webhookTestResult.message}
+                        </span>
+                      )}
+                      {webhookTestResult?.success === false && (
+                        <span style={{ color: '#EF4444', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <i className="ri-error-warning-fill" /> {webhookTestResult.message}
                         </span>
                       )}
                     </div>
