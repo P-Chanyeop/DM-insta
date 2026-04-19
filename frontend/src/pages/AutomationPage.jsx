@@ -125,7 +125,7 @@ export default function AutomationPage() {
       <div className="page-header">
         <div>
           <h2>자동화 트리거</h2>
-          <p>다양한 이벤트에 자동으로 반응하는 트리거를 설정하세요</p>
+          <p><b>"언제 자동으로 반응할지"</b>를 정하는 곳이에요. 예를 들어, 고객이 "가격"이라고 DM을 보내면 → 자동으로 가격표를 보내줍니다.</p>
         </div>
         <button className="btn-primary" onClick={() => {
           if (isAtLimit('automations')) { setUpgradeOpen(true); return }
@@ -209,7 +209,7 @@ export default function AutomationPage() {
       <div className="trigger-section">
         <div className="trigger-section-header">
           <div className="trigger-section-icon blue"><i className="ri-message-3-line" /></div>
-          <div><h3>DM 키워드 트리거</h3><p>고객이 DM으로 특정 키워드를 보내면 자동으로 플로우 실행</p></div>
+          <div><h3>DM 키워드 트리거</h3><p>고객이 DM으로 "가격", "예약" 같은 단어를 보내면 → 미리 만든 플로우가 자동 실행돼요</p></div>
         </div>
         <div className="trigger-table">
           <table>
@@ -260,7 +260,7 @@ export default function AutomationPage() {
       <div className="trigger-section">
         <div className="trigger-section-header">
           <div className="trigger-section-icon orange"><i className="ri-chat-smile-3-line" /></div>
-          <div><h3>댓글 자동 응답</h3><p>게시물에 특정 키워드 댓글 시 자동으로 DM 발송</p></div>
+          <div><h3>댓글 자동 응답</h3><p>게시물에 "참여", "신청" 같은 댓글이 달리면 → 그 사람에게 자동으로 DM을 보내요</p></div>
         </div>
         <div className="comment-trigger-cards">
           {!loading && commentTriggers.length === 0 && (
@@ -315,7 +315,7 @@ export default function AutomationPage() {
       <div className="trigger-section">
         <div className="trigger-section-header">
           <div className="trigger-section-icon purple"><i className="ri-camera-lens-line" /></div>
-          <div><h3>스토리 자동화</h3><p>스토리 멘션 및 스토리 답장에 자동으로 반응</p></div>
+          <div><h3>스토리 자동화</h3><p>누군가 내 스토리를 멘션하거나 답장하면 → 자동으로 감사 DM을 보내요</p></div>
         </div>
         <div className="story-triggers">
           {!loading && storyTriggers.length === 0 && (
@@ -348,7 +348,7 @@ export default function AutomationPage() {
       <div className="trigger-section">
         <div className="trigger-section-header">
           <div className="trigger-section-icon green"><i className="ri-hand-heart-line" /></div>
-          <div><h3>환영 메시지</h3><p>새로운 팔로워에게 첫 DM을 자동으로 보냅니다 (사용자당 1개)</p></div>
+          <div><h3>환영 메시지</h3><p>누군가 나를 팔로우하면 → "팔로우 감사합니다!" 같은 첫 DM을 자동으로 보내요</p></div>
         </div>
         <div className="story-triggers">
           {!loading && welcomeMessages.length === 0 && (

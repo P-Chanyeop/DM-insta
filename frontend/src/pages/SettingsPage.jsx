@@ -49,6 +49,12 @@ const INTEGRATION_DEFS = [
     id: 'webhook', name: 'Webhook (고급)', icon: 'ri-link', color: '#6366F1',
     description: 'DM 수신, 댓글, 결제 등 이벤트가 발생하면 지정한 URL로 자동 알림을 보냅니다',
     helpText: '예: 새 DM이 오면 → 내 서버/노션/슬랙으로 자동 전달. 개발자이거나 Zapier/Make 등 자동화 도구를 사용하는 분께 추천합니다.',
+    guide: [
+      { text: '이벤트를 수신할 서버 URL을 준비하세요 (예: https://내서버.com/webhook)' },
+      { text: 'Zapier/Make를 사용한다면 "Webhook 수신" 트리거로 URL을 발급받으세요', link: 'https://zapier.com/apps/webhook' },
+      { text: '아래에 URL을 붙여넣고 "연결 테스트"로 정상 응답을 확인하세요' },
+      { text: '연결하기를 누르면, 이벤트 발생 시 해당 URL로 자동 전송됩니다' },
+    ],
   },
   // ── 준비중 ──
   { id: 'shopify', name: 'Shopify', icon: 'ri-shopping-bag-line', color: '#96BF48', description: '주문 이벤트 기반 자동 DM 발송', comingSoon: true },

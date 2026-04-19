@@ -176,7 +176,7 @@ export default function FlowsPage() {
       <div className="page-header">
         <div>
           <h2>자동화 플로우</h2>
-          <p>드래그 앤 드롭으로 자동화 시나리오를 만들고 관리하세요</p>
+          <p><b>"어떤 메시지를 보낼지"</b>를 만드는 곳이에요. 블록을 연결해서 자동 응답 시나리오를 만들고, 트리거에 연결하면 끝!</p>
         </div>
         <button className="btn-primary" onClick={handleCreate}>
           <i className="ri-add-line" /> 새 자동화 만들기
@@ -297,7 +297,7 @@ export default function FlowsPage() {
           <div className="add-new-content">
             <div className="add-new-icon"><i className="ri-add-line" /></div>
             <h4>새 자동화 만들기</h4>
-            <p>빈 플로우 또는 템플릿에서 시작</p>
+            <p>자동 응답 시나리오를 만들어보세요</p>
           </div>
         </div>
       </div>
