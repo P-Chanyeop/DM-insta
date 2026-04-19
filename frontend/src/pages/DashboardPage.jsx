@@ -132,21 +132,21 @@ export default function DashboardPage() {
     return { ...r, percent }
   })
 
-  // 활성 플로우 + 활성 자동화 트리거를 합쳐서 최근 생성순으로 노출
+  // 모든 플로우 + 자동화 트리거를 최근 생성순으로 노출
   const activeItems = [
-    ...flows.filter((f) => f.active).map((f) => ({
+    ...flows.map((f) => ({
       __kind: 'flow',
       id: `flow-${f.id}`,
       _rawId: f.id,
       active: f.active,
       name: f.name,
       sentCount: f.sentCount,
-      meta: `${f.triggerType || '수동 트리거'} · 활성`,
+      meta: `${f.triggerType || '수동 트리거'} · ${f.active ? '활성' : '비활성'}`,
       icon: 'ri-flow-chart',
-      color: 'blue',
+      color: f.active ? 'blue' : 'gray',
       createdAt: f.createdAt,
     })),
-    ...automations.filter((a) => a.active).map((a) => {
+    ...automations.map((a) => {
       const meta = AUTOMATION_TYPE_META[a.type] || { label: a.type, icon: 'ri-flashlight-line', color: 'purple' }
       return {
         __kind: 'automation',
@@ -155,9 +155,9 @@ export default function DashboardPage() {
         active: a.active,
         name: a.name,
         sentCount: a.triggeredCount,
-        meta: `${meta.label}${a.keyword ? ` · "${a.keyword}"` : ''}`,
+        meta: `${meta.label}${a.keyword ? ` · "${a.keyword}"` : ''} · ${a.active ? '활성' : '비활성'}`,
         icon: meta.icon,
-        color: meta.color,
+        color: a.active ? meta.color : 'gray',
         createdAt: a.createdAt,
       }
     }),
@@ -228,7 +228,7 @@ export default function DashboardPage() {
         {/* Active Automations (Flows + Triggers) */}
         <div className="dash-card">
           <div className="dash-card-header">
-            <h3>활성 자동화</h3>
+            <h3>자동화</h3>
             <div style={{ display: 'flex', gap: 12 }}>
               <Link to="/app/flows" className="dash-card-link">플로우</Link>
               <Link to="/app/automation" className="dash-card-link">트리거</Link>
@@ -237,7 +237,7 @@ export default function DashboardPage() {
           <div className="automation-list">
             {loading && <PageLoader compact text="자동화를 불러오는 중..." />}
             {!loading && activeItems.length === 0 && (
-              <EmptyState compact icon="ri-flow-chart" title="활성 자동화가 없습니다" description="첫 플로우 또는 자동화 트리거를 만들어 보세요" actionLabel="자동화 만들기" onAction={() => window.location.href = '/app/automation'} />
+              <EmptyState compact icon="ri-flow-chart" title="자동화가 없습니다" description="첫 플로우 또는 자동화 트리거를 만들어 보세요" actionLabel="자동화 만들기" onAction={() => window.location.href = '/app/automation'} />
             )}
             {activeItems.map((item) => (
               <div className="automation-item" key={item.id}>
