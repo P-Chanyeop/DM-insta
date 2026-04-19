@@ -60,6 +60,20 @@ export default function DashboardPage() {
     return () => { mounted = false }
   }, [])
 
+  const handleToggle = async (item) => {
+    try {
+      if (item.__kind === 'flow') {
+        await flowService.toggle(item._rawId)
+        setFlows((prev) => prev.map((f) => f.id === item._rawId ? { ...f, active: !f.active } : f))
+      } else {
+        await automationService.toggle(item._rawId)
+        setAutomations((prev) => prev.map((a) => a.id === item._rawId ? { ...a, active: !a.active } : a))
+      }
+    } catch {
+      // 실패 시 무시
+    }
+  }
+
   const activeFlowsCount = flows.filter((f) => f.active).length
   const activeAutomationsCount = automations.filter((a) => a.active).length
   const totalAutomationCount = (dashboard?.totalFlows || 0) + automations.length
@@ -123,6 +137,8 @@ export default function DashboardPage() {
     ...flows.filter((f) => f.active).map((f) => ({
       __kind: 'flow',
       id: `flow-${f.id}`,
+      _rawId: f.id,
+      active: f.active,
       name: f.name,
       sentCount: f.sentCount,
       meta: `${f.triggerType || '수동 트리거'} · 활성`,
@@ -135,6 +151,8 @@ export default function DashboardPage() {
       return {
         __kind: 'automation',
         id: `auto-${a.id}`,
+        _rawId: a.id,
+        active: a.active,
         name: a.name,
         sentCount: a.triggeredCount,
         meta: `${meta.label}${a.keyword ? ` · "${a.keyword}"` : ''}`,
@@ -230,7 +248,12 @@ export default function DashboardPage() {
                 </div>
                 <div className="auto-stats">
                   <span className="auto-stat">{formatNumber(item.sentCount)} {item.__kind === 'flow' ? '발송' : '발동'}</span>
-                  <div className="auto-toggle active" />
+                  <div
+                    className={`auto-toggle${item.active ? ' active' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); handleToggle(item) }}
+                    style={{ cursor: 'pointer' }}
+                    title={item.active ? '비활성화' : '활성화'}
+                  />
                 </div>
               </div>
             ))}
