@@ -16,12 +16,17 @@ const PERIODS = [
 
 /** 백엔드 응답 데이터를 프론트엔드 차트 포맷으로 변환 */
 function mapOverviewData(data) {
+  const sentChange = data.sentChange || 0
+  const openRateChange = data.openRateChange || 0
+  const clickRateChange = data.clickRateChange || 0
+  const conversionRateChange = data.conversionRateChange || 0
+  const unsubRateChange = data.unsubRateChange || 0
   return {
-    sent: { value: data.totalMessages || 0, change: 0, up: true },
-    openRate: { value: data.avgOpenRate || 0, change: 0, up: true },
-    clickRate: { value: data.avgClickRate || 0, change: 0, up: true },
-    conversionRate: { value: 0, change: 0, up: false },
-    unsubRate: { value: 0, change: 0, up: true },
+    sent: { value: data.totalMessages || 0, change: sentChange, up: sentChange >= 0 },
+    openRate: { value: data.avgOpenRate || 0, change: openRateChange, up: openRateChange >= 0 },
+    clickRate: { value: data.avgClickRate || 0, change: clickRateChange, up: clickRateChange >= 0 },
+    conversionRate: { value: data.conversionRate || 0, change: conversionRateChange, up: conversionRateChange >= 0 },
+    unsubRate: { value: data.unsubRate || 0, change: unsubRateChange, up: unsubRateChange <= 0 },
   }
 }
 
@@ -45,9 +50,10 @@ function mapFunnelData(data) {
   const sent = data.totalMessages || 0
   const openRate = (data.avgOpenRate || 0) / 100
   const clickRate = (data.avgClickRate || 0) / 100
+  const convRate = (data.conversionRate || 0) / 100
   const opened = Math.round(sent * openRate)
   const clicked = Math.round(sent * clickRate)
-  const converted = 0 // 전환 데이터는 아직 백엔드 미지원
+  const converted = Math.round(sent * convRate)
   return [
     { label: '발송', value: sent, pct: 100 },
     { label: '열림', value: opened, pct: sent > 0 ? Math.round((opened / sent) * 100) : 0 },
@@ -56,7 +62,7 @@ function mapFunnelData(data) {
   ]
 }
 
-function mapTrendData(dailyMessages) {
+function mapTrendData(dailyMessages, dailyOpened, dailyClicked) {
   if (!dailyMessages || dailyMessages.length === 0) {
     return { labels: [], sent: [], opened: [], clicked: [] }
   }
@@ -65,9 +71,15 @@ function mapTrendData(dailyMessages) {
     return `${parseInt(parts[1])}/${parseInt(parts[2])}`
   })
   const sent = dailyMessages.map(d => d.count)
-  // 열림/클릭은 일별 세부 데이터가 없으므로 빈 배열 반환
-  const opened = dailyMessages.map(() => 0)
-  const clicked = dailyMessages.map(() => 0)
+
+  // 일별 열림/클릭 데이터를 날짜 기준으로 매핑
+  const openedMap = {}
+  ;(dailyOpened || []).forEach(d => { openedMap[d.date] = d.count })
+  const clickedMap = {}
+  ;(dailyClicked || []).forEach(d => { clickedMap[d.date] = d.count })
+
+  const opened = dailyMessages.map(d => openedMap[d.date] || 0)
+  const clicked = dailyMessages.map(d => clickedMap[d.date] || 0)
   return { labels, sent, opened, clicked }
 }
 
@@ -462,7 +474,7 @@ export default function AnalyticsPage() {
   const toast = useToast()
 
   const overview = useMemo(() => apiData ? mapOverviewData(apiData) : mapOverviewData({}), [apiData])
-  const trendData = useMemo(() => apiData ? mapTrendData(apiData.dailyMessages) : { labels: [], sent: [], opened: [], clicked: [] }, [apiData])
+  const trendData = useMemo(() => apiData ? mapTrendData(apiData.dailyMessages, apiData.dailyOpened, apiData.dailyClicked) : { labels: [], sent: [], opened: [], clicked: [] }, [apiData])
   const topFlows = useMemo(() => apiData ? mapTopFlows(apiData.flowPerformances) : [], [apiData])
   const funnel = useMemo(() => apiData ? mapFunnelData(apiData) : mapFunnelData({}), [apiData])
   const engagementData = useMemo(() => mapEngagementHours(apiData?.hourlyEngagement), [apiData])

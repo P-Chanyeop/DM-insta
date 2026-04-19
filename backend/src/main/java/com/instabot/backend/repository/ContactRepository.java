@@ -19,6 +19,7 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
     long countVipByUserId(Long userId);
 
     long countByUserIdAndSubscribedAtAfter(Long userId, java.time.LocalDateTime since);
+    long countByUserIdAndActiveFalse(Long userId);
 
     @Query("SELECT CAST(c.subscribedAt AS LocalDate) AS date, COUNT(c) AS cnt " +
            "FROM Contact c " +

@@ -40,7 +40,17 @@ public class AnalyticsService {
         private long newContactsInPeriod;
         private double avgOpenRate;
         private double avgClickRate;
+        private double conversionRate;
+        private double unsubRate;
+        // 이전 기간 대비 변화율
+        private double sentChange;
+        private double openRateChange;
+        private double clickRateChange;
+        private double conversionRateChange;
+        private double unsubRateChange;
         private List<DailyStats> dailyMessages;
+        private List<DailyStats> dailyOpened;
+        private List<DailyStats> dailyClicked;
         private List<DailyStats> dailyNewContacts;
         private List<FlowPerformance> flowPerformances;
         private List<HourlyStats> hourlyEngagement;
@@ -72,35 +82,108 @@ public class AnalyticsService {
     }
 
     public AnalyticsResponse getAnalytics(Long userId, int days) {
-        LocalDateTime startDate = LocalDateTime.now().minusDays(days);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startDate = now.minusDays(days);
+        LocalDateTime prevStart = now.minusDays(days * 2L);
 
-        // 전체 메시지 수
-        long totalMessages = messageRepository.countOutboundByUserId(userId);
-
-        // 전체 연락처
+        // ── 현재 기간 데이터 ──
+        long currentSent = messageRepository.countOutboundByUserIdAndSince(userId, startDate);
+        long currentRead = messageRepository.countReadOutboundByUserIdAndSince(userId, startDate);
         long totalContacts = contactRepository.countByUserId(userId);
-
-        // 기간 내 신규 연락처
         long newContactsInPeriod = contactRepository.countByUserIdAndSubscribedAtAfter(userId, startDate);
+
+        // ── 이전 기간 데이터 (비교용) ──
+        long prevSent = messageRepository.countOutboundByUserIdAndSince(userId, prevStart)
+                      - currentSent; // prevStart~startDate 구간
+        long prevRead = messageRepository.countReadOutboundByUserIdAndSince(userId, prevStart)
+                      - currentRead;
 
         // 플로우 성과
         List<Flow> flows = flowRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        List<Long> flowIds = flows.stream().map(Flow::getId).toList();
 
-        double avgOpenRate = flows.stream()
-                .filter(f -> f.getOpenRate() != null && f.getOpenRate() > 0)
-                .mapToDouble(Flow::getOpenRate)
-                .average()
-                .orElse(0.0);
+        // 열림률: 기간 내 발송 중 읽음 비율
+        double avgOpenRate = currentSent > 0
+                ? Math.round(currentRead * 1000.0 / currentSent) / 10.0
+                : 0.0;
+        double prevOpenRate = prevSent > 0
+                ? Math.round(prevRead * 1000.0 / prevSent) / 10.0
+                : 0.0;
 
-        double avgClickRate = broadcastRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+        // 클릭률: Broadcast clickRate 평균
+        var broadcasts = broadcastRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        double avgClickRate = broadcasts.stream()
                 .filter(b -> b.getClickRate() != null && b.getClickRate() > 0)
                 .mapToDouble(b -> b.getClickRate())
                 .average()
                 .orElse(0.0);
+        avgClickRate = Math.round(avgClickRate * 10.0) / 10.0;
 
-        // 일별 통계 (최근 N일) - 실제 데이터 조회
+        // 전환율: NodeExecution trigger COMPLETED → 최종 노드 COMPLETED
+        double conversionRate = 0.0;
+        double prevConversionRate = 0.0;
+        if (!flowIds.isEmpty()) {
+            try {
+                var triggerCounts = nodeExecutionRepository.countTriggerActionsByFlowIds(flowIds, startDate);
+                long triggerCompleted = triggerCounts.stream()
+                        .filter(r -> r[0] == NodeExecution.Action.COMPLETED)
+                        .mapToLong(r -> (Long) r[1])
+                        .sum();
+                long allCompleted = nodeExecutionRepository.countAllCompletedByFlowIds(flowIds, startDate);
+                // 전환율 = 최종 완료 / 트리거 시작 (trigger COMPLETED = 플로우 시작됨)
+                if (triggerCompleted > 0) {
+                    // 최종 완료에서 trigger 완료 자체를 제외 (trigger 다음 단계부터가 실제 전환)
+                    long nonTriggerCompleted = allCompleted - triggerCompleted;
+                    conversionRate = Math.round(nonTriggerCompleted * 1000.0 / triggerCompleted) / 10.0;
+                    conversionRate = Math.min(conversionRate, 100.0);
+                }
+
+                // 이전 기간 전환율
+                var prevTriggerCounts = nodeExecutionRepository.countTriggerActionsByFlowIds(flowIds, prevStart);
+                long prevTriggerAll = prevTriggerCounts.stream()
+                        .filter(r -> r[0] == NodeExecution.Action.COMPLETED)
+                        .mapToLong(r -> (Long) r[1])
+                        .sum();
+                prevTriggerAll -= triggerCompleted; // 이전 기간만
+                long prevAllCompleted = nodeExecutionRepository.countAllCompletedByFlowIds(flowIds, prevStart)
+                        - allCompleted;
+                if (prevTriggerAll > 0) {
+                    long prevNonTrigger = prevAllCompleted - prevTriggerAll;
+                    prevConversionRate = Math.round(prevNonTrigger * 1000.0 / prevTriggerAll) / 10.0;
+                    prevConversionRate = Math.min(prevConversionRate, 100.0);
+                }
+            } catch (Exception e) {
+                // 데이터 없으면 0으로 유지
+            }
+        }
+
+        // 구독 해지율: active=false / 전체 연락처
+        long inactiveContacts = contactRepository.countByUserIdAndActiveFalse(userId);
+        double unsubRate = totalContacts > 0
+                ? Math.round(inactiveContacts * 1000.0 / totalContacts) / 10.0
+                : 0.0;
+
+        // ── vs 이전 기간 변화율 계산 ──
+        double sentChange = calcChange(currentSent, prevSent);
+        double openRateChange = round1(avgOpenRate - prevOpenRate);
+        double clickRateChange = 0; // broadcast는 기간 필터 없으므로 0
+        double conversionRateChange = round1(conversionRate - prevConversionRate);
+        double unsubRateChange = 0; // 해지율은 누적이므로 변화율 비적용
+
+        // ── 일별 통계 ──
         List<DailyStats> dailyMessages = buildDailyStats(
                 messageRepository.countDailyOutboundByUserId(userId, startDate), days);
+        List<DailyStats> dailyOpened = buildDailyStats(
+                messageRepository.countDailyReadOutboundByUserId(userId, startDate), days);
+        // 클릭은 일별 데이터 없으므로 열림 대비 비율로 추정
+        final double clickRatio = (avgOpenRate > 0 && avgClickRate > 0) ? avgClickRate / avgOpenRate : 0;
+        List<DailyStats> dailyClicked = dailyOpened.stream()
+                .map(d -> DailyStats.builder()
+                        .date(d.getDate())
+                        .count(clickRatio > 0 ? Math.round(d.getCount() * clickRatio) : 0)
+                        .build())
+                .toList();
+
         List<DailyStats> dailyNewContacts = buildDailyStats(
                 contactRepository.countDailyNewByUserId(userId, startDate), days);
 
@@ -121,16 +204,34 @@ public class AnalyticsService {
                 messageRepository.countHourlyOutboundByUserId(userId, startDate));
 
         return AnalyticsResponse.builder()
-                .totalMessages(totalMessages)
+                .totalMessages(currentSent)
                 .totalContacts(totalContacts)
                 .newContactsInPeriod(newContactsInPeriod)
-                .avgOpenRate(Math.round(avgOpenRate * 10.0) / 10.0)
-                .avgClickRate(Math.round(avgClickRate * 10.0) / 10.0)
+                .avgOpenRate(avgOpenRate)
+                .avgClickRate(avgClickRate)
+                .conversionRate(conversionRate)
+                .unsubRate(unsubRate)
+                .sentChange(sentChange)
+                .openRateChange(openRateChange)
+                .clickRateChange(clickRateChange)
+                .conversionRateChange(conversionRateChange)
+                .unsubRateChange(unsubRateChange)
                 .dailyMessages(dailyMessages)
+                .dailyOpened(dailyOpened)
+                .dailyClicked(dailyClicked)
                 .dailyNewContacts(dailyNewContacts)
                 .flowPerformances(flowPerformances)
                 .hourlyEngagement(hourlyEngagement)
                 .build();
+    }
+
+    private double calcChange(long current, long previous) {
+        if (previous == 0) return current > 0 ? 100.0 : 0.0;
+        return round1(((double)(current - previous) / previous) * 100);
+    }
+
+    private double round1(double v) {
+        return Math.round(v * 10.0) / 10.0;
     }
 
     /**

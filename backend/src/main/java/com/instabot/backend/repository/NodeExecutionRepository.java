@@ -22,6 +22,22 @@ public interface NodeExecutionRepository extends JpaRepository<NodeExecution, Lo
             @Param("since") LocalDateTime since);
 
     /**
+     * 사용자의 전체 플로우 전환율 집계: trigger COMPLETED 수, 최종 노드 COMPLETED 수
+     */
+    @Query("SELECT ne.action, COUNT(ne) FROM NodeExecution ne " +
+           "WHERE ne.flowId IN :flowIds AND ne.nodeType = 'trigger' AND ne.executedAt >= :since " +
+           "GROUP BY ne.action")
+    List<Object[]> countTriggerActionsByFlowIds(
+            @Param("flowIds") List<Long> flowIds,
+            @Param("since") LocalDateTime since);
+
+    @Query("SELECT COUNT(ne) FROM NodeExecution ne " +
+           "WHERE ne.flowId IN :flowIds AND ne.action = 'COMPLETED' AND ne.executedAt >= :since")
+    long countAllCompletedByFlowIds(
+            @Param("flowIds") List<Long> flowIds,
+            @Param("since") LocalDateTime since);
+
+    /**
      * 특정 노드의 일별 실행 추이
      * 결과: [date, action, count]
      */
