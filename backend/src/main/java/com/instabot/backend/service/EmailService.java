@@ -168,6 +168,55 @@ public class EmailService {
             """.formatted(logoUrl, code);
     }
 
+    /**
+     * 비즈니스 플랜 문의 이메일 발송 (관리자에게)
+     */
+    @Async
+    public void sendInquiryEmail(String adminEmail, String senderName, String senderEmail,
+                                  String company, String phone, String message) {
+        String subject = "[센드잇] 비즈니스 플랜 문의 - " + senderName;
+        String logoUrl = baseUrl + "/images/sendit_04_full_gradient.png";
+        String body = buildInquiryTemplate(senderName, senderEmail, company, phone, message, logoUrl);
+        sendHtmlEmail(adminEmail, subject, body);
+    }
+
+    private String buildInquiryTemplate(String name, String email, String company,
+                                         String phone, String message, String logoUrl) {
+        return """
+            <!DOCTYPE html>
+            <html lang="ko">
+            <head><meta charset="UTF-8"></head>
+            <body style="margin:0; padding:0; background:#F5F5F5; font-family:'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;">
+              <table width="100%%" cellpadding="0" cellspacing="0" style="background:#F5F5F5; padding:40px 20px;">
+                <tr><td align="center">
+                  <table width="520" cellpadding="0" cellspacing="0" style="background:#FFFFFF; border-radius:12px; border:1px solid #E8E8E8; overflow:hidden;">
+                    <tr><td style="padding:40px 32px 0; text-align:center;">
+                      <img src="%s" alt="센드잇" height="72" style="display:inline-block; margin-bottom:12px;" />
+                      <p style="color:#999; font-size:12px; margin:0;">비즈니스 플랜 문의</p>
+                    </td></tr>
+                    <tr><td style="padding:32px 32px 36px;">
+                      <div style="border-top:1px solid #F0F0F0; margin:0 0 28px;"></div>
+                      <table width="100%%" cellpadding="0" cellspacing="0" style="font-size:14px; color:#333;">
+                        <tr><td style="padding:8px 0; color:#888; width:100px;">이름</td><td style="padding:8px 0; font-weight:500;">%s</td></tr>
+                        <tr><td style="padding:8px 0; color:#888;">이메일</td><td style="padding:8px 0;"><a href="mailto:%s" style="color:#4F46E5;">%s</a></td></tr>
+                        <tr><td style="padding:8px 0; color:#888;">회사명</td><td style="padding:8px 0;">%s</td></tr>
+                        <tr><td style="padding:8px 0; color:#888;">연락처</td><td style="padding:8px 0;">%s</td></tr>
+                      </table>
+                      <div style="border-top:1px solid #F0F0F0; margin:20px 0;"></div>
+                      <p style="color:#888; font-size:12px; margin:0 0 8px;">문의 내용</p>
+                      <div style="background:#F8F8FA; border:1px solid #E5E5EA; border-radius:8px; padding:16px; font-size:14px; color:#333; line-height:1.8; white-space:pre-wrap;">%s</div>
+                    </td></tr>
+                    <tr><td style="background:#FAFAFA; border-top:1px solid #F0F0F0; padding:16px 32px; text-align:center;">
+                      <p style="color:#CCC; font-size:10px; margin:0;">&copy; 2026 센드잇 &middot; 소프트캣</p>
+                    </td></tr>
+                  </table>
+                </td></tr>
+              </table>
+            </body>
+            </html>
+            """.formatted(logoUrl, name, email, email, company, phone, message);
+    }
+
     private void sendHtmlEmail(String to, String subject, String htmlBody) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

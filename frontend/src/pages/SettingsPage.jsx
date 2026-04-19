@@ -753,7 +753,7 @@ export default function SettingsPage() {
   // Plan upgrade via Paddle.js Overlay Checkout
   const handlePlanAction = async (planId) => {
     if (planId === 'business') {
-      window.location.href = 'mailto:sales@sendit.co.kr?subject=Business 플랜 문의'
+      window.open('/contact', '_blank')
       return
     }
     setPlanUpgrading(planId)

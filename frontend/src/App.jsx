@@ -30,6 +30,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const LegalPage = lazy(() => import('./pages/LegalPage'))
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'))
 const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'))
+const InquiryPage = lazy(() => import('./pages/InquiryPage'))
 
 export default function App() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
       <Route path="/terms" element={<Suspense fallback={<PageLoader />}><LegalPage /></Suspense>} />
       <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><LegalPage /></Suspense>} />
       <Route path="/signup" element={<AuthPage />} />
+      <Route path="/contact" element={<Suspense fallback={<PageLoader />}><InquiryPage /></Suspense>} />
       <Route path="/auth/callback" element={<Suspense fallback={<PageLoader />}><AuthCallbackPage /></Suspense>} />
       <Route path="/app/onboarding" element={<RequireAuth><Suspense fallback={<PageLoader />}><OnboardingPage /></Suspense></RequireAuth>} />
       <Route path="/app" element={<RequireAuth><DashboardLayout /></RequireAuth>}>

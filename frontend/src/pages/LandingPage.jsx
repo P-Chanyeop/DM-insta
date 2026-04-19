@@ -360,7 +360,7 @@ export default function LandingPage() {
                 <li><i className="ri-check-line" /> 우선 지원 & SLA 보장</li>
                 <li><i className="ri-check-line" /> 온보딩 지원</li>
               </ul>
-              <Link to="/signup" className="btn-price">비즈니스 시작하기</Link>
+              <Link to="/contact" className="btn-price">영업팀 문의</Link>
             </div>
           </div>
         </div>
