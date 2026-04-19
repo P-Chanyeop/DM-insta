@@ -125,7 +125,7 @@ export default function DashboardLayout() {
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const { planLabel, getUsage, getLimit } = usePlan()
-  const { accounts, activeAccount, switchAccount } = useAccount()
+  const { accounts, activeAccount, switchAccount, loading: accountLoading } = useAccount()
   const accountDropdownRef = useRef(null)
   const userMenuRef = useRef(null)
 
@@ -301,7 +301,15 @@ export default function DashboardLayout() {
             onClick={() => setAccountDropdownOpen(prev => !prev)}
             style={{ cursor: 'pointer' }}
           >
-            {activeAccount ? (
+            {accountLoading ? (
+              <>
+                <div className="account-avatar"><i className="ri-loader-4-line spin" style={{ fontSize: 16 }} /></div>
+                <div className="account-details">
+                  <span className="account-name">불러오는 중...</span>
+                  <span className="account-type">계정 정보를 가져오고 있습니다</span>
+                </div>
+              </>
+            ) : activeAccount ? (
               <>
                 <div className="account-avatar">
                   {activeAccount.profilePictureUrl
