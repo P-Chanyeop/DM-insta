@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { getToken } from '../api/client'
 
 const FEATURES = [
   { icon: 'ri-flow-chart', color: 'blue', title: '비주얼 플로우 빌더', desc: '드래그 앤 드롭으로 복잡한 자동화 시나리오를 코딩 없이 쉽게 만들어보세요.', items: ['드래그 앤 드롭 에디터', '조건 분기 / A-B 테스트', '메시지, 카드, 갤러리, 이미지', '외부 API 연동 (웹훅)'] },
@@ -95,8 +96,14 @@ export default function LandingPage() {
             <li><a href="#testimonials" onClick={(e) => scrollToSection(e, '#testimonials')}>활용 사례</a></li>
           </ul>
           <div className="nav-actions">
-            <Link to="/login" className="btn-login">로그인</Link>
-            <Link to="/signup" className="btn-start">무료로 시작하기</Link>
+            {getToken() ? (
+              <Link to="/app" className="btn-start">대시보드</Link>
+            ) : (
+              <>
+                <Link to="/login" className="btn-login">로그인</Link>
+                <Link to="/signup" className="btn-start">무료로 시작하기</Link>
+              </>
+            )}
           </div>
           <button className="mobile-menu-btn" onClick={() => setMobileMenu(!mobileMenu)}>
             <i className={mobileMenu ? 'ri-close-line' : 'ri-menu-3-line'} />
@@ -112,8 +119,14 @@ export default function LandingPage() {
               <li><a href="#testimonials" onClick={(e) => scrollToSection(e, '#testimonials')}>활용 사례</a></li>
             </ul>
             <div className="mobile-menu-actions">
-              <Link to="/login" className="btn-login" onClick={() => setMobileMenu(false)}>로그인</Link>
-              <Link to="/signup" className="btn-start" onClick={() => setMobileMenu(false)}>무료로 시작하기</Link>
+              {getToken() ? (
+                <Link to="/app" className="btn-start" onClick={() => setMobileMenu(false)}>대시보드</Link>
+              ) : (
+                <>
+                  <Link to="/login" className="btn-login" onClick={() => setMobileMenu(false)}>로그인</Link>
+                  <Link to="/signup" className="btn-start" onClick={() => setMobileMenu(false)}>무료로 시작하기</Link>
+                </>
+              )}
             </div>
           </div>
         )}

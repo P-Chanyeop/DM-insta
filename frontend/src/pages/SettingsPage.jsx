@@ -399,7 +399,8 @@ export default function SettingsPage() {
       const info = await billingService.getInfo()
       setBillingInfo(info)
       if (info.plan) {
-        setCurrentPlan(info.plan.toLowerCase())
+        // plan 상태는 PlanContext에서 관리 — refreshPlan()으로 동기화
+        refreshPlan()
       }
     } catch {
       // silently fail — user stays on free plan display
@@ -445,7 +446,8 @@ export default function SettingsPage() {
           const info = await billingService.getInfo()
           setBillingInfo(info)
           if (info.plan) {
-            setCurrentPlan(info.plan.toLowerCase())
+            // plan 상태는 PlanContext에서 관리 — refreshPlan()으로 동기화
+        refreshPlan()
           }
           if (info.status === 'ACTIVE' || retries >= maxRetries) {
             return
