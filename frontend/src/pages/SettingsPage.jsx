@@ -565,8 +565,13 @@ export default function SettingsPage() {
 
   // Team handlers
   const canManageTeam = myRole === 'OWNER' || myRole === 'ADMIN'
+  const canInviteByPlan = currentUserPlan && currentUserPlan !== 'FREE' && currentUserPlan !== 'STARTER'
 
   const handleInvite = async () => {
+    if (!canInviteByPlan) {
+      showToast('팀원 초대는 PRO 이상 플랜에서 이용 가능합니다. 플랜을 업그레이드해주세요.', 'error')
+      return
+    }
     if (!inviteEmail.trim()) {
       showToast('이메일을 입력해 주세요.', 'error')
       return
@@ -1569,7 +1574,14 @@ export default function SettingsPage() {
           {canManageTeam && (
             <button
               className="btn-primary small"
-              onClick={() => setShowInviteForm(prev => !prev)}
+              onClick={() => {
+                if (!canInviteByPlan) {
+                  showToast('팀원 초대는 PRO 이상 플랜에서 이용 가능합니다. 플랜을 업그레이드해주세요.', 'error')
+                  return
+                }
+                setShowInviteForm(prev => !prev)
+              }}
+              style={!canInviteByPlan ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
             >
               <i className={showInviteForm ? 'ri-close-line' : 'ri-user-add-line'} />{' '}
               {showInviteForm ? '닫기' : '팀원 초대'}

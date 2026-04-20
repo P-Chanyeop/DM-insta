@@ -27,10 +27,13 @@ const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
 const GroupBuyPage = lazy(() => import('./pages/GroupBuyPage'))
 const AgencyPage = lazy(() => import('./pages/AgencyPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const SupportPage = lazy(() => import('./pages/SupportPage'))
 const LegalPage = lazy(() => import('./pages/LegalPage'))
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'))
 const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'))
 const InquiryPage = lazy(() => import('./pages/InquiryPage'))
+const GuidePage = lazy(() => import('./pages/GuidePage'))
+const FAQPage = lazy(() => import('./pages/FAQPage'))
 
 export default function App() {
   return (
@@ -63,6 +66,9 @@ export default function App() {
         <Route path="group-buys" element={<Suspense fallback={<PageLoader />}><GroupBuyPage /></Suspense>} />
         <Route path="agency" element={<Suspense fallback={<PageLoader />}><AgencyPage /></Suspense>} />
         <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
+        <Route path="guide" element={<Suspense fallback={<PageLoader />}><GuidePage /></Suspense>} />
+        <Route path="faq" element={<Suspense fallback={<PageLoader />}><FAQPage /></Suspense>} />
+        <Route path="support" element={<Suspense fallback={<PageLoader />}><SupportPage /></Suspense>} />
       </Route>
       {/* S54 fix: 404 캐치올 — 이 라우트는 반드시 맨 마지막에 두어야 함 */}
       <Route path="*" element={<NotFoundPage />} />

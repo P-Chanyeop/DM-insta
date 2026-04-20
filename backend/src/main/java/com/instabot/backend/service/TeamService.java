@@ -74,6 +74,13 @@ public class TeamService {
 
     @Transactional
     public TeamDto.TeamMemberResponse inviteMember(Long currentUserId, TeamDto.InviteMemberRequest request) {
+        // 플랜 체크: FREE, STARTER 플랜은 팀원 초대 불가
+        User owner = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+        if (owner.getPlan() == User.PlanType.FREE || owner.getPlan() == User.PlanType.STARTER) {
+            throw new BadRequestException("팀원 초대는 PRO 이상 플랜에서 이용 가능합니다. 플랜을 업그레이드해주세요.");
+        }
+
         Long teamOwnerId = getTeamOwnerId(currentUserId);
         TeamMember currentMember = teamMemberRepository.findByTeamOwnerIdAndUserId(teamOwnerId, currentUserId)
                 .orElseThrow(() -> new BadRequestException("팀에 속해있지 않습니다."));

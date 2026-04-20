@@ -77,9 +77,9 @@ const PAGE_TITLES = {
 const DEMO_NOTIFICATIONS = []
 
 const HELP_LINKS = [
-  { icon: 'ri-book-2-line', label: '시작 가이드', desc: '센드잇 사용법 안내', href: '/app/templates', external: false },
-  { icon: 'ri-question-answer-line', label: 'FAQ', desc: '자주 묻는 질문', href: '/app/settings', state: { tab: 'integrations' }, external: false },
-  { icon: 'ri-chat-1-line', label: '1:1 문의', desc: 'support@sendit.io.kr', href: 'mailto:support@sendit.io.kr', external: true },
+  { icon: 'ri-book-2-line', label: '시작 가이드', desc: '센드잇 사용법 안내', href: '/app/guide', external: false },
+  { icon: 'ri-question-answer-line', label: 'FAQ', desc: '자주 묻는 질문', href: '/app/faq', external: false },
+  { icon: 'ri-chat-1-line', label: '1:1 문의', desc: '고객지원 문의하기', href: '/app/support', external: false },
   { icon: 'ri-keyboard-box-line', label: '키보드 단축키', desc: '단축키 목록 보기', action: 'shortcuts' },
 ]
 
