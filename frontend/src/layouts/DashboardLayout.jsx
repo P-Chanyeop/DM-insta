@@ -1,47 +1,34 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../api/client'
-import {
-  authService,
-  flowService,
-  automationService,
-  broadcastService,
-  sequenceService,
-  groupBuyService,
-  contactService,
-  growthToolService,
-  templateService,
-  conversationService,
-} from '../api/services'
+import { authService, notificationService } from '../api/services'
 import { usePlan } from '../components/PlanContext'
 import { useAccount } from '../components/AccountContext'
 import IndustrySelectModal from '../components/IndustrySelectModal'
 
-// countKey: DashboardLayout의 navCounts 상태에서 이 키로 값을 찾아 뱃지에 표시.
-// badgeKey: 주의/알림용 빨간 뱃지(안 읽은 메시지 등).
 const NAV_SECTIONS = [
   {
     title: '메인',
     items: [
       { to: '/app', icon: 'ri-dashboard-3-line', label: '대시보드', end: true },
-      { to: '/app/flows', icon: 'ri-flow-chart', label: '자동화 플로우', countKey: 'flows' },
-      { to: '/app/automation', icon: 'ri-robot-2-line', label: '자동화 트리거', countKey: 'automations' },
+      { to: '/app/flows', icon: 'ri-flow-chart', label: '자동화 플로우' },
+      { to: '/app/automation', icon: 'ri-robot-2-line', label: '자동화 트리거' },
     ]
   },
   {
     title: '메시징',
     items: [
-      { to: '/app/livechat', icon: 'ri-chat-3-line', label: '라이브 채팅', badgeKey: 'unreadMessages' },
-      { to: '/app/broadcast', icon: 'ri-broadcast-line', label: '브로드캐스팅', countKey: 'broadcasts' },
-      { to: '/app/sequences', icon: 'ri-time-line', label: '시퀀스', countKey: 'sequences' },
-      { to: '/app/group-buys', icon: 'ri-shopping-bag-line', label: '공동구매', countKey: 'groupBuys' },
+      { to: '/app/livechat', icon: 'ri-chat-3-line', label: '라이브 채팅' },
+      { to: '/app/broadcast', icon: 'ri-broadcast-line', label: '브로드캐스팅' },
+      { to: '/app/sequences', icon: 'ri-time-line', label: '시퀀스' },
+      { to: '/app/group-buys', icon: 'ri-shopping-bag-line', label: '공동구매' },
     ]
   },
   {
     title: '성장',
     items: [
-      { to: '/app/contacts', icon: 'ri-contacts-book-2-line', label: '연락처', countKey: 'contacts' },
-      { to: '/app/growth', icon: 'ri-seedling-line', label: '성장 도구', countKey: 'growthTools' },
+      { to: '/app/contacts', icon: 'ri-contacts-book-2-line', label: '연락처' },
+      { to: '/app/growth', icon: 'ri-seedling-line', label: '성장 도구' },
       { to: '/app/analytics', icon: 'ri-line-chart-line', label: '분석' },
     ]
   },
@@ -49,7 +36,7 @@ const NAV_SECTIONS = [
     title: '설정',
     items: [
       { to: '/app/agency', icon: 'ri-building-2-line', label: '에이전시' },
-      { to: '/app/templates', icon: 'ri-file-copy-2-line', label: '템플릿', countKey: 'templates' },
+      { to: '/app/templates', icon: 'ri-file-copy-2-line', label: '템플릿' },
       { to: '/app/settings', icon: 'ri-settings-3-line', label: '설정' },
     ]
   }
@@ -72,14 +59,42 @@ const PAGE_TITLES = {
   '/app/flows/builder': '플로우 빌더',
 }
 
-// S50 fix: 실제 백엔드 알림 엔드포인트 연결 전까지는 빈 배열.
-// 추후 /api/notifications GET으로 연결 예정.
-const DEMO_NOTIFICATIONS = []
+// 알림 타입별 아이콘/색상 매핑
+const NOTIF_TYPE_CONFIG = {
+  NEW_MESSAGE: { icon: 'ri-chat-1-line', color: '#3b82f6' },
+  AUTOMATION_ERROR: { icon: 'ri-error-warning-line', color: '#ef4444' },
+  BILLING: { icon: 'ri-bank-card-line', color: '#f59e0b' },
+  SYSTEM: { icon: 'ri-information-line', color: '#6366f1' },
+  DAILY_REPORT: { icon: 'ri-bar-chart-2-line', color: '#10b981' },
+  WEEKLY_REPORT: { icon: 'ri-pie-chart-2-line', color: '#8b5cf6' },
+}
+
+// 상대 시간 표시 유틸
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return ''
+  const now = Date.now()
+  const date = new Date(dateStr).getTime()
+  const diff = now - date
+  const seconds = Math.floor(diff / 1000)
+  if (seconds < 60) return '방금 전'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}분 전`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}시간 전`
+  const days = Math.floor(hours / 24)
+  if (days === 1) return '어제'
+  if (days < 7) return `${days}일 전`
+  const weeks = Math.floor(days / 7)
+  if (weeks < 5) return `${weeks}주 전`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months}개월 전`
+  return `${Math.floor(months / 12)}년 전`
+}
 
 const HELP_LINKS = [
-  { icon: 'ri-book-2-line', label: '시작 가이드', desc: '센드잇 사용법 안내', href: '/app/guide', external: false },
-  { icon: 'ri-question-answer-line', label: 'FAQ', desc: '자주 묻는 질문', href: '/app/faq', external: false },
-  { icon: 'ri-chat-1-line', label: '1:1 문의', desc: '고객지원 문의하기', href: '/app/support', external: false },
+  { icon: 'ri-book-2-line', label: '문서', desc: '사용 가이드 및 문서', href: 'https://docs.example.com', external: true },
+  { icon: 'ri-question-answer-line', label: 'FAQ', desc: '자주 묻는 질문', href: '/app/settings', external: false },
+  { icon: 'ri-chat-1-line', label: '채팅 문의', desc: '실시간 채팅 지원', href: '/app/livechat', external: false },
   { icon: 'ri-keyboard-box-line', label: '키보드 단축키', desc: '단축키 목록 보기', action: 'shortcuts' },
 ]
 
@@ -133,10 +148,9 @@ export default function DashboardLayout() {
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false)
   const [cmdQuery, setCmdQuery] = useState('')
   const [cmdIndex, setCmdIndex] = useState(0)
-  const [notifications, setNotifications] = useState(DEMO_NOTIFICATIONS)
+  const [notifications, setNotifications] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [showIndustryModal, setShowIndustryModal] = useState(false)
-  // 사이드바 메뉴 옆 개수/알림 뱃지용 카운트.
-  const [navCounts, setNavCounts] = useState({})
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const { planLabel, getUsage, getLimit } = usePlan()
@@ -154,77 +168,27 @@ export default function DashboardLayout() {
   const userName = storedUser?.name || '사용자'
   const userInitial = userName[0] || '?'
 
-  // 사이드바 메뉴 카운트 집계 — 로그인 상태에서만 병렬 페치.
-  // 개별 엔드포인트 실패는 무시(해당 뱃지만 숨김).
-  useEffect(() => {
-    let cancelled = false
-    async function fetchCounts() {
-      const safe = async (fn) => {
-        try { return await fn() } catch { return null }
-      }
-      const toCount = (data) => {
-        if (!data) return null
-        if (Array.isArray(data)) return data.length
-        if (typeof data.totalElements === 'number') return data.totalElements
-        if (Array.isArray(data.content)) return data.content.length
-        return null
-      }
-      const [flows, autos, bcs, seqs, gbs, contactsPage, growth, tmpls, convs] = await Promise.all([
-        safe(() => flowService.list()),
-        safe(() => automationService.list()),
-        safe(() => broadcastService.list()),
-        safe(() => sequenceService.list()),
-        safe(() => groupBuyService.list()),
-        safe(() => contactService.list(0, 1)),
-        safe(() => growthToolService.list()),
-        safe(() => templateService.list()),
-        safe(() => conversationService.list()),
-      ])
-      if (cancelled) return
-      const convArr = Array.isArray(convs) ? convs : (convs?.content || [])
-      const unreadSum = convArr.reduce((acc, c) => acc + (c.unreadCount || 0), 0)
-      setNavCounts({
-        flows: toCount(flows),
-        automations: toCount(autos),
-        broadcasts: toCount(bcs),
-        sequences: toCount(seqs),
-        groupBuys: toCount(gbs),
-        contacts: toCount(contactsPage),
-        growthTools: toCount(growth),
-        templates: toCount(tmpls),
-        unreadMessages: unreadSum,
-      })
-    }
-    fetchCounts()
-    // 다른 페이지에서 데이터 변경 시: 전체 재조회 또는 부분 업데이트
-    // detail: null → 전체 재조회
-    // detail: { key, delta } → 해당 키만 delta 만큼 증감
-    // detail: { key, value } → 해당 키를 절대값으로 설정
-    const onRefresh = (e) => {
-      const d = e.detail
-      if (d && d.key) {
-        setNavCounts(prev => ({
-          ...prev,
-          [d.key]: d.value !== undefined ? d.value
-            : (prev[d.key] || 0) + (d.delta || 0),
-        }))
-      } else {
-        fetchCounts()
-      }
-    }
-    window.addEventListener('nav:refresh-counts', onRefresh)
-    const interval = setInterval(fetchCounts, 60000)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-      window.removeEventListener('nav:refresh-counts', onRefresh)
-    }
-  }, [])
-
   // 업종 선택은 온보딩에서 처리. 대시보드에서는 자동 팝업하지 않음.
   // (설정 메뉴 등에서 수동으로 열 때만 사용)
   // eslint-disable-next-line no-unused-expressions
   useEffect(() => { /* noop: 업종 모달 자동 노출 해제 */ }, [])
+
+  // 알림 폴링 (30초 간격)
+  useEffect(() => {
+    const fetchNotifs = async () => {
+      try {
+        const [list, count] = await Promise.all([
+          notificationService.list(),
+          notificationService.unreadCount()
+        ])
+        setNotifications(list || [])
+        setUnreadCount(count || 0)
+      } catch { /* ignore */ }
+    }
+    fetchNotifs()
+    const interval = setInterval(fetchNotifs, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   const notifRef = useRef(null)
   const helpRef = useRef(null)
@@ -253,10 +217,6 @@ export default function DashboardLayout() {
   // Keyboard shortcut: Ctrl+K for command palette, Ctrl+/ for help, Esc to close
   useEffect(() => {
     function handleKeyDown(e) {
-      // 입력 필드에서는 단축키 비활성화 (Esc 제외)
-      const tag = e.target.tagName
-      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable
-
       if (e.key === 'Escape') {
         setNotifOpen(false)
         setHelpOpen(false)
@@ -273,20 +233,10 @@ export default function DashboardLayout() {
         e.preventDefault()
         setHelpOpen(prev => !prev)
       }
-      // Ctrl+N: 새 플로우 만들기
-      if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !isInput) {
-        e.preventDefault()
-        navigate('/app/flows/builder')
-      }
-      // Ctrl+B: 사이드바 토글
-      if ((e.ctrlKey || e.metaKey) && e.key === 'b' && !isInput) {
-        e.preventDefault()
-        setSidebarOpen(prev => !prev)
-      }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [navigate])
+  }, [])
 
   // Auto-focus command palette input
   useEffect(() => {
@@ -295,15 +245,17 @@ export default function DashboardLayout() {
     }
   }, [cmdPaletteOpen])
 
-  const unreadCount = notifications.filter(n => n.unread).length
-
-  const handleMarkAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, unread: false })))
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationService.markAllRead()
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+      setUnreadCount(0)
+    } catch { /* ignore */ }
   }
 
   const handleNotifClick = (notif) => {
-    setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, unread: false } : n))
     setNotifOpen(false)
+    if (notif.link) navigate(notif.link)
   }
 
   // Command palette filtering
@@ -354,7 +306,7 @@ export default function DashboardLayout() {
       window.open(link.href, '_blank', 'noopener')
       setHelpOpen(false)
     } else {
-      navigate(link.href, link.state ? { state: link.state } : undefined)
+      navigate(link.href)
       setHelpOpen(false)
     }
   }
@@ -481,28 +433,22 @@ export default function DashboardLayout() {
           {NAV_SECTIONS.map((section) => (
             <div className="nav-section" key={section.title}>
               <div className="nav-section-title">{section.title}</div>
-              {section.items.map((item) => {
-                const badgeVal = item.badgeKey ? navCounts[item.badgeKey] : item.badge
-                const countVal = item.countKey ? navCounts[item.countKey] : item.count
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <i className={item.icon} />
-                    <span>{item.label}</span>
-                    {badgeVal > 0 && (
-                      <span className={`nav-badge ${item.badgeType || 'red'}`}>{badgeVal}</span>
-                    )}
-                    {badgeVal == null && typeof countVal === 'number' && countVal > 0 && (
-                      <span className="nav-count">{countVal}</span>
-                    )}
-                  </NavLink>
-                )
-              })}
+              {section.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <i className={item.icon} />
+                  <span>{item.label}</span>
+                  {item.badge && (
+                    <span className={`nav-badge ${item.badgeType || ''}`}>{item.badge}</span>
+                  )}
+                  {item.count && <span className="nav-count">{item.count}</span>}
+                </NavLink>
+              ))}
             </div>
           ))}
         </nav>
@@ -604,31 +550,35 @@ export default function DashboardLayout() {
                         <p style={{ fontSize: 11, margin: '4px 0 0', opacity: 0.8 }}>새 이벤트가 발생하면 여기 표시됩니다</p>
                       </div>
                     )}
-                    {notifications.map(notif => (
-                      <button
-                        key={notif.id}
-                        onClick={() => handleNotifClick(notif)}
-                        style={{
-                          display: 'flex', alignItems: 'flex-start', gap: 12, width: '100%', padding: '12px 16px',
-                          border: 'none', background: notif.unread ? 'var(--bg-secondary, #f8f7ff)' : 'none',
-                          cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border-color, #f3f4f6)'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary, #f3f4f6)'}
-                        onMouseLeave={e => e.currentTarget.style.background = notif.unread ? 'var(--bg-secondary, #f8f7ff)' : 'transparent'}
-                      >
-                        <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: `var(--${notif.color}-bg, #ede9fe)`, color: `var(--${notif.color}-text, #7c3aed)`, fontSize: 16 }}>
-                          <i className={notif.icon} />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontWeight: 600, fontSize: 13 }}>{notif.title}</span>
-                            {notif.unread && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#7c3aed', flexShrink: 0 }} />}
+                    {notifications.map(notif => {
+                      const typeConfig = NOTIF_TYPE_CONFIG[notif.type] || { icon: 'ri-notification-3-line', color: '#7c3aed' }
+                      const isUnread = !notif.read
+                      return (
+                        <button
+                          key={notif.id}
+                          onClick={() => handleNotifClick(notif)}
+                          style={{
+                            display: 'flex', alignItems: 'flex-start', gap: 12, width: '100%', padding: '12px 16px',
+                            border: 'none', background: isUnread ? 'var(--bg-secondary, #f8f7ff)' : 'none',
+                            cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border-color, #f3f4f6)'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary, #f3f4f6)'}
+                          onMouseLeave={e => e.currentTarget.style.background = isUnread ? 'var(--bg-secondary, #f8f7ff)' : 'transparent'}
+                        >
+                          <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: `${typeConfig.color}18`, color: typeConfig.color, fontSize: 16 }}>
+                            <i className={typeConfig.icon} />
                           </div>
-                          <p style={{ fontSize: 12, color: 'var(--text-secondary, #888)', margin: '2px 0 0', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{notif.desc}</p>
-                          <span style={{ fontSize: 11, color: 'var(--text-tertiary, #aaa)' }}>{notif.time}</span>
-                        </div>
-                      </button>
-                    ))}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontWeight: 600, fontSize: 13 }}>{notif.title}</span>
+                              {isUnread && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#7c3aed', flexShrink: 0 }} />}
+                            </div>
+                            <p style={{ fontSize: 12, color: 'var(--text-secondary, #888)', margin: '2px 0 0', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{notif.message}</p>
+                            <span style={{ fontSize: 11, color: 'var(--text-tertiary, #aaa)' }}>{formatRelativeTime(notif.createdAt)}</span>
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
                   <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border-color, #e5e7eb)', textAlign: 'center' }}>
                     <button
@@ -817,22 +767,4 @@ export default function DashboardLayout() {
       )}
     </div>
   )
-}
-
-/**
- * 사이드바 카운트 업데이트 유틸리티
- * refreshNavCount('flows', +1)  — flows 카운트 1 증가
- * refreshNavCount('flows', -1)  — flows 카운트 1 감소
- * refreshNavCount('unreadMessages', 0, 5) — unreadMessages를 절대값 5로 설정
- * refreshNavCount()             — 전체 재조회
- */
-export function refreshNavCount(key, delta, absoluteValue) {
-  if (!key) {
-    window.dispatchEvent(new CustomEvent('nav:refresh-counts'))
-    return
-  }
-  const detail = absoluteValue !== undefined
-    ? { key, value: absoluteValue }
-    : { key, delta }
-  window.dispatchEvent(new CustomEvent('nav:refresh-counts', { detail }))
 }

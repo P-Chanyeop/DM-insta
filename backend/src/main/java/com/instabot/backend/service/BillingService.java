@@ -50,6 +50,7 @@ public class BillingService {
     private final MessageRepository messageRepository;
     private final PaddleConfig paddleConfig;
     private final ObjectMapper objectMapper;
+    private final NotificationService notificationService;
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 
@@ -239,6 +240,13 @@ public class BillingService {
         });
 
         log.info("Paddle 구독 생성 완료: userId={}, paddleSubId={}", userId, paddleSubId);
+
+        // 구독 활성화 알림
+        User.PlanType planType = resolvePlanType(priceId);
+        notificationService.notify(userId, "BILLING",
+                "구독이 활성화되었습니다",
+                planType.name() + " 플랜이 활성화되었습니다.",
+                "/app/settings");
     }
 
     private void handleSubscriptionUpdated(JsonNode data) {
@@ -288,6 +296,11 @@ public class BillingService {
                     });
 
                     log.info("Paddle 구독 취소 → FREE: userId={}", subscription.getUserId());
+
+                    notificationService.notify(subscription.getUserId(), "BILLING",
+                            "구독이 해지되었습니다",
+                            "구독이 해지되어 FREE 플랜으로 전환되었습니다.",
+                            "/app/settings");
                 });
     }
 
@@ -410,20 +423,15 @@ public class BillingService {
 
     /**
      * DM 발송 한도 초과 여부 확인
-     * @return true면 발송 가능, false면 한도 초과
      */
     public boolean canSendDM(Long userId) {
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) return false;
-
         long monthlyDMCount = messageRepository.countOutboundByUserIdAndSince(userId, getMonthStart());
         long limit = getDMLimit(user.getPlan());
         return monthlyDMCount < limit;
     }
 
-    /**
-     * 플랜별 월간 DM 한도
-     */
     private long getDMLimit(User.PlanType plan) {
         return switch (plan) {
             case FREE -> 300;

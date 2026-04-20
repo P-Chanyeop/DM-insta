@@ -17,7 +17,7 @@ WORKDIR /app
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=builder /app/build/libs/*.jar app.jar
 
-RUN mkdir -p /app/logs && chown -R appuser:appgroup /app
+RUN mkdir -p /app/logs /app/uploads && chown -R appuser:appgroup /app
 USER appuser
 
 EXPOSE 8080

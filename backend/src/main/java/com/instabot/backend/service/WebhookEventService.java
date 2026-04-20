@@ -8,7 +8,6 @@ import com.instabot.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -35,14 +34,12 @@ public class WebhookEventService {
     private final InstagramAccountRepository instagramAccountRepository;
     private final AutomationRepository automationRepository;
     private final FlowRepository flowRepository;
-    private final BroadcastRepository broadcastRepository;
     private final FlowExecutionService flowExecutionService;
     private final ConversationService conversationService;
     private final ContactRepository contactRepository;
-    private final MessageRepository messageRepository;
     private final PendingFlowActionRepository pendingFlowActionRepository;
     private final IntegrationService integrationService;
-    private final InstagramApiService instagramApiService;
+    private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
 
     // 중복 실행 방지: senderIgId + flowId → 마지막 실행 시간
@@ -60,7 +57,6 @@ public class WebhookEventService {
     /**
      * Webhook 이벤트 메인 핸들러
      */
-    @Transactional
     public void processWebhookEvent(JsonNode payload) {
         if (!"instagram".equals(payload.path("object").asText())) {
             log.debug("Instagram 이외 이벤트 무시: {}", payload.path("object"));
@@ -104,13 +100,6 @@ public class WebhookEventService {
     private void handleMessagingEvent(InstagramAccount igAccount, JsonNode event) {
         String senderId = event.path("sender").path("id").asText();
 
-        // ── Read Receipt (messaging_seen) ──
-        // 상대방이 메시지를 읽었을 때: {"sender":{"id":"recipient"}, "read":{"mid":"m_xxx","watermark":1234567890}}
-        if (event.has("read")) {
-            handleReadReceipt(igAccount, senderId, event.get("read"));
-            return;
-        }
-
         // 자기 자신이 보낸 메시지는 무시
         if (senderId.equals(igAccount.getIgUserId())) return;
 
@@ -135,21 +124,15 @@ public class WebhookEventService {
             JsonNode message = event.get("message");
             String text = message.path("text").asText("");
 
-            // 발신자 프로필 조회 (username, name) — 권한 제한 시 null 허용
-            String senderUsername = null;
-            try {
-                String token = instagramApiService.getDecryptedToken(igAccount);
-                JsonNode profile = instagramApiService.fetchUserProfile(senderId, token);
-                if (profile != null) {
-                    senderUsername = profile.path("username").asText(null);
-                    // name도 추출하려면 handleInboundMessage 확장 필요 — 현재는 username만
-                }
-            } catch (Exception e) {
-                log.warn("발신자 프로필 조회 실패 (계속 진행): senderId={}", senderId);
-            }
-
             // 수신 메시지 저장
-            conversationService.handleInboundMessage(user, senderId, senderUsername, text, Message.MessageType.TEXT);
+            conversationService.handleInboundMessage(user, senderId, null, text, Message.MessageType.TEXT);
+
+            // 새 메시지 알림
+            String previewText = text.length() > 50 ? text.substring(0, 50) + "..." : text;
+            notificationService.notify(user.getId(), "NEW_MESSAGE",
+                    "새 DM이 도착했습니다",
+                    senderId + "님이 메시지를 보냈습니다: " + previewText,
+                    "/app/livechat");
 
             // 외부 Webhook 전달
             integrationService.forwardWebhookEvent(user.getId(), "dm_received",
@@ -184,73 +167,6 @@ public class WebhookEventService {
                     handleWelcomeTrigger(igAccount, user, senderId, text);
                 }
             }
-        }
-    }
-
-    // ─── Read Receipt (messaging_seen) 처리 ───
-
-    /**
-     * Instagram Read Receipt 처리
-     * watermark 기반: 해당 시각 이전에 보낸 모든 발신 메시지를 읽음 처리
-     * 이후 관련 Flow/Broadcast의 openRate를 재계산
-     */
-    private void handleReadReceipt(InstagramAccount igAccount, String senderIgId, JsonNode readNode) {
-        User user = igAccount.getUser();
-        long watermarkMs = readNode.path("watermark").asLong(0);
-        if (watermarkMs == 0) return;
-
-        // watermark는 밀리초 Unix timestamp → LocalDateTime 변환
-        LocalDateTime watermark = LocalDateTime.ofInstant(
-                java.time.Instant.ofEpochMilli(watermarkMs), java.time.ZoneId.systemDefault());
-        LocalDateTime now = LocalDateTime.now();
-
-        // 해당 Contact의 대화 ID 조회
-        List<Long> conversationIds = messageRepository.findConversationIdByUserAndContactIg(user.getId(), senderIgId);
-        if (conversationIds.isEmpty()) return;
-
-        Long conversationId = conversationIds.get(0);
-        int updated = messageRepository.markOutboundAsReadByWatermark(conversationId, watermark, now);
-
-        if (updated > 0) {
-            log.info("읽음 확인 처리: user={}, sender={}, watermark={}, updated={}건",
-                    user.getId(), senderIgId, watermark, updated);
-
-            // 관련 Flow/Broadcast openRate 재계산 (비동기적으로 처리)
-            updateFlowOpenRates(user.getId());
-        }
-    }
-
-    /**
-     * 사용자의 모든 Flow/Broadcast openRate를 실제 Message 데이터 기반으로 재계산
-     */
-    private void updateFlowOpenRates(Long userId) {
-        try {
-            // Flow openRate 업데이트
-            List<Flow> flows = flowRepository.findByUserIdOrderByCreatedAtDesc(userId);
-            for (Flow flow : flows) {
-                long sent = messageRepository.countOutboundByFlowId(flow.getId());
-                if (sent > 0) {
-                    long read = messageRepository.countReadOutboundByFlowId(flow.getId());
-                    double openRate = Math.round(read * 1000.0 / sent) / 10.0;
-                    flow.setOpenRate(openRate);
-                    flowRepository.save(flow);
-                }
-            }
-
-            // Broadcast openRate 업데이트
-            var broadcasts = broadcastRepository.findByUserIdOrderByCreatedAtDesc(userId);
-            for (var broadcast : broadcasts) {
-                if (broadcast.getStatus() != Broadcast.BroadcastStatus.SENT) continue;
-                long sent = messageRepository.countOutboundByBroadcastId(broadcast.getId());
-                if (sent > 0) {
-                    long read = messageRepository.countReadOutboundByBroadcastId(broadcast.getId());
-                    broadcast.setOpenCount(read);
-                    broadcast.setOpenRate(Math.round(read * 1000.0 / sent) / 10.0);
-                    broadcastRepository.save(broadcast);
-                }
-            }
-        } catch (Exception e) {
-            log.warn("openRate 업데이트 실패: {}", e.getMessage());
         }
     }
 

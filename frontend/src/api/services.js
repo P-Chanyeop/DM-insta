@@ -55,7 +55,6 @@ export const contactService = {
   update: (id, data) => api.patch(`/contacts/${id}`, data),
   deleteBulk: (ids) => api.post('/contacts/bulk-delete', ids),
   import: (contacts) => api.post('/contacts/import', contacts),
-  refreshProfile: (id) => api.post(`/contacts/${id}/refresh-profile`),
 }
 
 export const broadcastService = {
@@ -175,6 +174,14 @@ export const instagramProfileService = {
   deletePersistentMenu: () => api.delete('/instagram/persistent-menu'),
 }
 
+export const notificationService = {
+  list: () => api.get('/notifications').then(r => r.data),
+  unreadCount: () => api.get('/notifications/unread').then(r => r.data),
+  markAllRead: () => api.post('/notifications/read-all'),
+  getSettings: () => api.get('/notifications/settings').then(r => r.data),
+  updateSettings: (settings) => api.put('/notifications/settings', settings),
+}
+
 export const conversationService = {
   list: (status) => api.get(`/conversations${status ? `?status=${status}` : ''}`),
   get: (id) => api.get(`/conversations/${id}`),
@@ -187,5 +194,4 @@ export const conversationService = {
       cardButtonText: buttonText, cardButtonUrl: buttonUrl,
     }),
   update: (id, data) => api.patch(`/conversations/${id}`, data),
-  markAsRead: (id) => api.post(`/conversations/${id}/read`),
 }

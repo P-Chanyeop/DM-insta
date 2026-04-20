@@ -1,6 +1,5 @@
 package com.instabot.backend.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.instabot.backend.entity.*;
 import com.instabot.backend.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +28,7 @@ public class BroadcastExecutionService {
     private final ContactRepository contactRepository;
     private final InstagramApiService instagramApiService;
     private final ConversationService conversationService;
+    private final NotificationService notificationService;
 
     private static final long RATE_LIMIT_DELAY_MS = 3000; // 3초 간격 (200/hour)
 
@@ -50,6 +50,10 @@ public class BroadcastExecutionService {
             log.error("브로드캐스트 발송 실패: Instagram 계정 미연결. broadcastId={}", broadcastId);
             broadcast.setStatus(Broadcast.BroadcastStatus.DRAFT);
             broadcastRepository.save(broadcast);
+            notificationService.notify(user.getId(), "AUTOMATION_ERROR",
+                    "브로드캐스트 발송 실패",
+                    "'" + broadcast.getName() + "' 발송 실패: Instagram 계정이 연결되어 있지 않습니다.",
+                    "/app/broadcasts");
             return;
         }
 
@@ -63,19 +67,17 @@ public class BroadcastExecutionService {
             if (contact.getIgUserId() == null) continue;
 
             try {
-                JsonNode sendResponse = instagramApiService.sendTextMessage(
+                instagramApiService.sendTextMessage(
                         igAccount.getIgUserId(),
                         contact.getIgUserId(),
                         broadcast.getMessageContent(),
                         instagramApiService.getDecryptedToken(igAccount)
                 );
 
-                // 발신 메시지 저장 (igMessageId + broadcastId 포함)
-                String igMsgId = sendResponse != null ? sendResponse.path("message_id").asText(null) : null;
+                // 발신 메시지 저장
                 conversationService.saveOutboundMessage(
                         user, contact.getIgUserId(),
-                        broadcast.getMessageContent(), true, broadcast.getName(),
-                        Message.MessageType.TEXT, null, igMsgId, null, broadcast.getId()
+                        broadcast.getMessageContent(), true, broadcast.getName()
                 );
 
                 sentCount++;

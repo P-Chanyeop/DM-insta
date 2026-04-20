@@ -12,6 +12,7 @@ import com.instabot.backend.service.flow.NodeExecutor;
 import com.instabot.backend.service.flow.NodeExecutorRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,6 +62,7 @@ public class FlowExecutionService {
     private final ABTestService abTestService;
     private final KakaoChannelService kakaoChannelService;
     private final NodeExecutorRegistry nodeExecutorRegistry;
+    private final @Lazy NotificationService notificationService;
 
     private static final int MAX_GRAPH_STEPS = 50;
 
@@ -144,6 +146,17 @@ public class FlowExecutionService {
 
         } catch (Exception e) {
             log.error("플로우 실행 실패: flowId={}, error={}", flow.getId(), e.getMessage(), e);
+            try {
+                Long userId = flow.getUser() != null ? flow.getUser().getId() : null;
+                if (userId != null) {
+                    notificationService.notify(userId, "AUTOMATION_ERROR",
+                            "플로우 실행 오류",
+                            "플로우 '" + flow.getName() + "' 실행 중 오류: " + e.getMessage(),
+                            "/app/flows");
+                }
+            } catch (Exception ne) {
+                log.warn("알림 발송 실패: {}", ne.getMessage());
+            }
         }
     }
 
@@ -318,11 +331,9 @@ public class FlowExecutionService {
                     String emailMsg = replaceVariables(
                             emailCollection.path("message").asText("이메일 주소를 입력해주세요!"), contact, triggerKeyword);
                     try {
-                        JsonNode emailResp = instagramApiService.sendTextMessage(botIgId, senderIgId, emailMsg, accessToken);
-                        String emailMsgId = emailResp != null ? emailResp.path("message_id").asText(null) : null;
+                        instagramApiService.sendTextMessage(botIgId, senderIgId, emailMsg, accessToken);
                         conversationService.saveOutboundMessage(
-                                igAccount.getUser(), senderIgId, emailMsg, true, flow.getName(),
-                                Message.MessageType.TEXT, null, emailMsgId, flow.getId(), null);
+                                igAccount.getUser(), senderIgId, emailMsg, true, flow.getName());
                     } catch (Exception e) {
                         log.error("이메일 요청 메시지 발송 실패: {}", e.getMessage());
                     }
@@ -417,11 +428,9 @@ public class FlowExecutionService {
                     String emailMsg = replaceVariables(
                             emailCollection.path("message").asText("이메일 주소를 입력해주세요!"), contact, triggerKeyword);
                     try {
-                        JsonNode emailResp2 = instagramApiService.sendTextMessage(botIgId, senderIgId, emailMsg, accessToken);
-                        String emailMsgId2 = emailResp2 != null ? emailResp2.path("message_id").asText(null) : null;
+                        instagramApiService.sendTextMessage(botIgId, senderIgId, emailMsg, accessToken);
                         conversationService.saveOutboundMessage(
-                                igAccount.getUser(), senderIgId, emailMsg, true, flow.getName(),
-                                Message.MessageType.TEXT, null, emailMsgId2, flow.getId(), null);
+                                igAccount.getUser(), senderIgId, emailMsg, true, flow.getName());
                     } catch (Exception e) {
                         log.error("이메일 요청 메시지 발송 실패: {}", e.getMessage());
                     }
@@ -506,13 +515,11 @@ public class FlowExecutionService {
         // 메인 DM 발송
         if (flowData.has("mainDm")) {
             trackNode(flow.getId(), "mainDm", NodeExecution.Action.ENTERED, contactId);
-            JsonNode mainDmResponse = executeMainDm(flowData.get("mainDm"), botIgId, senderIgId, accessToken, contact, triggerKeyword);
+            executeMainDm(flowData.get("mainDm"), botIgId, senderIgId, accessToken, contact, triggerKeyword);
             String processedMessage = replaceVariables(
                     flowData.get("mainDm").path("message").asText(""), contact, triggerKeyword);
-            String igMsgId = mainDmResponse != null ? mainDmResponse.path("message_id").asText(null) : null;
             conversationService.saveOutboundMessage(
-                    igAccount.getUser(), senderIgId, processedMessage, true, flow.getName(),
-                    Message.MessageType.TEXT, null, igMsgId, flow.getId(), null);
+                    igAccount.getUser(), senderIgId, processedMessage, true, flow.getName());
             trackNode(flow.getId(), "mainDm", NodeExecution.Action.COMPLETED, contactId);
 
             // A/B 테스트 완료 추적
@@ -632,15 +639,14 @@ public class FlowExecutionService {
         }
     }
 
-    private JsonNode executeMainDm(JsonNode mainDmNode, String botIgId, String recipientId,
+    private void executeMainDm(JsonNode mainDmNode, String botIgId, String recipientId,
                                 String accessToken, Contact contact, String triggerKeyword) {
         String message = replaceVariables(mainDmNode.path("message").asText(""), contact, triggerKeyword);
-        if (message.isBlank()) return null;
+        if (message.isBlank()) return;
 
         JsonNode links = mainDmNode.get("links");
 
         try {
-            JsonNode response;
             if (links != null && links.isArray() && !links.isEmpty()) {
                 List<Map<String, String>> buttons = new ArrayList<>();
                 for (JsonNode link : links) {
@@ -652,18 +658,16 @@ public class FlowExecutionService {
                 }
 
                 if (!buttons.isEmpty()) {
-                    response = instagramApiService.sendGenericTemplate(botIgId, recipientId, message, null, buttons, accessToken);
+                    instagramApiService.sendGenericTemplate(botIgId, recipientId, message, null, buttons, accessToken);
                 } else {
-                    response = instagramApiService.sendTextMessage(botIgId, recipientId, message, accessToken);
+                    instagramApiService.sendTextMessage(botIgId, recipientId, message, accessToken);
                 }
             } else {
-                response = instagramApiService.sendTextMessage(botIgId, recipientId, message, accessToken);
+                instagramApiService.sendTextMessage(botIgId, recipientId, message, accessToken);
             }
             log.debug("메인 DM 발송 완료: recipient={}", recipientId);
-            return response;
         } catch (Exception e) {
             log.error("메인 DM 발송 실패: {}", e.getMessage());
-            return null;
         }
     }
 
@@ -777,11 +781,9 @@ public class FlowExecutionService {
         response = replaceVariables(response, contact, triggerKeyword);
 
         try {
-            JsonNode aiResp = instagramApiService.sendTextMessage(botIgId, senderIgId, response, accessToken);
-            String aiMsgId = aiResp != null ? aiResp.path("message_id").asText(null) : null;
+            instagramApiService.sendTextMessage(botIgId, senderIgId, response, accessToken);
             conversationService.saveOutboundMessage(
-                    igAccount.getUser(), senderIgId, response, true, flow.getName() + " (AI)",
-                    Message.MessageType.TEXT, null, aiMsgId, flow.getId(), null);
+                    igAccount.getUser(), senderIgId, response, true, flow.getName() + " (AI)");
             log.info("AI 응답 발송 완료: flowId={}, sender={}, mode={}",
                     flow.getId(), senderIgId, aiResponseNode.path("mode").asText("faq"));
         } catch (Exception e) {
@@ -805,11 +807,9 @@ public class FlowExecutionService {
             List<Map<String, String>> quickReplies = List.of(
                     Map.of("title", "✅ 팔로우 했어요", "payload", "FOLLOW_CHECK")
             );
-            JsonNode followResp = instagramApiService.sendQuickReplyMessage(botIgId, senderIgId, followMsg, quickReplies, accessToken);
-            String followMsgId = followResp != null ? followResp.path("message_id").asText(null) : null;
+            instagramApiService.sendQuickReplyMessage(botIgId, senderIgId, followMsg, quickReplies, accessToken);
             conversationService.saveOutboundMessage(
-                    igAccount.getUser(), senderIgId, followMsg, true, flow.getName(),
-                    Message.MessageType.TEXT, null, followMsgId, flow.getId(), null);
+                    igAccount.getUser(), senderIgId, followMsg, true, flow.getName());
         } catch (Exception e) {
             log.error("팔로우 요청 메시지 발송 실패: {}", e.getMessage());
         }
@@ -825,11 +825,9 @@ public class FlowExecutionService {
             List<Map<String, String>> quickReplies = List.of(
                     Map.of("title", "✅ 팔로우 했어요", "payload", "FOLLOW_CHECK")
             );
-            JsonNode retryResp = instagramApiService.sendQuickReplyMessage(botIgId, senderIgId, retryMsg, quickReplies, accessToken);
-            String retryMsgId = retryResp != null ? retryResp.path("message_id").asText(null) : null;
+            instagramApiService.sendQuickReplyMessage(botIgId, senderIgId, retryMsg, quickReplies, accessToken);
             conversationService.saveOutboundMessage(
-                    igAccount.getUser(), senderIgId, retryMsg, true, flow.getName(),
-                    Message.MessageType.TEXT, null, retryMsgId, flow.getId(), null);
+                    igAccount.getUser(), senderIgId, retryMsg, true, flow.getName());
         } catch (Exception e) {
             log.error("팔로우 재확인 메시지 발송 실패: {}", e.getMessage());
         }
@@ -1133,11 +1131,9 @@ public class FlowExecutionService {
                         inventoryNode.path("soldOutMessage").asText("죄송합니다, 이 상품은 매진되었습니다. 😢"),
                         contact, triggerKeyword);
                 try {
-                    JsonNode soldResp = instagramApiService.sendTextMessage(botIgId, senderIgId, soldOutMsg, accessToken);
-                    String soldMsgId = soldResp != null ? soldResp.path("message_id").asText(null) : null;
+                    instagramApiService.sendTextMessage(botIgId, senderIgId, soldOutMsg, accessToken);
                     conversationService.saveOutboundMessage(
-                            igAccount.getUser(), senderIgId, soldOutMsg, true, flow.getName(),
-                            Message.MessageType.TEXT, null, soldMsgId, flow.getId(), null);
+                            igAccount.getUser(), senderIgId, soldOutMsg, true, flow.getName());
                 } catch (Exception e) {
                     log.error("매진 메시지 발송 실패: {}", e.getMessage());
                 }
@@ -1380,22 +1376,5 @@ public class FlowExecutionService {
 
     private void trackNode(Long flowId, String nodeType, NodeExecution.Action action, Long contactId) {
         trackNode(flowId, nodeType, action, contactId, null);
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // 메시지 발송 + 저장 (igMessageId + flowId 추적)
-    // ═══════════════════════════════════════════════════════════
-
-    /**
-     * 텍스트 메시지 발송 후 DB 저장 (flowId + igMessageId 포함)
-     */
-    void sendTextAndSave(InstagramAccount igAccount, String recipientIgId, String text, Flow flow) {
-        String botIgId = igAccount.getIgUserId();
-        String token = instagramApiService.getDecryptedToken(igAccount);
-        JsonNode response = instagramApiService.sendTextMessage(botIgId, recipientIgId, text, token);
-        String igMessageId = response != null ? response.path("message_id").asText(null) : null;
-        conversationService.saveOutboundMessage(
-                igAccount.getUser(), recipientIgId, text, true, flow.getName(),
-                Message.MessageType.TEXT, null, igMessageId, flow.getId(), null);
     }
 }

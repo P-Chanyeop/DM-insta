@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import { api, getStoredUser, setStoredUser } from '../api/client'
-import { integrationService, userService, teamService, billingService, instagramProfileService, recurringService, kakaoService } from '../api/services'
+import { integrationService, userService, teamService, billingService, instagramProfileService, recurringService, kakaoService, notificationService } from '../api/services'
 import { useToast } from '../components/Toast'
 import { usePlan } from '../components/PlanContext'
 import IndustrySelectModal, { INDUSTRIES } from '../components/IndustrySelectModal'
@@ -178,19 +178,6 @@ function ConfirmDialog({ open, title, message, confirmLabel, cancelLabel, onConf
   )
 }
 
-function loadNotifications() {
-  try {
-    const stored = localStorage.getItem('dm_settings_notifications')
-    if (stored) return JSON.parse(stored)
-  } catch { /* ignore */ }
-  return DEFAULT_NOTIFICATIONS
-}
-
-function saveNotifications(notifications) {
-  try {
-    localStorage.setItem('dm_settings_notifications', JSON.stringify(notifications))
-  } catch { /* ignore */ }
-}
 
 export default function SettingsPage() {
   const location = useLocation()
@@ -258,8 +245,9 @@ export default function SettingsPage() {
   const [myRole, setMyRole] = useState(null)
   const [roleUpdating, setRoleUpdating] = useState(null)
 
-  // Notification state - loaded from localStorage
-  const [notifications, setNotifications] = useState(loadNotifications)
+  // Notification state - loaded from API
+  const [notifications, setNotifications] = useState(DEFAULT_NOTIFICATIONS)
+  const [notifLoading, setNotifLoading] = useState(false)
 
   // Integration state
   const [integrations, setIntegrations] = useState({})
@@ -423,10 +411,16 @@ export default function SettingsPage() {
     }
   }, [fetchInstagramAccount, showToast])
 
-  // Persist notifications to localStorage whenever they change
+  // Load notification settings from API when tab becomes active
   useEffect(() => {
-    saveNotifications(notifications)
-  }, [notifications])
+    if (activeTab === 'notifications') {
+      setNotifLoading(true)
+      notificationService.getSettings()
+        .then(data => setNotifications(data))
+        .catch(() => {}) // fallback to defaults
+        .finally(() => setNotifLoading(false))
+    }
+  }, [activeTab])
 
   // Fetch billing info when billing tab is active
   const fetchBillingInfo = useCallback(async () => {
@@ -565,13 +559,8 @@ export default function SettingsPage() {
 
   // Team handlers
   const canManageTeam = myRole === 'OWNER' || myRole === 'ADMIN'
-  const canInviteByPlan = currentUserPlan && currentUserPlan !== 'FREE' && currentUserPlan !== 'STARTER'
 
   const handleInvite = async () => {
-    if (!canInviteByPlan) {
-      showToast('팀원 초대는 PRO 이상 플랜에서 이용 가능합니다. 플랜을 업그레이드해주세요.', 'error')
-      return
-    }
     if (!inviteEmail.trim()) {
       showToast('이메일을 입력해 주세요.', 'error')
       return
@@ -628,13 +617,17 @@ export default function SettingsPage() {
     })
   }
 
-  // Notification handler
-  const toggleNotification = (key) => {
-    setNotifications((prev) => {
-      const next = { ...prev, [key]: !prev[key] }
+  // Notification handler - API 연동
+  const toggleNotification = async (key) => {
+    const updated = { ...notifications, [key]: !notifications[key] }
+    setNotifications(updated)
+    try {
+      await notificationService.updateSettings(updated)
       showToast('알림 설정이 저장되었습니다.')
-      return next
-    })
+    } catch {
+      setNotifications(prev => ({ ...prev, [key]: !prev[key] })) // rollback
+      showToast('저장에 실패했습니다.', 'error')
+    }
   }
 
   // Integration handlers
@@ -1115,33 +1108,6 @@ export default function SettingsPage() {
             <i className="ri-delete-bin-line" /> 초기화
           </button>
         </div>
-
-        {/* DM Preview — Persistent Menu */}
-        <div className="messaging-preview">
-          <div className="messaging-preview-title">
-            <i className="ri-smartphone-line" /> 미리보기
-          </div>
-          <div className="messaging-preview-phone">
-            <div className="messaging-preview-header">
-              <div className="mp-avatar"><i className="ri-instagram-line" /></div>
-              <span>내 비즈니스</span>
-            </div>
-            <div className="messaging-preview-body">
-              <div className="mp-welcome" style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>≡ 메뉴를 탭하면 아래 항목이 표시됩니다</div>
-              <div className="mp-icebreakers">
-                {persistentMenu.filter(m => m.title.trim()).length === 0 ? (
-                  <div className="mp-ib-empty">메뉴 제목을 입력하면 여기에 표시됩니다</div>
-                ) : (
-                  persistentMenu.filter(m => m.title.trim()).map((m, i) => (
-                    <div className="mp-ib-btn" key={i}>
-                      {m.type === 'web_url' ? <><i className="ri-external-link-line" style={{ marginRight: 4, fontSize: 12 }} />{m.title}</> : m.title}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Info Section */}
@@ -1574,14 +1540,7 @@ export default function SettingsPage() {
           {canManageTeam && (
             <button
               className="btn-primary small"
-              onClick={() => {
-                if (!canInviteByPlan) {
-                  showToast('팀원 초대는 PRO 이상 플랜에서 이용 가능합니다. 플랜을 업그레이드해주세요.', 'error')
-                  return
-                }
-                setShowInviteForm(prev => !prev)
-              }}
-              style={!canInviteByPlan ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
+              onClick={() => setShowInviteForm(prev => !prev)}
             >
               <i className={showInviteForm ? 'ri-close-line' : 'ri-user-add-line'} />{' '}
               {showInviteForm ? '닫기' : '팀원 초대'}
@@ -1765,7 +1724,7 @@ export default function SettingsPage() {
     <div className="settings-section">
       <h3>알림 설정</h3>
       <p style={{ color: '#64748B', fontSize: 13, marginBottom: 16 }}>
-        알림 설정은 자동으로 저장됩니다. (이 기기에만 저장됩니다)
+        설정은 서버에 안전하게 저장됩니다.
       </p>
       {NOTIFICATION_KEYS.map(({ key, title, desc }) => (
         <div className="setting-row" key={key}>

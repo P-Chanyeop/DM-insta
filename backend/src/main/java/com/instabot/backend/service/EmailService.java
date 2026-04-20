@@ -184,16 +184,15 @@ public class EmailService {
             <!DOCTYPE html>
             <html lang="ko">
             <head><meta charset="UTF-8"></head>
-            <body style="margin:0; padding:0; background:#F5F5F5; font-family:'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;">
+            <body style="margin:0; padding:0; background:#F5F5F5; font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;">
               <table width="100%%" cellpadding="0" cellspacing="0" style="background:#F5F5F5; padding:40px 20px;">
                 <tr><td align="center">
-                  <table width="520" cellpadding="0" cellspacing="0" style="background:#FFFFFF; border-radius:12px; border:1px solid #E8E8E8; overflow:hidden;">
+                  <table width="520" cellpadding="0" cellspacing="0" style="background:#FFFFFF; border-radius:12px; border:1px solid #E8E8E8;">
                     <tr><td style="padding:40px 32px 0; text-align:center;">
-                      <img src="%s" alt="센드잇" height="72" style="display:inline-block; margin-bottom:12px;" />
+                      <img src="%s" alt="센드잇" height="72" style="margin-bottom:12px;" />
                       <p style="color:#999; font-size:12px; margin:0;">1:1 고객지원 문의</p>
                     </td></tr>
-                    <tr><td style="padding:32px 32px 36px;">
-                      <div style="border-top:1px solid #F0F0F0; margin:0 0 28px;"></div>
+                    <tr><td style="padding:32px;">
                       <table width="100%%" cellpadding="0" cellspacing="0" style="font-size:14px; color:#333;">
                         <tr><td style="padding:8px 0; color:#888; width:100px;">문의 유형</td><td style="padding:8px 0; font-weight:500;">%s</td></tr>
                         <tr><td style="padding:8px 0; color:#888;">제목</td><td style="padding:8px 0; font-weight:500;">%s</td></tr>
@@ -203,7 +202,7 @@ public class EmailService {
                       <div style="background:#F8F8FA; border:1px solid #E5E5EA; border-radius:8px; padding:16px; font-size:14px; color:#333; line-height:1.8; white-space:pre-wrap;">%s</div>
                     </td></tr>
                     <tr><td style="background:#FAFAFA; border-top:1px solid #F0F0F0; padding:16px 32px; text-align:center;">
-                      <p style="color:#CCC; font-size:10px; margin:0;">&copy; 2026 센드잇 &middot; 소프트캣</p>
+                      <p style="color:#CCC; font-size:10px; margin:0;">&copy; 2026 센드잇</p>
                     </td></tr>
                   </table>
                 </td></tr>
@@ -260,6 +259,94 @@ public class EmailService {
             </body>
             </html>
             """.formatted(logoUrl, name, email, email, company, phone, message);
+    }
+
+    /**
+     * 범용 알림 이메일 발송
+     */
+    @Async
+    public void sendNotificationEmail(String to, String subject, String title, String content,
+                                       String ctaText, String ctaUrl) {
+        String logoUrl = baseUrl + "/images/sendit_04_full_gradient.png";
+        String fullCtaUrl = ctaUrl.startsWith("http") ? ctaUrl : baseUrl + ctaUrl;
+        String body = buildNotificationTemplate(title, content, ctaText, fullCtaUrl, logoUrl);
+        sendHtmlEmail(to, "[센드잇] " + subject, body);
+    }
+
+    /**
+     * 일일 리포트 이메일
+     */
+    @Async
+    public void sendDailyReportEmail(String to, long sentCount, long newContacts, double openRate) {
+        String logoUrl = baseUrl + "/images/sendit_04_full_gradient.png";
+        String content = String.format(
+                "어제 발송 DM: %d건\n새 연락처: %d명\n열림률: %.1f%%",
+                sentCount, newContacts, openRate);
+        String body = buildNotificationTemplate("일일 리포트", content, "대시보드 확인", baseUrl + "/app/dashboard", logoUrl);
+        sendHtmlEmail(to, "[센드잇] 일일 리포트", body);
+    }
+
+    /**
+     * 주간 리포트 이메일
+     */
+    @Async
+    public void sendWeeklyReportEmail(String to, long sentCount, long newContacts,
+                                       long flowRuns, double openRate, double clickRate) {
+        String logoUrl = baseUrl + "/images/sendit_04_full_gradient.png";
+        String content = String.format(
+                "지난 주 발송 DM: %d건\n새 연락처: %d명\n플로우 실행: %d회\n열림률: %.1f%%\n클릭률: %.1f%%",
+                sentCount, newContacts, flowRuns, openRate, clickRate);
+        String body = buildNotificationTemplate("주간 리포트", content, "대시보드 확인", baseUrl + "/app/dashboard", logoUrl);
+        sendHtmlEmail(to, "[센드잇] 주간 리포트", body);
+    }
+
+    private String buildNotificationTemplate(String title, String content, String ctaText, String ctaUrl, String logoUrl) {
+        String escapedContent = content.replace("\n", "<br>");
+        return """
+            <!DOCTYPE html>
+            <html lang="ko">
+            <head><meta charset="UTF-8"></head>
+            <body style="margin:0; padding:0; background:#F5F5F5; font-family:'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif;">
+              <table width="100%%" cellpadding="0" cellspacing="0" style="background:#F5F5F5; padding:40px 20px;">
+                <tr><td align="center">
+                  <table width="480" cellpadding="0" cellspacing="0" style="background:#FFFFFF; border-radius:12px; border:1px solid #E8E8E8; overflow:hidden;">
+                    <!-- 헤더 -->
+                    <tr><td style="padding:40px 32px 0; text-align:center;">
+                      <img src="%s" alt="센드잇" height="72" style="display:inline-block; margin-bottom:12px;" />
+                      <p style="color:#999; font-size:12px; margin:0;">%s</p>
+                    </td></tr>
+
+                    <!-- 본문 -->
+                    <tr><td style="padding:32px 32px 36px;">
+                      <div style="border-top:1px solid #F0F0F0; margin:0 0 28px;"></div>
+                      <p style="color:#333; font-size:14px; line-height:1.8; margin:0 0 28px; text-align:center;">
+                        %s
+                      </p>
+
+                      <!-- CTA 버튼 -->
+                      <table width="100%%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding-bottom:28px;">
+                        <a href="%s" style="display:inline-block; background:linear-gradient(135deg,#667eea 0%%,#764ba2 100%%); color:#FFF; text-decoration:none; font-size:14px; font-weight:600; padding:14px 32px; border-radius:8px;">
+                          %s
+                        </a>
+                      </td></tr></table>
+
+                      <div style="border-top:1px solid #F0F0F0; margin:0 0 20px;"></div>
+                      <p style="color:#BBB; font-size:11px; line-height:1.7; margin:0; text-align:center;">
+                        이 알림은 센드잇 알림 설정에 따라 발송되었습니다.<br>
+                        알림 설정은 설정 > 알림에서 변경할 수 있습니다.
+                      </p>
+                    </td></tr>
+
+                    <!-- 푸터 -->
+                    <tr><td style="background:#FAFAFA; border-top:1px solid #F0F0F0; padding:16px 32px; text-align:center;">
+                      <p style="color:#CCC; font-size:10px; margin:0;">&copy; 2026 센드잇 &middot; 소프트캣</p>
+                    </td></tr>
+                  </table>
+                </td></tr>
+              </table>
+            </body>
+            </html>
+            """.formatted(logoUrl, title, escapedContent, ctaUrl, ctaText);
     }
 
     private void sendHtmlEmail(String to, String subject, String htmlBody) {
