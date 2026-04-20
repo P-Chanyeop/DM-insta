@@ -65,6 +65,7 @@ public class ConversationController {
      * 대화의 메시지 목록 조회
      */
     @GetMapping("/{id}/messages")
+    @Transactional(readOnly = true)
     public ResponseEntity<List<ConversationDto.MessageResponse>> getMessages(@PathVariable Long id) {
         // 권한 확인: 해당 대화가 현재 사용자의 것인지 검증
         findConversationForCurrentUser(id);
@@ -82,6 +83,7 @@ public class ConversationController {
      * 지원 타입: TEXT, IMAGE, CARD
      */
     @PostMapping("/{id}/messages")
+    @Transactional
     public ResponseEntity<ConversationDto.MessageResponse> sendMessage(
             @PathVariable Long id,
             @Valid @RequestBody ConversationDto.SendMessageRequest request) {
@@ -144,6 +146,7 @@ public class ConversationController {
      * 대화 업데이트 (상태, 담당자, 자동화 일시정지)
      */
     @PatchMapping("/{id}")
+    @Transactional
     public ResponseEntity<ConversationDto.Response> updateConversation(
             @PathVariable Long id,
             @Valid @RequestBody ConversationDto.UpdateRequest request) {

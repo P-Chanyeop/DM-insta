@@ -691,6 +691,26 @@ public class InstagramApiService {
         }
     }
 
+    /**
+     * DM 발신자(IGSID)의 프로필 조회.
+     * GET /{igsid}?fields=name,username,profile_pic&access_token=...
+     * 페이지 스코프 ID (PSID)라 일반 Instagram user를 조회하는 건 아니고,
+     * 이 IG Business 계정과 메시지 교환한 사용자에 한해 사용 가능.
+     *
+     * 반환 예: { "name": "홍길동", "username": "softcat", "profile_pic": "https://..." }
+     * 권한/개인정보 설정에 따라 일부 필드 누락 가능.
+     */
+    public JsonNode fetchUserProfile(String igsid, String accessToken) {
+        String url = "https://graph.instagram.com/v21.0/" + igsid
+                + "?fields=name,username,profile_pic&access_token=" + accessToken;
+        try {
+            return restTemplate.getForObject(url, JsonNode.class);
+        } catch (Exception e) {
+            log.warn("fetchUserProfile 실패 (권한 제한 가능): igsid={}, error={}", igsid, e.getMessage());
+            return null;
+        }
+    }
+
     // ─── 내부 유틸 ───
 
     private JsonNode postToInstagram(String url, Map<String, Object> body, String accessToken) {

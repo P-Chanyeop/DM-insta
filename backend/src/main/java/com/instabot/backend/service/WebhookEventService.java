@@ -39,6 +39,7 @@ public class WebhookEventService {
     private final ContactRepository contactRepository;
     private final PendingFlowActionRepository pendingFlowActionRepository;
     private final IntegrationService integrationService;
+    private final InstagramApiService instagramApiService;
     private final ObjectMapper objectMapper;
 
     // 중복 실행 방지: senderIgId + flowId → 마지막 실행 시간
@@ -123,8 +124,21 @@ public class WebhookEventService {
             JsonNode message = event.get("message");
             String text = message.path("text").asText("");
 
+            // 발신자 프로필 조회 (username, name) — 권한 제한 시 null 허용
+            String senderUsername = null;
+            try {
+                String token = instagramApiService.getDecryptedToken(igAccount);
+                JsonNode profile = instagramApiService.fetchUserProfile(senderId, token);
+                if (profile != null) {
+                    senderUsername = profile.path("username").asText(null);
+                    // name도 추출하려면 handleInboundMessage 확장 필요 — 현재는 username만
+                }
+            } catch (Exception e) {
+                log.warn("발신자 프로필 조회 실패 (계속 진행): senderId={}", senderId);
+            }
+
             // 수신 메시지 저장
-            conversationService.handleInboundMessage(user, senderId, null, text, Message.MessageType.TEXT);
+            conversationService.handleInboundMessage(user, senderId, senderUsername, text, Message.MessageType.TEXT);
 
             // 외부 Webhook 전달
             integrationService.forwardWebhookEvent(user.getId(), "dm_received",
