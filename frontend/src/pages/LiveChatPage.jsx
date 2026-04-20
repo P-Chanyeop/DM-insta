@@ -763,7 +763,22 @@ export default function LiveChatPage() {
               className={`chat-item${c.id === selectedId ? ' active' : ''}${c.unread > 0 ? ' unread' : ''}`}
               onClick={() => handleSelectChat(c.id)}
             >
-              <div className="chat-item-avatar" style={{ background: c.bg }}>{c.initial}</div>
+              <div
+                className="chat-item-avatar"
+                style={{
+                  background: c.profilePictureUrl ? 'transparent' : c.bg,
+                  overflow: 'hidden',
+                }}
+              >
+                {c.profilePictureUrl ? (
+                  <img
+                    src={c.profilePictureUrl}
+                    alt={c.username || c.name || ''}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  />
+                ) : c.initial}
+              </div>
               <div className="chat-item-info">
                 <div className="chat-item-top">
                   <strong>{c.name}</strong>
@@ -796,12 +811,28 @@ export default function LiveChatPage() {
         )}
         {selectedChat && <><div className="chat-main-header">
           <div className="chat-user-info">
-            <div className="chat-user-avatar" style={{ background: selectedChat?.bg }}>
-              {selectedChat?.initial}
+            <div
+              className="chat-user-avatar"
+              style={{
+                background: selectedChat?.profilePictureUrl ? 'transparent' : selectedChat?.bg,
+                overflow: 'hidden',
+              }}
+            >
+              {selectedChat?.profilePictureUrl ? (
+                <img
+                  src={selectedChat.profilePictureUrl}
+                  alt={selectedChat.username || selectedChat.name || ''}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                />
+              ) : selectedChat?.initial}
             </div>
             <div>
-              <strong>{selectedChat?.name}</strong>
-              <span>@user_{selectedChat?.initial} · 팔로워 {selectedChat?.followers?.toLocaleString()}</span>
+              <strong>{selectedChat?.name || selectedChat?.username || '알 수 없음'}</strong>
+              <span>
+                {selectedChat?.username ? `@${selectedChat.username}` : '@알 수 없음'}
+                {selectedChat?.followers > 0 && ` · 팔로워 ${selectedChat.followers.toLocaleString()}`}
+              </span>
             </div>
           </div>
           <div className="chat-header-actions">
@@ -1053,11 +1084,24 @@ export default function LiveChatPage() {
           </div>
           <div className="info-panel-body">
             <div className="info-profile">
-              <div className="info-avatar" style={{ background: selectedChat.bg }}>
-                {selectedChat.initial}
+              <div
+                className="info-avatar"
+                style={{
+                  background: selectedChat.profilePictureUrl ? 'transparent' : selectedChat.bg,
+                  overflow: 'hidden',
+                }}
+              >
+                {selectedChat.profilePictureUrl ? (
+                  <img
+                    src={selectedChat.profilePictureUrl}
+                    alt={selectedChat.username || selectedChat.name || ''}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  />
+                ) : selectedChat.initial}
               </div>
-              <h4>{selectedChat.name}</h4>
-              <span>@user_{selectedChat.initial}</span>
+              <h4>{selectedChat.name || selectedChat.username || '알 수 없음'}</h4>
+              <span>{selectedChat.username ? `@${selectedChat.username}` : '@알 수 없음'}</span>
             </div>
             <div className="info-section">
               <h5>기본 정보</h5>
