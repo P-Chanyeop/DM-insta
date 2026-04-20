@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import EmptyState from '../components/EmptyState'
 import PageLoader from '../components/PageLoader'
+import { useConfirm } from '../components/ConfirmDialog'
+import { useToast } from '../components/Toast'
 import { growthToolService } from '../api/services'
 
 /* ── Backend type mapping ── */
@@ -83,13 +85,27 @@ function CopyButton({ text }) {
   )
 }
 
+/* ── Card Header (공통) ── */
+function CardHeader({ tool, onDelete }) {
+  return (
+    <div className="gt-card-header">
+      <div className={`gt-icon ${tool.color}`}><i className={tool.icon} /></div>
+      {onDelete && (
+        <button className="icon-btn gt-delete-btn" title="삭제" onClick={() => onDelete(tool.id)}>
+          <i className="ri-delete-bin-line" />
+        </button>
+      )}
+    </div>
+  )
+}
+
 /* ── Ref Link Card ── */
-function RefLinkCard({ tool }) {
+function RefLinkCard({ tool, onDelete }) {
   const trackingUrl = tool.config.trackingUrl || tool.refUrl || ''
 
   return (
     <div className="growth-tool-card">
-      <div className={`gt-icon ${tool.color}`}><i className={tool.icon} /></div>
+      <CardHeader tool={tool} onDelete={onDelete} />
       <h4>{tool.name}</h4>
       <p>{tool.description}</p>
 
@@ -104,16 +120,6 @@ function RefLinkCard({ tool }) {
         <i className="ri-cursor-line" /> 총 클릭: <strong>{tool.clickCount}건</strong>
       </div>
 
-      {tool.refUrl && (
-        <>
-          <div className="gt-section-title">원본 URL</div>
-          <div className="gt-link-box">
-            <input type="text" value={tool.refUrl} readOnly />
-            <CopyButton text={tool.refUrl} />
-          </div>
-        </>
-      )}
-
       <div className="gt-stat muted">
         <i className={tool.active ? 'ri-checkbox-circle-line' : 'ri-close-circle-line'} />
         {' '}상태: {tool.active ? '활성' : '비활성'}
@@ -123,7 +129,7 @@ function RefLinkCard({ tool }) {
 }
 
 /* ── QR Code Card ── */
-function QrCodeCard({ tool }) {
+function QrCodeCard({ tool, onDelete }) {
   const [size, setSize] = useState(tool.config.size || 256)
   const [fg, setFg] = useState(tool.config.foreground || '#000000')
   const [bg, setBg] = useState(tool.config.background || '#FFFFFF')
@@ -162,7 +168,7 @@ function QrCodeCard({ tool }) {
 
   return (
     <div className="growth-tool-card">
-      <div className={`gt-icon ${tool.color}`}><i className={tool.icon} /></div>
+      <CardHeader tool={tool} onDelete={onDelete} />
       <h4>{tool.name}</h4>
       <p>{tool.description}</p>
 
@@ -225,7 +231,7 @@ function QrCodeCard({ tool }) {
 }
 
 /* ── Widget Card ── */
-function WidgetCard({ tool }) {
+function WidgetCard({ tool, onDelete }) {
   const [color, setColor] = useState(tool.config.bubbleColor || '#E1306C')
   const [position, setPosition] = useState(tool.config.position || 'bottom-right')
   const [greeting, setGreeting] = useState(tool.config.greetingText || '')
@@ -240,7 +246,7 @@ function WidgetCard({ tool }) {
 
   return (
     <div className="growth-tool-card">
-      <div className={`gt-icon ${tool.color}`}><i className={tool.icon} /></div>
+      <CardHeader tool={tool} onDelete={onDelete} />
       <h4>{tool.name}</h4>
       <p>{tool.description}</p>
 
@@ -307,7 +313,7 @@ function WidgetCard({ tool }) {
 }
 
 /* ── JSON API Card ── */
-function JsonApiCard({ tool }) {
+function JsonApiCard({ tool, onDelete }) {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
   const [showKey, setShowKey] = useState(false)
@@ -335,7 +341,7 @@ function JsonApiCard({ tool }) {
 
   return (
     <div className="growth-tool-card">
-      <div className={`gt-icon ${tool.color}`}><i className={tool.icon} /></div>
+      <CardHeader tool={tool} onDelete={onDelete} />
       <h4>{tool.name}</h4>
       <p>{tool.description}</p>
 
@@ -403,12 +409,12 @@ function JsonApiCard({ tool }) {
 }
 
 /* ── Card Renderer ── */
-function ToolCard({ tool }) {
+function ToolCard({ tool, onDelete }) {
   switch (tool.type) {
-    case 'ref-link': return <RefLinkCard tool={tool} />
-    case 'qr-code': return <QrCodeCard tool={tool} />
-    case 'widget': return <WidgetCard tool={tool} />
-    case 'json-api': return <JsonApiCard tool={tool} />
+    case 'ref-link': return <RefLinkCard tool={tool} onDelete={onDelete} />
+    case 'qr-code': return <QrCodeCard tool={tool} onDelete={onDelete} />
+    case 'widget': return <WidgetCard tool={tool} onDelete={onDelete} />
+    case 'json-api': return <JsonApiCard tool={tool} onDelete={onDelete} />
     default: return (
       <div className="growth-tool-card">
         <div className={`gt-icon gray`}><i className="ri-tools-line" /></div>
@@ -428,6 +434,8 @@ export default function GrowthPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showAddMenu, setShowAddMenu] = useState(false)
+  const confirmDialog = useConfirm()
+  const toast = useToast()
 
   const loadTools = useCallback(async () => {
     try {
@@ -450,11 +458,22 @@ export default function GrowthPage() {
   useEffect(() => { loadTools() }, [loadTools])
 
   const handleDelete = async (id) => {
+    const tool = tools.find(t => t.id === id)
+    const ok = await confirmDialog({
+      title: '성장 도구 삭제',
+      message: `"${tool?.name || '도구'}"를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
+      confirmText: '삭제',
+      cancelText: '취소',
+      variant: 'danger',
+      icon: 'ri-delete-bin-line',
+    })
+    if (!ok) return
     try {
       await growthToolService.delete(id)
       setTools(prev => prev.filter(t => t.id !== id))
+      toast.success('성장 도구가 삭제되었습니다.')
     } catch {
-      // silent
+      toast.error('삭제에 실패했습니다.')
     }
   }
 
