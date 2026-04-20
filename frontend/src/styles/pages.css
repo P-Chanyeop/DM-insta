@@ -2166,7 +2166,7 @@ label.ne-radio {
 .bc-sending-fill { height: 100%; background: var(--primary, #3B82F6); border-radius: 2px; transition: width 0.3s; }
 
 /* ===== Dropdown Menu ===== */
-.dropdown { position: relative; display: inline-block; }
+.dropdown, .dropdown-wrapper { position: relative; display: inline-block; }
 .dropdown-menu { position: absolute; right: 0; top: 100%; background: #fff; border: 1px solid var(--gray-100, #F3F4F6); border-radius: var(--radius-md, 12px); box-shadow: var(--shadow-lg, 0 10px 25px rgba(0,0,0,0.1)); min-width: 200px; z-index: 10; padding: 6px; }
 .dropdown-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; transition: background 0.15s; border: none; background: none; width: 100%; text-align: left; color: var(--gray-700, #374151); }
 .dropdown-item:hover { background: var(--gray-50, #F9FAFB); }
