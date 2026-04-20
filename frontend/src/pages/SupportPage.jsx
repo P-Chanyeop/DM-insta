@@ -157,7 +157,7 @@ export default function SupportPage() {
             type="submit"
             className="btn-primary"
             disabled={submitting}
-            style={{ width: '100%', padding: '12px 0', borderRadius: 8, fontSize: 15, fontWeight: 600 }}
+            style={{ width: '100%', padding: '12px 0', borderRadius: 8, fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
           >
             {submitting ? (
               <><i className="ri-loader-4-line ri-spin" /> 접수 중...</>

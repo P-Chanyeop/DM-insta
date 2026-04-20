@@ -253,6 +253,10 @@ export default function DashboardLayout() {
   // Keyboard shortcut: Ctrl+K for command palette, Ctrl+/ for help, Esc to close
   useEffect(() => {
     function handleKeyDown(e) {
+      // 입력 필드에서는 단축키 비활성화 (Esc 제외)
+      const tag = e.target.tagName
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable
+
       if (e.key === 'Escape') {
         setNotifOpen(false)
         setHelpOpen(false)
@@ -269,10 +273,20 @@ export default function DashboardLayout() {
         e.preventDefault()
         setHelpOpen(prev => !prev)
       }
+      // Ctrl+N: 새 플로우 만들기
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !isInput) {
+        e.preventDefault()
+        navigate('/app/flows/builder')
+      }
+      // Ctrl+B: 사이드바 토글
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b' && !isInput) {
+        e.preventDefault()
+        setSidebarOpen(prev => !prev)
+      }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [navigate])
 
   // Auto-focus command palette input
   useEffect(() => {
