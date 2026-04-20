@@ -256,6 +256,17 @@ export default function LiveChatPage() {
               if (c.id !== selectedId) return c
               // Avoid duplicate messages
               if (c.messages.some((m) => m.id === newMsg.id)) return c
+              // Outbound일 경우, optimistic temp 메시지(같은 text, 실제 id 없음)와 매칭되면 교체
+              if (newMsg.type === 'sent') {
+                const tempIdx = c.messages.findIndex(
+                  (m) => m.type === 'sent' && typeof m.id === 'number' && m.id > 1e12 && m.text === newMsg.text
+                )
+                if (tempIdx !== -1) {
+                  const messages = [...c.messages]
+                  messages[tempIdx] = newMsg
+                  return { ...c, messages, time: '방금' }
+                }
+              }
               return {
                 ...c,
                 messages: [...c.messages, newMsg],
@@ -357,17 +368,18 @@ export default function LiveChatPage() {
 
     try {
       const savedMsg = await conversationService.sendMessage(selectedId, text)
-      // Replace the temp message with the real one from the server
+      // Replace the temp message with the real one from the server.
+      // 주의: WebSocket이 HTTP 응답보다 먼저 도착해 동일 id가 이미 있으면
+      //      temp 를 교체하지 말고 제거만 해야 중복이 생기지 않음.
       if (savedMsg && savedMsg.id) {
         setChats((prev) =>
           prev.map((c) => {
             if (c.id !== selectedId) return c
-            return {
-              ...c,
-              messages: c.messages.map((m) =>
-                m.id === tempId ? mapMessage(savedMsg) : m
-              ),
-            }
+            const alreadyExists = c.messages.some((m) => m.id === savedMsg.id)
+            const messages = alreadyExists
+              ? c.messages.filter((m) => m.id !== tempId)
+              : c.messages.map((m) => (m.id === tempId ? mapMessage(savedMsg) : m))
+            return { ...c, messages }
           })
         )
       }
