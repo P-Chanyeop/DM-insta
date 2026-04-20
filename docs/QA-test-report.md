@@ -97,7 +97,7 @@
 |---|-----------|------|------|
 | 7.1 | 대화 목록 로딩 | ✅ PASS | 전체/열림/완료 탭, 검색, "대화가 없습니다" 빈 상태 |
 | 7.2 | 대화 선택 및 메시지 표시 | ✅ PASS | "대화를 선택하세요" 안내 표시 (데이터 없음) |
-| 7.3 | 메시지 입력/전송 | ⏭ SKIP | 실제 Instagram DM 대화 없어 테스트 불가 (IG Business API 실연동 필요) — 수동 테스트 대상 |
+| 7.3 | 메시지 수신/라이브챗 렌더 | ✅ PASS | **E2E 완전 검증** (2026-04-20): @softcat_official에 실 DM 수신 → Meta webhook → Contact 자동 생성(id=6) → Conversation 생성(id=1) → 라이브챗 UI에 "Hello world" 정상 표시. 과정에서 발견된 3건 버그 모두 수정 완료 (아래 B3, B4, B5 참조). 메시지 송신(자동화 일시정지/수동 답장)은 Meta App Review `instagram_manage_messages` Advanced Access 필요 — 검수 통과 후 추가 검증 가능 |
 
 ## 8. 브로드캐스트 (/app/broadcast)
 
@@ -197,12 +197,13 @@
 | 구분 | 수량 |
 |------|------|
 | 총 테스트 항목 | 90 |
-| ✅ PASS | 79 (10.1, 10.3 포함 — B2 fix 배포로 해결) |
-| 🟡 PARTIAL | 1 (1.9 반응형 — 코드 OK, 실 디바이스 검증 필요) |
+| ✅ PASS | 80 (7.3 라이브챗 E2E 실연동 성공 포함) |
+| 🟡 PARTIAL | 1 (1.9 반응형) |
 | ❌ FAIL | 0 |
-| ⏭ SKIP | 10 (7.3 포함 — IG 실연동/이메일 발송 필요) |
+| ⏭ SKIP | 9 (이메일 발송 SMTP, Stripe 결제 등 외부 서비스 의존) |
 | 통과율 | 100% (SKIP 제외) |
-| **[기능테스트] 항목** | **22** |
+| **[기능테스트] 항목** | **23** (7.3 E2E 추가) |
+| **발견·해결 버그** | **5** (B1–B5 모두 수정 배포) |
 
 ---
 
@@ -212,6 +213,9 @@
 |---|--------|-------|------|---------|
 | B1 | ✅ 수정됨 | /app/flows | **쿼터 초과 시 사용자 피드백 없음** → `FlowsPage.jsx` 수정: 복사 시 `isAtLimit` 사전 체크 + 업그레이드 모달 표시, 복사 버튼 disabled 스타일 + 툴팁 추가, "새 자동화 만들기" 카드에 한도 초과 안내 문구 표시 | — |
 | B2 | ✅ 수정 & 배포 검증 완료 | /app/contacts | **연락처 목록·상세·CSV 500 에러.** 3단계 수정으로 해결: (1) `0ca9283b`: `@Transactional(readOnly=true)` 추가 — export만 해결. (2) `2fa171d0`: list가 여전히 500인 이유 분석: `toResponse()`에서 `tags`를 그대로 DTO에 담아 PersistentBag proxy가 Jackson 직렬화 시점(트랜잭션 밖)에 lazy 실패. tags를 `new ArrayList<>()`로 eager copy하려 했으나 `Set` 타입 호환 실패로 컴파일 오류. (3) `f3b23929`: `new HashSet<>()`으로 정정 및 배포. 최종 검증: import→200, list→200, detail→200, export→200 모두 OK. | — |
+| B3 | ✅ 수정 & 배포 완료 | OAuth 콜백 | **IG OAuth 로그인 직후 /api/accounts, /api/billing/info 403** → 사이드바에 "Instagram 계정 연결하세요"로 표시됨, 새로고침하면 정상. `AccountProvider`/`PlanContext`가 `/auth/callback` 페이지에서 **토큰 저장 전**에 마운트되어 먼저 API 호출 → 403. 수정(`e1686b34`): 두 Context가 `getToken()` 체크 + `auth:login` 커스텀 이벤트 리스너 추가, `AuthCallbackPage`/`AuthPage`에서 토큰 저장 후 이벤트 dispatch → 즉시 재조회 | — |
+| B4 | ✅ 수정 & 배포 완료 | Webhook 구독 | **IG 계정 연결 시 Meta webhook에 자동 구독 안 됨** → DM 와도 서버에 이벤트 도달 안 함. 수정(`ca1e204e`→`20ed65bf`→`52431209`): (1) `InstagramApiService.subscribeAppToIgAccount()` 추가 — POST `/{ig-user-id}/subscribed_apps` 호출. (2) `connectAccount()`에서 자동 호출. (3) 기존 연결된 계정용 `POST /api/accounts/{id}/resubscribe` 엔드포인트. (4) 필드 이름 오류: `message_reads`(존재 안 함) → `messaging_seen`. (5) 진단 엔드포인트 `GET /{id}/subscription-status`. 최종 검증: DM 보내면 Contact 자동 생성 + Conversation 생성 + 라이브챗 UI 렌더 | — |
+| B5 | ✅ 수정 & 배포 완료 | /app/livechat | **`/api/conversations` 500 (B2 패턴 재발)** — 실 DM 수신 성공 후 라이브챗 조회 시 500. `ConversationController.toResponse()`에서 `conversation.getContact()` (Lazy ManyToOne) 접근 → 트랜잭션 밖이라 LazyInit. 수정(`be4b04f5`): `getConversations`/`getConversation` 메서드에 `@Transactional(readOnly=true)` 추가 | — |
 
 ---
 
@@ -269,7 +273,32 @@
 **후속 액션**:
 - ~~프로덕션 서버 재시작 → B2 fix 반영 후 10.1/10.3 재검증~~ ✅ 완료 (커밋 `f3b23929` 배포 + 검증)
 - 실 Android/iOS 디바이스에서 1.9 모바일 UX 검증
-- Instagram Business API 실연동 후 7.3 라이브챗 E2E 검증
+- ~~Instagram Business API 실연동 후 7.3 라이브챗 E2E 검증~~ ✅ 완료 (`be4b04f5` 배포 + 실 DM 수신 성공)
+- Meta App Review (Advanced Access) 신청 — `instagram_manage_messages` 권한 승인받아야 일반 사용자 DM도 webhook 발동
+- Meta Console → Domains → `sendit.io.kr` "도메인 인증" 버튼 클릭 (`e412efb1`로 메타태그 배포 완료)
+
+### 4차 검증 — Webhook E2E 실연동 (2026-04-20)
+
+추가 작업 6건:
+
+1. **B3 OAuth 콜백 race condition** 해결 (`e1686b34`) — `AccountProvider`/`PlanContext`가 토큰 저장 전 마운트되어 403 발생, `auth:login` 이벤트로 재조회
+
+2. **B4 Webhook 자동 구독** 구현 (`ca1e204e`+`20ed65bf`+`52431209`) — Meta Graph API `subscribed_apps` 호출 코드 추가, connectAccount 자동화 + resubscribe 수동 엔드포인트 + subscription-status 진단 엔드포인트
+
+3. **도메인 인증 메타태그** 추가 (`e412efb1`) — `frontend/index.html` <head>에 `facebook-domain-verification` 정적 삽입
+
+4. **B5 ConversationController 500** 해결 (`be4b04f5`) — B2 동일 패턴 Lazy 필드 + `@Transactional(readOnly=true)`
+
+5. **Webhook E2E 검증** — DM "Hello world" 전송 → Contact id=6 자동 생성 + Conversation id=1 + 라이브챗 UI 렌더 모두 성공
+
+6. **진단 결과** — `GET /api/accounts/1/subscription-status` 응답: `{"data":[{"id":"17928259044264764","subscribed_fields":["messages","messaging_postbacks","messaging_seen","message_reactions","comments"]}]}` — Meta 측 구독 정상
+
+### 배운 점 (추가)
+
+- **@ManyToOne(fetch=LAZY)** + **Jackson 직렬화 시점 트랜잭션 종료** 문제는 프로젝트 전반에 재발 위험 → DTO 변환 책임을 Service 레이어에서 완결하고 Controller는 Repository 결과 그대로 stream/map 금지 권장
+- **Meta Graph API 필드명**은 공식 문서 의존 — 임의 추측 금지 (message_reads → messaging_seen 사례)
+- **OAuth 콜백 페이지는 Provider 마운트 후 토큰 저장**되므로 Provider들이 이벤트 기반 재조회 필요 (storage/CustomEvent)
+- **App Mode "Live"** ≠ **App Review Advanced Access**. 라이브 전환은 진입 요건이고, 실제 일반 사용자 이벤트 수신은 검수 통과 후
 
 ### B2 해결 과정 요약 (학습 포인트)
 
