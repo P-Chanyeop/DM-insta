@@ -187,4 +187,5 @@ export const conversationService = {
       cardButtonText: buttonText, cardButtonUrl: buttonUrl,
     }),
   update: (id, data) => api.patch(`/conversations/${id}`, data),
+  markAsRead: (id) => api.post(`/conversations/${id}/read`),
 }

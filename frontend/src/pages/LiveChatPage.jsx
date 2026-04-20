@@ -348,8 +348,9 @@ export default function LiveChatPage() {
 
   const handleSelectChat = (chatId) => {
     setSelectedId(chatId)
-    // Mark as read
+    // Mark as read — UI + backend
     updateChat(chatId, { unread: 0 })
+    conversationService.markAsRead(chatId).catch(() => {})
     setShowQuickReplies(false)
     setShowAssignDropdown(false)
   }

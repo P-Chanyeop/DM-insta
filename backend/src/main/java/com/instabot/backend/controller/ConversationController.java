@@ -166,6 +166,17 @@ public class ConversationController {
         return ResponseEntity.ok(toResponse(conversation));
     }
 
+    /**
+     * 대화 내 수신 메시지 일괄 읽음 처리
+     */
+    @PostMapping("/{id}/read")
+    @Transactional
+    public ResponseEntity<Map<String, Integer>> markAsRead(@PathVariable Long id) {
+        findConversationForCurrentUser(id);
+        int updated = messageRepository.markAllAsReadByConversationId(id);
+        return ResponseEntity.ok(Map.of("updated", updated));
+    }
+
     // ─── 내부 유틸 ───
 
     private Conversation findConversationForCurrentUser(Long conversationId) {
@@ -182,6 +193,7 @@ public class ConversationController {
 
     private ConversationDto.Response toResponse(Conversation conversation) {
         Contact contact = conversation.getContact();
+        long unread = messageRepository.countUnreadByConversationId(conversation.getId());
         return ConversationDto.Response.builder()
                 .id(conversation.getId())
                 .status(conversation.getStatus())
@@ -190,6 +202,7 @@ public class ConversationController {
                 .assignedTo(conversation.getAssignedTo())
                 .lastMessageAt(conversation.getLastMessageAt())
                 .createdAt(conversation.getCreatedAt())
+                .unreadCount((int) unread)
                 .contactId(contact.getId())
                 .contactName(contact.getName())
                 .contactUsername(contact.getUsername())

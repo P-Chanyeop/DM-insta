@@ -20,6 +20,8 @@ public class ConversationDto {
         private LocalDateTime lastMessageAt;
         private LocalDateTime createdAt;
 
+        private int unreadCount;
+
         // Contact info (flattened)
         private Long contactId;
         private String contactName;

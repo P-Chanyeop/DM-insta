@@ -3,6 +3,7 @@ package com.instabot.backend.repository;
 import com.instabot.backend.entity.Message;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
@@ -16,6 +17,15 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation.user.id = :userId AND m.direction = 'OUTBOUND'")
     long countOutboundByUserId(@Param("userId") Long userId);
+
+    /** 대화별 안읽은 수신 메시지 수 */
+    @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation.id = :conversationId AND m.direction = 'INBOUND' AND m.read = false")
+    long countUnreadByConversationId(@Param("conversationId") Long conversationId);
+
+    /** 대화 내 수신 메시지 일괄 읽음 처리 */
+    @Modifying
+    @Query("UPDATE Message m SET m.read = true WHERE m.conversation.id = :conversationId AND m.direction = 'INBOUND' AND m.read = false")
+    int markAllAsReadByConversationId(@Param("conversationId") Long conversationId);
 
     @Query("SELECT CAST(m.sentAt AS LocalDate) AS date, COUNT(m) AS cnt " +
            "FROM Message m " +
