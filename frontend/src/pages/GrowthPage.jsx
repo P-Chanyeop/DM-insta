@@ -236,7 +236,7 @@ function JsonApiCard({ tool }) {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
 
-  const endpoint = tool.config.endpoint || tool.refUrl || `${window.location.origin}/api/growth-tools/${tool.id}`
+  const endpoint = tool.config.endpoint || tool.refUrl || `${window.location.origin}/api/public/growth-tools/${tool.id}`
 
   const handleTest = async () => {
     setTesting(true)
