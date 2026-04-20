@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import QRCode from 'qrcode'
 import EmptyState from '../components/EmptyState'
 import PageLoader from '../components/PageLoader'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -110,30 +111,36 @@ function QrCodeCard({ tool }) {
   const [size, setSize] = useState(tool.config.size || 256)
   const [fg, setFg] = useState(tool.config.foreground || '#000000')
   const [bg, setBg] = useState(tool.config.background || '#FFFFFF')
+  const [qrDataUrl, setQrDataUrl] = useState('')
   const trackingUrl = tool.config.trackingUrl || tool.refUrl || ''
 
-  const handleDownload = () => {
+  useEffect(() => {
+    if (!trackingUrl) { setQrDataUrl(''); return }
+    QRCode.toDataURL(trackingUrl, {
+      width: 200, margin: 2, color: { dark: fg, light: bg },
+      errorCorrectionLevel: 'M',
+    }).then(setQrDataUrl).catch(() => setQrDataUrl(''))
+  }, [trackingUrl, fg, bg])
+
+  const handleDownload = async () => {
     if (!trackingUrl) return
-    const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=${size}x${size}&chl=${encodeURIComponent(trackingUrl)}&chco=${fg.replace('#', '')}|${bg.replace('#', '')}&chld=M|2`
-    fetch(qrUrl).then(r => r.blob()).then(blob => {
-      const url = URL.createObjectURL(blob)
+    try {
+      const url = await QRCode.toDataURL(trackingUrl, {
+        width: size, margin: 2, color: { dark: fg, light: bg },
+        errorCorrectionLevel: 'M',
+      })
       const a = document.createElement('a')
       a.href = url
       a.download = `qr_${tool.name || 'code'}_${size}px.png`
       a.click()
-      URL.revokeObjectURL(url)
-    }).catch(() => window.open(qrUrl, '_blank'))
+    } catch { /* silent */ }
   }
 
   return (
     <>
       <div className="gt-qr-preview">
-        {trackingUrl ? (
-          <img
-            src={`https://chart.googleapis.com/chart?cht=qr&chs=160x160&chl=${encodeURIComponent(trackingUrl)}&chco=${fg.replace('#', '')}&chld=M|2`}
-            alt="QR Code"
-            style={{ width: 120, height: 120, borderRadius: 8, background: bg }}
-          />
+        {qrDataUrl ? (
+          <img src={qrDataUrl} alt="QR Code" style={{ width: 120, height: 120, borderRadius: 8 }} />
         ) : (
           <div className="qr-placeholder"><i className="ri-qr-code-line" /></div>
         )}
