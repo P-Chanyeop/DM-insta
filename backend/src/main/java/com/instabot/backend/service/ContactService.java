@@ -1,12 +1,16 @@
 package com.instabot.backend.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.instabot.backend.dto.ContactDto;
 import com.instabot.backend.entity.Contact;
+import com.instabot.backend.entity.InstagramAccount;
 import com.instabot.backend.entity.User;
+import com.instabot.backend.exception.BadRequestException;
 import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.ContactRepository;
 import com.instabot.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,11 +20,13 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ContactService {
 
     private final ContactRepository contactRepository;
     private final UserRepository userRepository;
     private final QuotaService quotaService;
+    private final InstagramApiService instagramApiService;
 
     @Transactional(readOnly = true)
     public Page<ContactDto.Response> getContacts(Long userId, Pageable pageable) {
@@ -108,6 +114,48 @@ public class ContactService {
 
     public long getCount(Long userId) {
         return contactRepository.countByUserId(userId);
+    }
+
+    /**
+     * Meta Graph API로 Contact의 프로필(name, username, profile_pic)을 재조회하여 DB 갱신.
+     * 기존에 숫자 IGSID가 username으로 저장된 "알 수 없음" 상태 Contact를 복구할 때 사용.
+     */
+    @Transactional
+    public ContactDto.Response refreshProfile(Long userId, Long contactId) {
+        Contact contact = contactRepository.findById(contactId)
+                .orElseThrow(() -> new ResourceNotFoundException("연락처를 찾을 수 없습니다."));
+        if (!contact.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("연락처를 찾을 수 없습니다.");
+        }
+        InstagramAccount igAccount = instagramApiService.getConnectedAccount(userId);
+        if (igAccount == null) {
+            throw new BadRequestException("연결된 Instagram 계정이 없습니다.");
+        }
+        String token = instagramApiService.getDecryptedToken(igAccount);
+        JsonNode profile = instagramApiService.fetchUserProfile(contact.getIgUserId(), token);
+        if (profile == null) {
+            throw new BadRequestException(
+                "프로필 조회 권한이 없거나 실패했습니다. (App Review 검수 미통과 가능성)");
+        }
+        String newUsername = profile.path("username").asText(null);
+        String newName = profile.path("name").asText(null);
+        String newPic = profile.path("profile_pic").asText(null);
+        boolean changed = false;
+        if (newUsername != null && !newUsername.isBlank()) {
+            contact.setUsername(newUsername); changed = true;
+        }
+        if (newName != null && !newName.isBlank()) {
+            contact.setName(newName); changed = true;
+        }
+        if (newPic != null && !newPic.isBlank()) {
+            contact.setProfilePictureUrl(newPic); changed = true;
+        }
+        if (!changed) {
+            throw new BadRequestException("Meta가 빈 프로필을 반환했습니다. 권한/개인정보 설정 확인 필요.");
+        }
+        log.info("Contact 프로필 갱신: id={}, username={}, name={}",
+                contact.getId(), newUsername, newName);
+        return toResponse(contactRepository.save(contact));
     }
 
     /**

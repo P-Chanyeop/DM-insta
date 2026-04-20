@@ -49,6 +49,14 @@ public class ContactController {
         return ResponseEntity.ok(contactService.updateContact(SecurityUtils.currentUserId(), id, request));
     }
 
+    /**
+     * Meta Graph API로 Contact 프로필 재조회 (숫자 IGSID → 실제 username/name 복구).
+     */
+    @PostMapping("/{id}/refresh-profile")
+    public ResponseEntity<ContactDto.Response> refreshProfile(@PathVariable Long id) {
+        return ResponseEntity.ok(contactService.refreshProfile(SecurityUtils.currentUserId(), id));
+    }
+
     @PostMapping("/bulk-delete")
     public ResponseEntity<Void> deleteContacts(@RequestBody java.util.List<Long> ids) {
         contactService.deleteContacts(SecurityUtils.currentUserId(), ids);
