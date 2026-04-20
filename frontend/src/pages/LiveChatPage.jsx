@@ -592,10 +592,14 @@ export default function LiveChatPage() {
         initial: ((updated.name || updated.username || '?') + '').charAt(0),
       })
       // 전체 목록도 재조회 (다른 대화 참가자도 섞였을 수 있음)
+      // 기존 messages는 보존 — mapConversation이 messages=[]로 초기화하므로 merge
       try {
         const data = await conversationService.list()
         const mapped = (Array.isArray(data) ? data : data?.content || []).map(mapConversation)
-        setChats(mapped)
+        setChats(prev => mapped.map(m => {
+          const existing = prev.find(p => p.id === m.id)
+          return existing ? { ...m, messages: existing.messages } : m
+        }))
       } catch {}
       toast.success('프로필을 재조회했습니다.')
     } catch (err) {
