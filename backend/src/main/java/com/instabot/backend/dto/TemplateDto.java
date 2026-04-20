@@ -14,6 +14,7 @@ public class TemplateDto {
         private String flowData;
         private String icon;
         private String gradientColors;
+        private String previewImageUrl;
         private Long usageCount;
         private Double rating;
         private LocalDateTime createdAt;

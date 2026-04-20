@@ -44,9 +44,11 @@ public class SequenceExecutionService {
 
         log.info("시퀀스 시작: seqId={}, contact={}, steps={}", sequence.getId(), contact.getId(), steps.size());
 
-        // activeSubscribers 증가
+        // activeSubscribers 증가 + totalStarted 증가
         sequence.setActiveSubscribers(
                 (sequence.getActiveSubscribers() != null ? sequence.getActiveSubscribers() : 0) + 1);
+        sequence.setTotalStarted(
+                (sequence.getTotalStarted() != null ? sequence.getTotalStarted() : 0) + 1);
         sequenceRepository.save(sequence);
 
         // 누적 지연시간을 계산하여 각 Step을 스케줄링
@@ -118,6 +120,14 @@ public class SequenceExecutionService {
         log.info("시퀀스 완료: seqId={}", sequence.getId());
         sequence.setActiveSubscribers(
                 Math.max(0, (sequence.getActiveSubscribers() != null ? sequence.getActiveSubscribers() : 1) - 1));
+        sequence.setTotalCompleted(
+                (sequence.getTotalCompleted() != null ? sequence.getTotalCompleted() : 0) + 1);
+        // completionRate 재계산: 완료 / 시작 * 100
+        long started = sequence.getTotalStarted() != null ? sequence.getTotalStarted() : 0;
+        long completed = sequence.getTotalCompleted();
+        sequence.setCompletionRate(started > 0
+                ? Math.round(completed * 1000.0 / started) / 10.0
+                : 0.0);
         sequenceRepository.save(sequence);
     }
 

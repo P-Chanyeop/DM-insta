@@ -31,6 +31,7 @@ public class BillingDto {
         private Long flowCount;
         private Long automationCount;
         private Long contactCount;
+        private Long monthlyDMCount;
     }
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder

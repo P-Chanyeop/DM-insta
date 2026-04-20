@@ -187,16 +187,24 @@ public class AnalyticsService {
         List<DailyStats> dailyNewContacts = buildDailyStats(
                 contactRepository.countDailyNewByUserId(userId, startDate), days);
 
-        // 플로우별 성과
+        // 플로우별 성과 (openRate는 실제 메시지 읽음 데이터로 계산)
         List<FlowPerformance> flowPerformances = flows.stream()
-                .map(f -> FlowPerformance.builder()
-                        .id(f.getId())
-                        .name(f.getName())
-                        .triggerType(f.getTriggerType().name())
-                        .active(f.isActive())
-                        .sentCount(f.getSentCount())
-                        .openRate(f.getOpenRate())
-                        .build())
+                .map(f -> {
+                    long flowSent = messageRepository.countOutboundByFlowId(f.getId());
+                    double flowOpenRate = 0.0;
+                    if (flowSent > 0) {
+                        long flowRead = messageRepository.countReadOutboundByFlowId(f.getId());
+                        flowOpenRate = Math.round(flowRead * 1000.0 / flowSent) / 10.0;
+                    }
+                    return FlowPerformance.builder()
+                            .id(f.getId())
+                            .name(f.getName())
+                            .triggerType(f.getTriggerType().name())
+                            .active(f.isActive())
+                            .sentCount(f.getSentCount())
+                            .openRate(flowOpenRate)
+                            .build();
+                })
                 .toList();
 
         // 시간대별 참여 통계

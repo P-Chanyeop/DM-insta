@@ -38,6 +38,21 @@ public class Message {
     @Column(name = "`read`")
     private boolean read = false;
 
+    /** Instagram API에서 반환한 메시지 ID (읽음 확인 매칭용) */
+    @Column(name = "ig_message_id")
+    private String igMessageId;
+
+    /** 읽음 확인 수신 시각 */
+    private LocalDateTime readAt;
+
+    /** 이 메시지를 발송한 Flow ID (openRate 계산용) */
+    @Column(name = "flow_id")
+    private Long flowId;
+
+    /** 이 메시지를 발송한 Broadcast ID (openRate 계산용) */
+    @Column(name = "broadcast_id")
+    private Long broadcastId;
+
     @Builder.Default
     private LocalDateTime sentAt = LocalDateTime.now();
 

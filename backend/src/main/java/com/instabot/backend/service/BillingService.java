@@ -12,6 +12,7 @@ import com.instabot.backend.exception.ResourceNotFoundException;
 import com.instabot.backend.repository.AutomationRepository;
 import com.instabot.backend.repository.ContactRepository;
 import com.instabot.backend.repository.FlowRepository;
+import com.instabot.backend.repository.MessageRepository;
 import com.instabot.backend.repository.SubscriptionRepository;
 import com.instabot.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +47,7 @@ public class BillingService {
     private final FlowRepository flowRepository;
     private final AutomationRepository automationRepository;
     private final ContactRepository contactRepository;
+    private final MessageRepository messageRepository;
     private final PaddleConfig paddleConfig;
     private final ObjectMapper objectMapper;
 
@@ -133,6 +135,7 @@ public class BillingService {
         long flowCount = flowRepository.countByUserId(userId);
         long automationCount = automationRepository.countByUserId(userId);
         long contactCount = contactRepository.countByUserId(userId);
+        long monthlyDMCount = messageRepository.countOutboundByUserIdAndSince(userId, getMonthStart());
 
         return subscriptionRepository.findByUserId(userId)
                 .map(sub -> BillingDto.BillingInfoResponse.builder()
@@ -144,6 +147,7 @@ public class BillingService {
                         .flowCount(flowCount)
                         .automationCount(automationCount)
                         .contactCount(contactCount)
+                        .monthlyDMCount(monthlyDMCount)
                         .build())
                 .orElse(BillingDto.BillingInfoResponse.builder()
                         .plan(user.getPlan().name())
@@ -152,6 +156,7 @@ public class BillingService {
                         .flowCount(flowCount)
                         .automationCount(automationCount)
                         .contactCount(contactCount)
+                        .monthlyDMCount(monthlyDMCount)
                         .build());
     }
 
@@ -401,6 +406,36 @@ public class BillingService {
             case "paused" -> SubscriptionStatus.PAUSED;
             default -> SubscriptionStatus.PAST_DUE;
         };
+    }
+
+    /**
+     * DM 발송 한도 초과 여부 확인
+     * @return true면 발송 가능, false면 한도 초과
+     */
+    public boolean canSendDM(Long userId) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) return false;
+
+        long monthlyDMCount = messageRepository.countOutboundByUserIdAndSince(userId, getMonthStart());
+        long limit = getDMLimit(user.getPlan());
+        return monthlyDMCount < limit;
+    }
+
+    /**
+     * 플랜별 월간 DM 한도
+     */
+    private long getDMLimit(User.PlanType plan) {
+        return switch (plan) {
+            case FREE -> 300;
+            case STARTER -> 3000;
+            case PRO -> 30000;
+            case BUSINESS -> Long.MAX_VALUE;
+        };
+    }
+
+    private LocalDateTime getMonthStart() {
+        LocalDateTime now = LocalDateTime.now();
+        return now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
     }
 
     private LocalDateTime parsePaddleDate(String dateStr) {

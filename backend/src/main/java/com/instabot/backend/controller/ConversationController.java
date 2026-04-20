@@ -28,6 +28,7 @@ public class ConversationController {
     private final UserRepository userRepository;
     private final ConversationService conversationService;
     private final InstagramApiService instagramApiService;
+    private final com.instabot.backend.service.BillingService billingService;
 
     /**
      * 대화 목록 조회 (선택적 status 필터)
@@ -92,6 +93,12 @@ public class ConversationController {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+
+        // DM 한도 체크
+        if (!billingService.canSendDM(userId)) {
+            throw new com.instabot.backend.exception.BadRequestException(
+                    "월간 DM 발송 한도를 초과했습니다. 플랜을 업그레이드해주세요.");
+        }
 
         InstagramAccount igAccount = instagramApiService.getConnectedAccount(userId);
         if (igAccount == null) {
@@ -222,6 +229,7 @@ public class ConversationController {
                 .automated(message.isAutomated())
                 .automationName(message.getAutomationName())
                 .read(message.isRead())
+                .readAt(message.getReadAt())
                 .sentAt(message.getSentAt())
                 .build();
     }

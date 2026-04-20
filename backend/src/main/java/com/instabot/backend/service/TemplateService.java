@@ -86,6 +86,7 @@ public class TemplateService {
                 .flowData(t.getFlowData())
                 .icon(t.getIcon())
                 .gradientColors(t.getGradientColors())
+                .previewImageUrl(t.getPreviewImageUrl())
                 .usageCount(t.getUsageCount())
                 .rating(t.getRating())
                 .createdAt(t.getCreatedAt())

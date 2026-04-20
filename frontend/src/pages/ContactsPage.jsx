@@ -552,12 +552,12 @@ export default function ContactsPage() {
           onClick={() => setDetailContact(null)}
         >
           <div
-            style={{ background: 'var(--card)', borderRadius: '1rem', padding: '2rem', minWidth: '400px', maxWidth: '500px', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
+            style={{ background: 'var(--card)', borderRadius: '1rem', padding: '2rem', width: '480px', maxWidth: '500px', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h3 style={{ margin: 0 }}>연락처 상세</h3>
-              <button className="icon-btn" onClick={() => setDetailContact(null)}>
+              <button className="icon-btn" onClick={() => setDetailContact(null)} style={{ borderRadius: '8px' }}>
                 <i className="ri-close-line" />
               </button>
             </div>

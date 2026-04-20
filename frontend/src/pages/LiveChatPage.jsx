@@ -71,11 +71,17 @@ function mapMessage(msg) {
   const msgType = (msg.type || '').toUpperCase()
   // 백엔드 direction은 대문자 enum (INBOUND/OUTBOUND) — 소문자 비교 시 안 매칭됨
   const dir = (msg.direction || '').toUpperCase()
+  const isSent = dir === 'OUTBOUND'
+  const timeStr = msg.sentAt ? formatTime(msg.sentAt) : (msg.time || '')
+  // 발신 메시지 + 읽음 = "시간 · 읽음" 표시 (Instagram DM 스타일)
+  const readLabel = isSent && (msg.read || msg.isRead)
+    ? `${timeStr} · 읽음${msg.readAt ? '' : ''}`
+    : timeStr
   return {
     id: msg.id,
-    type: dir === 'INBOUND' ? 'received' : dir === 'OUTBOUND' ? 'sent' : (msg.type || 'received'),
+    type: isSent ? 'sent' : dir === 'INBOUND' ? 'received' : (msg.type || 'received'),
     text: msg.content || msg.text || '',
-    time: msg.sentAt ? formatTime(msg.sentAt) : (msg.time || ''),
+    time: readLabel,
     auto: msg.auto || msg.isAutomated || msg.automated || false,
     buttons: msg.buttons || undefined,
     card: msg.card || (msgType === 'CARD' ? { title: msg.content || '카드', desc: '', btnText: '' } : undefined),

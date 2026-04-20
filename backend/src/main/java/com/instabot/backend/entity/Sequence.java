@@ -28,6 +28,14 @@ public class Sequence {
     private Long activeSubscribers;
     private Double completionRate;
 
+    /** 시퀀스 시작 총 횟수 (completionRate 계산용) */
+    @Builder.Default
+    private Long totalStarted = 0L;
+
+    /** 시퀀스 완료 총 횟수 (completionRate 계산용) */
+    @Builder.Default
+    private Long totalCompleted = 0L;
+
     @OneToMany(mappedBy = "sequence", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("stepOrder ASC")
     @Builder.Default

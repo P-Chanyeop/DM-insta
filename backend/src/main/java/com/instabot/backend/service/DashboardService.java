@@ -22,13 +22,15 @@ public class DashboardService {
 
     @Cacheable(value = "dashboard", key = "#userId")
     public DashboardDto getDashboard(Long userId) {
-        // 플로우 openRate 평균 계산
         List<Flow> flows = flowRepository.findByUserIdOrderByCreatedAtDesc(userId);
-        double avgOpenRate = flows.stream()
-                .filter(f -> f.getOpenRate() != null && f.getOpenRate() > 0)
-                .mapToDouble(Flow::getOpenRate)
-                .average()
-                .orElse(0.0);
+
+        // 열림률: 전체 발송 메시지 중 읽음 비율 (실제 데이터)
+        long totalSent = messageRepository.countOutboundByUserId(userId);
+        long totalRead = messageRepository.countReadOutboundByUserIdAndSince(userId,
+                java.time.LocalDateTime.of(2020, 1, 1, 0, 0)); // 전체 기간
+        double avgOpenRate = totalSent > 0
+                ? Math.round(totalRead * 1000.0 / totalSent) / 10.0
+                : 0.0;
 
         // 브로드캐스트 clickRate 평균 계산
         double avgClickRate = broadcastRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
@@ -44,8 +46,8 @@ public class DashboardService {
                 .totalFlows((long) flows.size())
                 .activeFlows(flowRepository.countByUserIdAndActiveTrue(userId))
                 .openConversations(conversationRepository.countByUserIdAndStatus(userId, Conversation.ConversationStatus.OPEN))
-                .totalMessagesSent(messageRepository.countOutboundByUserId(userId))
-                .avgOpenRate(Math.round(avgOpenRate * 10.0) / 10.0)
+                .totalMessagesSent(totalSent)
+                .avgOpenRate(avgOpenRate)
                 .avgClickRate(Math.round(avgClickRate * 10.0) / 10.0)
                 .build();
     }

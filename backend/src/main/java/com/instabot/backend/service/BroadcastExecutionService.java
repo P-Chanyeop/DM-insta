@@ -1,5 +1,6 @@
 package com.instabot.backend.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.instabot.backend.entity.*;
 import com.instabot.backend.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -62,17 +63,19 @@ public class BroadcastExecutionService {
             if (contact.getIgUserId() == null) continue;
 
             try {
-                instagramApiService.sendTextMessage(
+                JsonNode sendResponse = instagramApiService.sendTextMessage(
                         igAccount.getIgUserId(),
                         contact.getIgUserId(),
                         broadcast.getMessageContent(),
                         instagramApiService.getDecryptedToken(igAccount)
                 );
 
-                // 발신 메시지 저장
+                // 발신 메시지 저장 (igMessageId + broadcastId 포함)
+                String igMsgId = sendResponse != null ? sendResponse.path("message_id").asText(null) : null;
                 conversationService.saveOutboundMessage(
                         user, contact.getIgUserId(),
-                        broadcast.getMessageContent(), true, broadcast.getName()
+                        broadcast.getMessageContent(), true, broadcast.getName(),
+                        Message.MessageType.TEXT, null, igMsgId, null, broadcast.getId()
                 );
 
                 sentCount++;

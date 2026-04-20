@@ -56,4 +56,33 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     // 기간 내 읽음 수
     @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation.user.id = :userId AND m.direction = 'OUTBOUND' AND m.read = true AND m.sentAt >= :since")
     long countReadOutboundByUserIdAndSince(@Param("userId") Long userId, @Param("since") java.time.LocalDateTime since);
+
+    /** 특정 대화의 읽지 않은 발신 메시지를 watermark 이전까지 일괄 읽음 처리 */
+    @Modifying
+    @Query("UPDATE Message m SET m.read = true, m.readAt = :readAt " +
+           "WHERE m.conversation.id = :conversationId AND m.direction = 'OUTBOUND' AND m.read = false AND m.sentAt <= :watermark")
+    int markOutboundAsReadByWatermark(@Param("conversationId") Long conversationId,
+                                      @Param("watermark") java.time.LocalDateTime watermark,
+                                      @Param("readAt") java.time.LocalDateTime readAt);
+
+    /** Flow별 발송 수 */
+    @Query("SELECT COUNT(m) FROM Message m WHERE m.flowId = :flowId AND m.direction = 'OUTBOUND'")
+    long countOutboundByFlowId(@Param("flowId") Long flowId);
+
+    /** Flow별 읽음 수 */
+    @Query("SELECT COUNT(m) FROM Message m WHERE m.flowId = :flowId AND m.direction = 'OUTBOUND' AND m.read = true")
+    long countReadOutboundByFlowId(@Param("flowId") Long flowId);
+
+    /** Broadcast별 발송 수 */
+    @Query("SELECT COUNT(m) FROM Message m WHERE m.broadcastId = :broadcastId AND m.direction = 'OUTBOUND'")
+    long countOutboundByBroadcastId(@Param("broadcastId") Long broadcastId);
+
+    /** Broadcast별 읽음 수 */
+    @Query("SELECT COUNT(m) FROM Message m WHERE m.broadcastId = :broadcastId AND m.direction = 'OUTBOUND' AND m.read = true")
+    long countReadOutboundByBroadcastId(@Param("broadcastId") Long broadcastId);
+
+    /** 대화 ID + 상대방 IG ID로 발신 메시지 조회 (watermark 기반 읽음 처리 전 확인) */
+    @Query("SELECT m.conversation.id FROM Message m WHERE m.conversation.user.id = :userId " +
+           "AND m.conversation.contact.igUserId = :senderIgId ORDER BY m.sentAt DESC")
+    List<Long> findConversationIdByUserAndContactIg(@Param("userId") Long userId, @Param("senderIgId") String senderIgId);
 }

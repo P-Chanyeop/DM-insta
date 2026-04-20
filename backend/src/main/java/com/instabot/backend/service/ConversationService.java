@@ -86,6 +86,17 @@ public class ConversationService {
     public Message saveOutboundMessage(User user, String recipientIgId, String content,
                                         boolean automated, String automationName,
                                         Message.MessageType type, String mediaUrl) {
+        return saveOutboundMessage(user, recipientIgId, content, automated, automationName, type, mediaUrl, null, null, null);
+    }
+
+    /**
+     * 발신 메시지 저장 (확장 — igMessageId, flowId, broadcastId 포함)
+     */
+    @Transactional
+    public Message saveOutboundMessage(User user, String recipientIgId, String content,
+                                        boolean automated, String automationName,
+                                        Message.MessageType type, String mediaUrl,
+                                        String igMessageId, Long flowId, Long broadcastId) {
         Contact contact = contactRepository.findByUserIdAndIgUserId(user.getId(), recipientIgId)
                 .orElse(null);
         if (contact == null) return null;
@@ -107,6 +118,9 @@ public class ConversationService {
                 .mediaUrl(mediaUrl)
                 .automated(automated)
                 .automationName(automationName)
+                .igMessageId(igMessageId)
+                .flowId(flowId)
+                .broadcastId(broadcastId)
                 .build());
 
         pushToWebSocket(user.getId(), conversation, message);

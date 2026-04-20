@@ -48,6 +48,7 @@ function normalizeTemplate(raw) {
     category: CATEGORY_LABELS[raw.category] || raw.category || '기타',
     icon: raw.icon || visual.icon,
     bg: raw.gradientColors || visual.bg,
+    previewImageUrl: raw.previewImageUrl || null,
     uses: raw.usageCount || 0,
     rating: raw.rating ? raw.rating.toFixed(1) : null,
     flowData: raw.flowData,
@@ -187,9 +188,13 @@ export default function TemplatesPage() {
                   <i className="ri-thumb-up-fill" /> 추천
                 </div>
                 <div className="tac-preview">
-                  <div className="tac-icon" style={{ background: t.bg }}>
-                    <i className={t.icon} />
-                  </div>
+                  {t.previewImageUrl ? (
+                    <img src={t.previewImageUrl} alt={t.title} className="tac-preview-img" />
+                  ) : (
+                    <div className="tac-icon" style={{ background: t.bg }}>
+                      <i className={t.icon} />
+                    </div>
+                  )}
                 </div>
                 <div className="tac-body">
                   <h4>{t.title}</h4>
@@ -230,9 +235,13 @@ export default function TemplatesPage() {
           {filtered.map((t) => (
             <div className="template-app-card" key={t.id}>
               <div className="tac-preview">
-                <div className="tac-icon" style={{ background: t.bg }}>
-                  <i className={t.icon} />
-                </div>
+                {t.previewImageUrl ? (
+                  <img src={t.previewImageUrl} alt={t.title} className="tac-preview-img" />
+                ) : (
+                  <div className="tac-icon" style={{ background: t.bg }}>
+                    <i className={t.icon} />
+                  </div>
+                )}
               </div>
               <div className="tac-body">
                 <h4>{t.title}</h4>

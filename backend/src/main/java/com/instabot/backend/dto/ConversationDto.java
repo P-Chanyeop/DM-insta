@@ -42,6 +42,7 @@ public class ConversationDto {
         private boolean automated;
         private String automationName;
         private boolean read;
+        private LocalDateTime readAt;
         private LocalDateTime sentAt;
     }
 

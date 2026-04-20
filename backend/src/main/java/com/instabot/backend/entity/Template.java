@@ -23,6 +23,7 @@ public class Template {
 
     private String icon;
     private String gradientColors; // e.g. "#FF6B9D,#C44AFF"
+    private String previewImageUrl; // 템플릿 미리보기 이미지 URL
 
     @Builder.Default
     private Long usageCount = 0L;

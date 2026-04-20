@@ -627,6 +627,7 @@ export default function SettingsPage() {
   const toggleNotification = (key) => {
     setNotifications((prev) => {
       const next = { ...prev, [key]: !prev[key] }
+      showToast('알림 설정이 저장되었습니다.')
       return next
     })
   }
@@ -1108,6 +1109,33 @@ export default function SettingsPage() {
           <button className="btn-ghost" onClick={deleteAllPersistentMenu} disabled={persistentMenuSaving}>
             <i className="ri-delete-bin-line" /> 초기화
           </button>
+        </div>
+
+        {/* DM Preview — Persistent Menu */}
+        <div className="messaging-preview">
+          <div className="messaging-preview-title">
+            <i className="ri-smartphone-line" /> 미리보기
+          </div>
+          <div className="messaging-preview-phone">
+            <div className="messaging-preview-header">
+              <div className="mp-avatar"><i className="ri-instagram-line" /></div>
+              <span>내 비즈니스</span>
+            </div>
+            <div className="messaging-preview-body">
+              <div className="mp-welcome" style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>≡ 메뉴를 탭하면 아래 항목이 표시됩니다</div>
+              <div className="mp-icebreakers">
+                {persistentMenu.filter(m => m.title.trim()).length === 0 ? (
+                  <div className="mp-ib-empty">메뉴 제목을 입력하면 여기에 표시됩니다</div>
+                ) : (
+                  persistentMenu.filter(m => m.title.trim()).map((m, i) => (
+                    <div className="mp-ib-btn" key={i}>
+                      {m.type === 'web_url' ? <><i className="ri-external-link-line" style={{ marginRight: 4, fontSize: 12 }} />{m.title}</> : m.title}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1725,7 +1753,7 @@ export default function SettingsPage() {
     <div className="settings-section">
       <h3>알림 설정</h3>
       <p style={{ color: '#64748B', fontSize: 13, marginBottom: 16 }}>
-        알림 설정은 자동으로 저장됩니다.
+        알림 설정은 자동으로 저장됩니다. (이 기기에만 저장됩니다)
       </p>
       {NOTIFICATION_KEYS.map(({ key, title, desc }) => (
         <div className="setting-row" key={key}>

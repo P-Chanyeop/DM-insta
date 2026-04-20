@@ -109,8 +109,14 @@ export default function AgencyPage() {
         </div>
         <button
           className="btn-primary"
-          onClick={() => setShowConnectModal(true)}
-          disabled={accountList.length >= maxAccounts}
+          onClick={() => {
+            if (accountList.length >= maxAccounts) {
+              toast.info(`현재 플랜에서는 최대 ${maxAccounts}개 계정까지 연결할 수 있습니다. 더 많은 계정이 필요하면 플랜을 업그레이드하세요.`)
+              navigate('/app/settings', { state: { tab: 'billing' } })
+            } else {
+              setShowConnectModal(true)
+            }
+          }}
         >
           <i className="ri-add-line" /> 계정 추가
         </button>
