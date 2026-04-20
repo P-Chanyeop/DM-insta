@@ -36,12 +36,20 @@ const now = () => {
 
 // Map backend conversation object to the shape used by the UI
 function mapConversation(conv) {
+  // 백엔드 ConversationDto.Response의 contact* 필드를 우선 매핑
+  const displayName = conv.contactName || conv.contactUsername
+    || conv.participantName || conv.name || '알 수 없음'
+  const username = conv.contactUsername || conv.participantUsername || conv.username || null
+  const profilePic = conv.contactProfilePictureUrl || conv.profilePictureUrl || null
   return {
     id: conv.id,
-    name: conv.participantName || conv.name || '알 수 없음',
+    contactId: conv.contactId ?? null,
+    name: displayName,
+    username,
+    profilePictureUrl: profilePic,
     time: conv.lastMessageTime || '',
     bg: conv.avatarGradient || 'linear-gradient(135deg, #667eea, #764ba2)',
-    initial: (conv.participantName || conv.name || '?').charAt(0),
+    initial: (displayName || '?').charAt(0),
     badge: conv.automationType === 'auto' ? 'auto' : null,
     status: conv.status || 'open',
     unread: conv.unreadCount || 0,
@@ -567,16 +575,28 @@ export default function LiveChatPage() {
 
   // 기존 Contact의 프로필을 Meta Graph API로 재조회해 DB 갱신
   const handleRefreshProfile = async () => {
-    if (!selectedChat?.contactId || refreshingProfile) return
+    if (refreshingProfile) return
+    if (!selectedChat) { toast.warning('대화를 먼저 선택해주세요.'); return }
+    if (!selectedChat.contactId) {
+      toast.warning('대화에 연결된 연락처 정보를 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.')
+      return
+    }
     setRefreshingProfile(true)
     try {
       const updated = await contactService.refreshProfile(selectedChat.contactId)
       // 리스트/선택된 채팅에 즉시 반영
       updateChat(selectedId, {
-        name: updated.name || updated.username,
+        name: updated.name || updated.username || '알 수 없음',
         username: updated.username,
         profilePictureUrl: updated.profilePictureUrl,
+        initial: ((updated.name || updated.username || '?') + '').charAt(0),
       })
+      // 전체 목록도 재조회 (다른 대화 참가자도 섞였을 수 있음)
+      try {
+        const data = await conversationService.list()
+        const mapped = (Array.isArray(data) ? data : data?.content || []).map(mapConversation)
+        setChats(mapped)
+      } catch {}
       toast.success('프로필을 재조회했습니다.')
     } catch (err) {
       toast.error(err.message || '프로필 재조회에 실패했습니다. (App Review 권한 필요할 수 있음)')
@@ -790,9 +810,10 @@ export default function LiveChatPage() {
               onClick={handleRefreshProfile}
               disabled={refreshingProfile}
               title="Instagram 프로필 다시 불러오기 (이름·사진)"
+              aria-label="프로필 재조회"
+              style={{ whiteSpace: 'nowrap', padding: '6px 10px' }}
             >
               <i className={refreshingProfile ? 'ri-loader-4-line spin' : 'ri-refresh-line'} />
-              {refreshingProfile ? ' 로딩...' : ' 프로필 재조회'}
             </button>
             <button
               className={`btn-secondary small${selectedChat?.automationPaused ? ' paused' : ''}`}
