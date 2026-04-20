@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import PageLoader, { SkeletonCard } from '../components/PageLoader'
 import { dashboardService, flowService, automationService } from '../api/services'
+import { useToast } from '../components/Toast'
 
 const AUTOMATION_TYPE_META = {
   DM_KEYWORD: { label: 'DM 키워드', icon: 'ri-message-3-line', color: 'blue' },
@@ -31,6 +32,7 @@ function formatPercent(value) {
 }
 
 export default function DashboardPage() {
+  const toast = useToast()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [dashboard, setDashboard] = useState(null)
@@ -69,8 +71,8 @@ export default function DashboardPage() {
         await automationService.toggle(item._rawId)
         setAutomations((prev) => prev.map((a) => a.id === item._rawId ? { ...a, active: !a.active } : a))
       }
-    } catch {
-      // 실패 시 무시
+    } catch (err) {
+      toast.error(err.message || '상태 변경에 실패했습니다.')
     }
   }
 
@@ -276,7 +278,7 @@ export default function DashboardPage() {
 
         {/* Quick Stats */}
         <div className="dash-card">
-          <div className="dash-card-header"><h3>오늘의 성과</h3></div>
+          <div className="dash-card-header"><h3>전체 현황</h3></div>
           <div className="quick-stats">
             {rings.map((r) => (
               <div className="quick-stat-item" key={r.label}>
