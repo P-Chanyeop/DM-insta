@@ -5,6 +5,7 @@ import PageLoader from '../components/PageLoader'
 import { useConfirm } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { growthToolService } from '../api/services'
+import { refreshNavCount } from '../layouts/DashboardLayout'
 
 /* ── Backend type mapping ── */
 const BACKEND_TYPE_MAP = {
@@ -334,6 +335,7 @@ export default function GrowthPage() {
     try {
       await growthToolService.delete(id)
       setTools(prev => prev.filter(t => t.id !== id))
+      refreshNavCount('growthTools', -1)
       toast.success('성장 도구가 삭제되었습니다.')
     } catch { toast.error('삭제에 실패했습니다.') }
   }
@@ -345,6 +347,7 @@ export default function GrowthPage() {
     try {
       const data = await growthToolService.create({ type: backendType, name: meta?.label ? `새 ${meta.label}` : type })
       if (data) setTools(prev => [...prev, mapBackendToFrontend(data)])
+      refreshNavCount('growthTools', +1)
       toast.success('성장 도구가 생성되었습니다.')
     } catch (e) { toast.error(e.message || '도구 생성에 실패했습니다.') }
     setShowAddMenu(false)

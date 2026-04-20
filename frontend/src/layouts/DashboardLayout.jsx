@@ -196,8 +196,22 @@ export default function DashboardLayout() {
       })
     }
     fetchCounts()
-    // 다른 페이지에서 데이터 변경 시 알릴 수 있는 커스텀 이벤트.
-    const onRefresh = () => fetchCounts()
+    // 다른 페이지에서 데이터 변경 시: 전체 재조회 또는 부분 업데이트
+    // detail: null → 전체 재조회
+    // detail: { key, delta } → 해당 키만 delta 만큼 증감
+    // detail: { key, value } → 해당 키를 절대값으로 설정
+    const onRefresh = (e) => {
+      const d = e.detail
+      if (d && d.key) {
+        setNavCounts(prev => ({
+          ...prev,
+          [d.key]: d.value !== undefined ? d.value
+            : (prev[d.key] || 0) + (d.delta || 0),
+        }))
+      } else {
+        fetchCounts()
+      }
+    }
     window.addEventListener('nav:refresh-counts', onRefresh)
     const interval = setInterval(fetchCounts, 60000)
     return () => {
@@ -789,4 +803,22 @@ export default function DashboardLayout() {
       )}
     </div>
   )
+}
+
+/**
+ * 사이드바 카운트 업데이트 유틸리티
+ * refreshNavCount('flows', +1)  — flows 카운트 1 증가
+ * refreshNavCount('flows', -1)  — flows 카운트 1 감소
+ * refreshNavCount('unreadMessages', 0, 5) — unreadMessages를 절대값 5로 설정
+ * refreshNavCount()             — 전체 재조회
+ */
+export function refreshNavCount(key, delta, absoluteValue) {
+  if (!key) {
+    window.dispatchEvent(new CustomEvent('nav:refresh-counts'))
+    return
+  }
+  const detail = absoluteValue !== undefined
+    ? { key, value: absoluteValue }
+    : { key, delta }
+  window.dispatchEvent(new CustomEvent('nav:refresh-counts', { detail }))
 }

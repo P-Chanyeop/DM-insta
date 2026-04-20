@@ -5,6 +5,7 @@ import { useToast } from '../components/Toast'
 import { useConfirm } from '../components/ConfirmDialog'
 import EmptyState from '../components/EmptyState'
 import { contactService } from '../api/services'
+import { refreshNavCount } from '../layouts/DashboardLayout'
 
 const GRADIENTS = [
   'linear-gradient(135deg, #667eea, #764ba2)',
@@ -198,6 +199,7 @@ export default function ContactsPage() {
       setImportFile(null)
       setError('')
       await loadContacts(0)
+      refreshNavCount('contacts', result.imported || 0)
       toast.success(`가져오기 완료: ${result.imported}명 추가, ${result.skipped}명 중복 스킵`)
     } catch (err) {
       toast.error(err.message || 'CSV 가져오기에 실패했습니다.')
@@ -245,9 +247,11 @@ export default function ContactsPage() {
     })
     if (!ok) return
     try {
+      const deletedCount = selectedIds.size
       await contactService.deleteBulk([...selectedIds])
       setSelectedIds(new Set())
-      toast.success(`${selectedIds.size}명의 연락처가 삭제되었습니다.`)
+      refreshNavCount('contacts', -deletedCount)
+      toast.success(`${deletedCount}명의 연락처가 삭제되었습니다.`)
       await loadContacts(page)
     } catch (err) {
       toast.error(err.message || '연락처 삭제에 실패했습니다.')

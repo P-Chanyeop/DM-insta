@@ -13,6 +13,7 @@ import {
 import '@xyflow/react/dist/style.css'
 
 import { flowService } from '../api/services'
+import { refreshNavCount } from '../layouts/DashboardLayout'
 import { useAccount } from '../components/AccountContext'
 import { nodeTypeMap } from '../components/flow-builder/nodeTypes'
 import NodeEditor from '../components/flow-builder/NodeEditor'
@@ -210,6 +211,7 @@ export default function FlowBuilderPage() {
         await flowService.update(currentFlowId, payload)
       } else {
         const created = await flowService.create(payload)
+        refreshNavCount('flows', +1)
         if (created?.id) {
           setCurrentFlowId(created.id)
           navigate(`/app/flows/builder/${created.id}`, { replace: true })

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { sequenceService } from '../api/services'
+import { refreshNavCount } from '../layouts/DashboardLayout'
 import { useConfirm, useUnsavedChanges } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 
@@ -342,6 +343,7 @@ export default function SequenceBuilderPage() {
         toast.success('시퀀스가 업데이트되었습니다!')
       } else {
         await sequenceService.create(payload)
+        refreshNavCount('sequences', +1)
         toast.success('시퀀스가 생성되었습니다!')
       }
       setHasChanges(false)

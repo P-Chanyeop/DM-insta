@@ -7,6 +7,7 @@ import { usePlan } from '../components/PlanContext'
 import UpgradeModal, { QuotaBar } from '../components/UpgradeModal'
 import { useConfirm } from '../components/ConfirmDialog'
 import { flowService } from '../api/services'
+import { refreshNavCount } from '../layouts/DashboardLayout'
 
 // Canonical enum values match backend Flow.TriggerType
 const TRIGGER_META = {
@@ -145,6 +146,7 @@ export default function FlowsPage() {
     try {
       await flowService.delete(id)
       toast.success('플로우가 삭제되었습니다.')
+      refreshNavCount('flows', -1)
       await loadFlows()
     } catch (err) {
       toast.error(err.message || '삭제에 실패했습니다.')
@@ -163,6 +165,7 @@ export default function FlowsPage() {
         flowData: flow.flowData || '{}',
       })
       toast.success('플로우가 복제되었습니다.')
+      refreshNavCount('flows', +1)
       await loadFlows()
     } catch (err) {
       toast.error(err.message || '플로우 복제에 실패했습니다.')

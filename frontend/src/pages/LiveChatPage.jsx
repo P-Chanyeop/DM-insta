@@ -6,6 +6,7 @@ import { useToast } from '../components/Toast'
 import { uploadFile } from '../api/client'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
+import { refreshNavCount } from '../layouts/DashboardLayout'
 
 // 현재 로그인한 사용자를 팀 멤버로 사용 (팀 기능 확장 시 API로 교체)
 function getTeamMembers() {
@@ -348,9 +349,12 @@ export default function LiveChatPage() {
 
   const handleSelectChat = (chatId) => {
     setSelectedId(chatId)
-    // Mark as read — UI + backend
+    // Mark as read — UI + backend + sidebar badge
+    const chat = chats.find(c => c.id === chatId)
+    const prevUnread = chat?.unread || 0
     updateChat(chatId, { unread: 0 })
     conversationService.markAsRead(chatId).catch(() => {})
+    if (prevUnread > 0) refreshNavCount('unreadMessages', -prevUnread)
     setShowQuickReplies(false)
     setShowAssignDropdown(false)
   }

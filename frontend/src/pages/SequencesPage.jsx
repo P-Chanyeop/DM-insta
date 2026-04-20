@@ -7,6 +7,7 @@ import { usePlan } from '../components/PlanContext'
 import UpgradeModal from '../components/UpgradeModal'
 import { useConfirm } from '../components/ConfirmDialog'
 import { sequenceService } from '../api/services'
+import { refreshNavCount } from '../layouts/DashboardLayout'
 
 const STEP_TYPE_MAP = {
   MESSAGE: { icon: 'ri-message-3-line', color: '#3B82F6' },
@@ -88,6 +89,7 @@ export default function SequencesPage() {
     setSequences(s => s.filter(seq => seq.id !== id))
     try {
       await sequenceService.delete(id)
+      refreshNavCount('sequences', -1)
       toast.success('시퀀스가 삭제되었습니다.')
     } catch {
       setSequences(prev)

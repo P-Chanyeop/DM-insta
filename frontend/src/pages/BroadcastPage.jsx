@@ -7,6 +7,7 @@ import { usePlan } from '../components/PlanContext'
 import UpgradeModal from '../components/UpgradeModal'
 import { useConfirm } from '../components/ConfirmDialog'
 import { broadcastService } from '../api/services'
+import { refreshNavCount } from '../layouts/DashboardLayout'
 
 function formatNumber(value) {
   return new Intl.NumberFormat('ko-KR').format(value || 0)
@@ -111,6 +112,7 @@ export default function BroadcastPage() {
     try {
       await broadcastService.cancel(id)
       toast.success('브로드캐스트가 취소되었습니다.')
+      refreshNavCount('broadcasts', -1)
       await loadBroadcasts()
     } catch (err) {
       toast.error(err.message || '취소에 실패했습니다.')

@@ -6,6 +6,7 @@ import { usePlan } from '../components/PlanContext'
 import UpgradeModal, { QuotaBar } from '../components/UpgradeModal'
 import { useConfirm } from '../components/ConfirmDialog'
 import { automationService, flowService } from '../api/services'
+import { refreshNavCount } from '../layouts/DashboardLayout'
 
 function formatNumber(value) {
   return new Intl.NumberFormat('ko-KR').format(value || 0)
@@ -73,6 +74,7 @@ export default function AutomationPage() {
       setForm({ name: '', type: 'DM_KEYWORD', keyword: '', matchType: 'CONTAINS', responseMessage: '', flowId: '' })
       setShowForm(false)
       toast.success('트리거가 생성되었습니다.')
+      refreshNavCount('automations', +1)
       await loadData()
       await refreshPlan()  // S5 fix: 쿼터 카운트 즉시 갱신
     } catch (err) {
@@ -102,6 +104,7 @@ export default function AutomationPage() {
     try {
       await automationService.delete(id)
       toast.success('트리거가 삭제되었습니다.')
+      refreshNavCount('automations', -1)
       await loadData()
       await refreshPlan()  // S5 fix: 쿼터 카운트 즉시 갱신
     } catch (err) {

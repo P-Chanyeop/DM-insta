@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { groupBuyService } from '../api/services'
+import { refreshNavCount } from '../layouts/DashboardLayout'
 
 const STATUS_LABELS = {
   DRAFT: '초안',
@@ -92,6 +93,7 @@ export default function GroupBuyPage() {
     if (!confirm(`"${gb.title}" 공동구매를 삭제하시겠습니까?`)) return
     try {
       await groupBuyService.delete(gb.id)
+      refreshNavCount('groupBuys', -1)
       if (selectedGB?.id === gb.id) setSelectedGB(null)
       loadGroupBuys()
     } catch (err) {
@@ -373,6 +375,7 @@ function CreateGroupBuyModal({ onClose, onCreated }) {
     setSaving(true)
     try {
       await groupBuyService.create(form)
+      refreshNavCount('groupBuys', +1)
       onCreated()
     } catch (err) {
       alert(err.message || '생성 실패')

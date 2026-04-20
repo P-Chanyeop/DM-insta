@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useToast } from '../components/Toast'
 import { useConfirm, useUnsavedChanges } from '../components/ConfirmDialog'
 import { broadcastService } from '../api/services'
+import { refreshNavCount } from '../layouts/DashboardLayout'
 
 /* ── 세그먼트 조건 타입 ── */
 const CONDITION_TYPES = [
@@ -221,6 +222,7 @@ export default function BroadcastBuilderPage() {
       const scheduledAt = scheduleType === 'scheduled' ? `${scheduledDate}T${scheduledTime}` : null
       await broadcastService.create({ name: name.trim(), messageContent: messageContent.trim(), segment, scheduledAt })
       setHasChanges(false)
+      refreshNavCount('broadcasts', +1)
       toast.success(scheduleType === 'immediate' ? '브로드캐스트가 발송되었습니다!' : '브로드캐스트가 예약되었습니다!')
       navigate('/app/broadcast')
     } catch (err) {
