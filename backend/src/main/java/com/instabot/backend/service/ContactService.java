@@ -141,12 +141,12 @@ public class ContactService {
     }
 
     private ContactDto.Response toResponse(Contact c) {
-        // B2 추가 fix: tags는 @ElementCollection Lazy.
-        // 트랜잭션 안에서 ArrayList로 즉시 복사하지 않으면
+        // B2 추가 fix: tags는 @ElementCollection Lazy (Set<String>).
+        // 트랜잭션 안에서 HashSet으로 즉시 복사하지 않으면
         // 응답 직렬화 시점(Jackson)에는 트랜잭션이 종료돼 LazyInitializationException 발생.
-        java.util.List<String> tagsCopy = c.getTags() == null
+        java.util.Set<String> tagsCopy = c.getTags() == null
                 ? null
-                : new java.util.ArrayList<>(c.getTags());
+                : new java.util.HashSet<>(c.getTags());
         return ContactDto.Response.builder()
                 .id(c.getId())
                 .igUserId(c.getIgUserId())
