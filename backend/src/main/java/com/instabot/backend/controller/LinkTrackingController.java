@@ -2,8 +2,10 @@ package com.instabot.backend.controller;
 
 import com.instabot.backend.entity.Broadcast;
 import com.instabot.backend.entity.GrowthTool;
+import com.instabot.backend.entity.InstagramAccount;
 import com.instabot.backend.repository.BroadcastRepository;
 import com.instabot.backend.repository.GrowthToolRepository;
+import com.instabot.backend.repository.InstagramAccountRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -23,6 +25,7 @@ public class LinkTrackingController {
 
     private final GrowthToolRepository growthToolRepository;
     private final BroadcastRepository broadcastRepository;
+    private final InstagramAccountRepository instagramAccountRepository;
 
     /**
      * Growth Tool Ref Link 클릭 추적
@@ -30,7 +33,7 @@ public class LinkTrackingController {
     @GetMapping("/r/{id}")
     public ResponseEntity<Void> trackRefLink(@PathVariable Long id) {
         GrowthTool tool = growthToolRepository.findById(id).orElse(null);
-        if (tool == null || tool.getRefUrl() == null) {
+        if (tool == null) {
             return ResponseEntity.notFound().build();
         }
 
@@ -40,8 +43,22 @@ public class LinkTrackingController {
 
         log.debug("Ref Link 클릭: toolId={}, clicks={}", id, tool.getClickCount());
 
+        // 리다이렉트 URL 결정: refUrl → 인스타 DM 링크 → 인스타 홈
+        String redirectUrl = tool.getRefUrl();
+        if (redirectUrl == null || redirectUrl.isBlank()) {
+            // refUrl이 없으면 해당 사용자의 인스타 DM 링크로 리다이렉트
+            InstagramAccount igAccount = instagramAccountRepository
+                    .findByUserIdAndActiveTrue(tool.getUser().getId())
+                    .orElse(null);
+            if (igAccount != null && igAccount.getUsername() != null) {
+                redirectUrl = "https://ig.me/m/" + igAccount.getUsername();
+            } else {
+                redirectUrl = "https://instagram.com";
+            }
+        }
+
         HttpHeaders headers = new HttpHeaders();
-        headers.add("Location", tool.getRefUrl());
+        headers.add("Location", redirectUrl);
         return new ResponseEntity<>(headers, HttpStatus.FOUND);
     }
 
