@@ -1,34 +1,47 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { getStoredUser } from '../api/client'
-import { authService } from '../api/services'
+import {
+  authService,
+  flowService,
+  automationService,
+  broadcastService,
+  sequenceService,
+  groupBuyService,
+  contactService,
+  growthToolService,
+  templateService,
+  conversationService,
+} from '../api/services'
 import { usePlan } from '../components/PlanContext'
 import { useAccount } from '../components/AccountContext'
 import IndustrySelectModal from '../components/IndustrySelectModal'
 
+// countKey: DashboardLayout의 navCounts 상태에서 이 키로 값을 찾아 뱃지에 표시.
+// badgeKey: 주의/알림용 빨간 뱃지(안 읽은 메시지 등).
 const NAV_SECTIONS = [
   {
     title: '메인',
     items: [
       { to: '/app', icon: 'ri-dashboard-3-line', label: '대시보드', end: true },
-      { to: '/app/flows', icon: 'ri-flow-chart', label: '자동화 플로우' },
-      { to: '/app/automation', icon: 'ri-robot-2-line', label: '자동화 트리거' },
+      { to: '/app/flows', icon: 'ri-flow-chart', label: '자동화 플로우', countKey: 'flows' },
+      { to: '/app/automation', icon: 'ri-robot-2-line', label: '자동화 트리거', countKey: 'automations' },
     ]
   },
   {
     title: '메시징',
     items: [
-      { to: '/app/livechat', icon: 'ri-chat-3-line', label: '라이브 채팅' },
-      { to: '/app/broadcast', icon: 'ri-broadcast-line', label: '브로드캐스팅' },
-      { to: '/app/sequences', icon: 'ri-time-line', label: '시퀀스' },
-      { to: '/app/group-buys', icon: 'ri-shopping-bag-line', label: '공동구매' },
+      { to: '/app/livechat', icon: 'ri-chat-3-line', label: '라이브 채팅', badgeKey: 'unreadMessages' },
+      { to: '/app/broadcast', icon: 'ri-broadcast-line', label: '브로드캐스팅', countKey: 'broadcasts' },
+      { to: '/app/sequences', icon: 'ri-time-line', label: '시퀀스', countKey: 'sequences' },
+      { to: '/app/group-buys', icon: 'ri-shopping-bag-line', label: '공동구매', countKey: 'groupBuys' },
     ]
   },
   {
     title: '성장',
     items: [
-      { to: '/app/contacts', icon: 'ri-contacts-book-2-line', label: '연락처' },
-      { to: '/app/growth', icon: 'ri-seedling-line', label: '성장 도구' },
+      { to: '/app/contacts', icon: 'ri-contacts-book-2-line', label: '연락처', countKey: 'contacts' },
+      { to: '/app/growth', icon: 'ri-seedling-line', label: '성장 도구', countKey: 'growthTools' },
       { to: '/app/analytics', icon: 'ri-line-chart-line', label: '분석' },
     ]
   },
@@ -36,7 +49,7 @@ const NAV_SECTIONS = [
     title: '설정',
     items: [
       { to: '/app/agency', icon: 'ri-building-2-line', label: '에이전시' },
-      { to: '/app/templates', icon: 'ri-file-copy-2-line', label: '템플릿' },
+      { to: '/app/templates', icon: 'ri-file-copy-2-line', label: '템플릿', countKey: 'templates' },
       { to: '/app/settings', icon: 'ri-settings-3-line', label: '설정' },
     ]
   }
@@ -122,6 +135,8 @@ export default function DashboardLayout() {
   const [cmdIndex, setCmdIndex] = useState(0)
   const [notifications, setNotifications] = useState(DEMO_NOTIFICATIONS)
   const [showIndustryModal, setShowIndustryModal] = useState(false)
+  // 사이드바 메뉴 옆 개수/알림 뱃지용 카운트.
+  const [navCounts, setNavCounts] = useState({})
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const { planLabel, getUsage, getLimit } = usePlan()
@@ -138,6 +153,59 @@ export default function DashboardLayout() {
   const storedUser = useMemo(() => getStoredUser(), [])
   const userName = storedUser?.name || '사용자'
   const userInitial = userName[0] || '?'
+
+  // 사이드바 메뉴 카운트 집계 — 로그인 상태에서만 병렬 페치.
+  // 개별 엔드포인트 실패는 무시(해당 뱃지만 숨김).
+  useEffect(() => {
+    let cancelled = false
+    async function fetchCounts() {
+      const safe = async (fn) => {
+        try { return await fn() } catch { return null }
+      }
+      const toCount = (data) => {
+        if (!data) return null
+        if (Array.isArray(data)) return data.length
+        if (typeof data.totalElements === 'number') return data.totalElements
+        if (Array.isArray(data.content)) return data.content.length
+        return null
+      }
+      const [flows, autos, bcs, seqs, gbs, contactsPage, growth, tmpls, convs] = await Promise.all([
+        safe(() => flowService.list()),
+        safe(() => automationService.list()),
+        safe(() => broadcastService.list()),
+        safe(() => sequenceService.list()),
+        safe(() => groupBuyService.list()),
+        safe(() => contactService.list(0, 1)),
+        safe(() => growthToolService.list()),
+        safe(() => templateService.list()),
+        safe(() => conversationService.list()),
+      ])
+      if (cancelled) return
+      const convArr = Array.isArray(convs) ? convs : (convs?.content || [])
+      const unreadSum = convArr.reduce((acc, c) => acc + (c.unreadCount || 0), 0)
+      setNavCounts({
+        flows: toCount(flows),
+        automations: toCount(autos),
+        broadcasts: toCount(bcs),
+        sequences: toCount(seqs),
+        groupBuys: toCount(gbs),
+        contacts: toCount(contactsPage),
+        growthTools: toCount(growth),
+        templates: toCount(tmpls),
+        unreadMessages: unreadSum,
+      })
+    }
+    fetchCounts()
+    // 다른 페이지에서 데이터 변경 시 알릴 수 있는 커스텀 이벤트.
+    const onRefresh = () => fetchCounts()
+    window.addEventListener('nav:refresh-counts', onRefresh)
+    const interval = setInterval(fetchCounts, 60000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+      window.removeEventListener('nav:refresh-counts', onRefresh)
+    }
+  }, [])
 
   // 업종 선택은 온보딩에서 처리. 대시보드에서는 자동 팝업하지 않음.
   // (설정 메뉴 등에서 수동으로 열 때만 사용)
@@ -385,22 +453,28 @@ export default function DashboardLayout() {
           {NAV_SECTIONS.map((section) => (
             <div className="nav-section" key={section.title}>
               <div className="nav-section-title">{section.title}</div>
-              {section.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <i className={item.icon} />
-                  <span>{item.label}</span>
-                  {item.badge && (
-                    <span className={`nav-badge ${item.badgeType || ''}`}>{item.badge}</span>
-                  )}
-                  {item.count && <span className="nav-count">{item.count}</span>}
-                </NavLink>
-              ))}
+              {section.items.map((item) => {
+                const badgeVal = item.badgeKey ? navCounts[item.badgeKey] : item.badge
+                const countVal = item.countKey ? navCounts[item.countKey] : item.count
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <i className={item.icon} />
+                    <span>{item.label}</span>
+                    {badgeVal > 0 && (
+                      <span className={`nav-badge ${item.badgeType || 'red'}`}>{badgeVal}</span>
+                    )}
+                    {badgeVal == null && typeof countVal === 'number' && countVal > 0 && (
+                      <span className="nav-count">{countVal}</span>
+                    )}
+                  </NavLink>
+                )
+              })}
             </div>
           ))}
         </nav>

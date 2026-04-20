@@ -799,13 +799,19 @@ export default function LiveChatPage() {
               </div>
               <div className="chat-item-info">
                 <div className="chat-item-top">
-                  <strong>{c.name}</strong>
+                  <strong>
+                    {c.name}
+                    {c.unread > 0 && (
+                      <span className="chat-item-unread-badge" title={`안 읽은 메시지 ${c.unread}건`}>
+                        {c.unread}
+                      </span>
+                    )}
+                  </strong>
                   <span>{c.time}</span>
                 </div>
                 <p>{c.messages[c.messages.length - 1]?.text || ''}</p>
               </div>
               {c.badge && <div className="chat-item-badge auto">자동</div>}
-              {c.unread > 0 && <span className="unread-dot">{c.unread}</span>}
               {c.assignee && (
                 <span style={{ fontSize: '10px', color: '#888', position: 'absolute', right: 12, bottom: 8 }}>
                   {c.assignee}
