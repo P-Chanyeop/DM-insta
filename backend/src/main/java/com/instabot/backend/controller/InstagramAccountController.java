@@ -63,4 +63,12 @@ public class InstagramAccountController {
     public ResponseEntity<AccountResponse> resubscribeWebhook(@PathVariable Long id) {
         return ResponseEntity.ok(accountService.resubscribeWebhook(SecurityUtils.currentUserId(), id));
     }
+
+    /**
+     * 진단용 — Meta 측 실제 구독 상태 조회.
+     */
+    @GetMapping("/{id}/subscription-status")
+    public ResponseEntity<com.fasterxml.jackson.databind.JsonNode> getSubscriptionStatus(@PathVariable Long id) {
+        return ResponseEntity.ok(accountService.getSubscriptionStatus(SecurityUtils.currentUserId(), id));
+    }
 }

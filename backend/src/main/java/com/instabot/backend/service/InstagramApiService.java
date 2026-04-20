@@ -673,6 +673,24 @@ public class InstagramApiService {
         }
     }
 
+    /**
+     * 진단용: IG 계정의 현재 subscribed_apps 상태 조회.
+     * GET /{ig-user-id}/subscribed_apps?access_token=...
+     * 응답 예: { "data": [{ "name": "MyApp", "id": "...", "subscribed_fields": [...] }] }
+     */
+    public JsonNode getSubscribedApps(String igUserId, String accessToken) {
+        String url = "https://graph.instagram.com/v21.0/" + igUserId
+                + "/subscribed_apps?access_token=" + accessToken;
+        try {
+            ResponseEntity<JsonNode> response = restTemplate.getForEntity(url, JsonNode.class);
+            log.info("subscribed_apps 조회: igUserId={}, body={}", igUserId, response.getBody());
+            return response.getBody();
+        } catch (Exception e) {
+            log.error("subscribed_apps 조회 실패: igUserId={}, error={}", igUserId, e.getMessage(), e);
+            throw new RuntimeException("subscribed_apps 조회 실패: " + e.getMessage());
+        }
+    }
+
     // ─── 내부 유틸 ───
 
     private JsonNode postToInstagram(String url, Map<String, Object> body, String accessToken) {

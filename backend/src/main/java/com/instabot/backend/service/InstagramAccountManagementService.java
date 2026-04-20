@@ -106,6 +106,17 @@ public class InstagramAccountManagementService {
         return toResponse(account);
     }
 
+    /**
+     * 진단용 — Meta 측 현재 subscribed_apps 상태 반환.
+     * Meta가 실제로 저장한 구독 필드 확인 가능.
+     */
+    public com.fasterxml.jackson.databind.JsonNode getSubscriptionStatus(Long userId, Long accountId) {
+        InstagramAccount account = accountRepo.findByIdAndUserId(accountId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("계정을 찾을 수 없습니다"));
+        String token = instagramApiService.getDecryptedToken(account);
+        return instagramApiService.getSubscribedApps(account.getIgUserId(), token);
+    }
+
     @Transactional
     public AccountResponse switchAccount(Long userId, Long accountId) {
         InstagramAccount target = accountRepo.findByIdAndUserId(accountId, userId)
