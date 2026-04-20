@@ -12,6 +12,7 @@ import com.instabot.backend.service.InstagramApiService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,8 +31,11 @@ public class ConversationController {
 
     /**
      * 대화 목록 조회 (선택적 status 필터)
+     * B2 fix 패턴: toResponse에서 Conversation.contact(Lazy ManyToOne) 접근 →
+     * 트랜잭션 밖이면 LazyInitException. readOnly 트랜잭션 안에서 DTO 변환 완료.
      */
     @GetMapping
+    @Transactional(readOnly = true)
     public ResponseEntity<List<ConversationDto.Response>> getConversations(
             @RequestParam(required = false) Conversation.ConversationStatus status) {
         Long userId = SecurityUtils.currentUserId();
@@ -51,6 +55,7 @@ public class ConversationController {
      * 단일 대화 조회 (Contact 정보 포함)
      */
     @GetMapping("/{id}")
+    @Transactional(readOnly = true)
     public ResponseEntity<ConversationDto.Response> getConversation(@PathVariable Long id) {
         Conversation conversation = findConversationForCurrentUser(id);
         return ResponseEntity.ok(toResponse(conversation));
