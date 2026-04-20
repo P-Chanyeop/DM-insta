@@ -152,6 +152,10 @@ export default function FlowsPage() {
   }
 
   const handleClone = async (flow) => {
+    if (isAtLimit('flows')) {
+      setUpgradeOpen(true)
+      return
+    }
     try {
       await flowService.create({
         name: `복사 - ${flow.name}`,
@@ -281,7 +285,12 @@ export default function FlowsPage() {
                   >
                     <i className="ri-edit-line" />
                   </button>
-                  <button className="icon-btn" title="복제" onClick={() => handleClone(f)}>
+                  <button
+                    className="icon-btn"
+                    title={isAtLimit('flows') ? '플로우 한도 초과 — 업그레이드 필요' : '복제'}
+                    onClick={() => handleClone(f)}
+                    style={isAtLimit('flows') ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+                  >
                     <i className="ri-file-copy-line" />
                   </button>
                   <button className="icon-btn" title="삭제" onClick={() => handleDelete(f.id)}>
@@ -293,11 +302,11 @@ export default function FlowsPage() {
           )
         })}
 
-        <div className="flow-card add-new" onClick={handleCreate}>
+        <div className="flow-card add-new" onClick={handleCreate} title={isAtLimit('flows') ? '플로우 한도 초과 — 업그레이드 필요' : '새 자동화 만들기'}>
           <div className="add-new-content">
             <div className="add-new-icon"><i className="ri-add-line" /></div>
             <h4>새 자동화 만들기</h4>
-            <p>자동 응답 시나리오를 만들어보세요</p>
+            <p>{isAtLimit('flows') ? '한도 초과 — 업그레이드하거나 기존 플로우를 삭제하세요' : '빈 플로우 또는 템플릿에서 시작'}</p>
           </div>
         </div>
       </div>
