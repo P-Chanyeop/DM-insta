@@ -22,10 +22,12 @@ public class ContactService {
     private final UserRepository userRepository;
     private final QuotaService quotaService;
 
+    @Transactional(readOnly = true)
     public Page<ContactDto.Response> getContacts(Long userId, Pageable pageable) {
         return contactRepository.findByUserId(userId, pageable).map(this::toResponse);
     }
 
+    @Transactional(readOnly = true)
     public ContactDto.Response getContact(Long userId, Long id) {
         Contact contact = contactRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("연락처를 찾을 수 없습니다."));
@@ -112,6 +114,7 @@ public class ContactService {
      * CSV 내보내기 — 사용자의 전체 연락처를 RFC 4180 CSV 문자열로 반환.
      * 쉼표/따옴표/줄바꿈 포함 시 이스케이프.
      */
+    @Transactional(readOnly = true)
     public String exportContactsCsv(Long userId) {
         List<Contact> contacts = contactRepository.findAllByUserId(userId);
         StringBuilder sb = new StringBuilder();
