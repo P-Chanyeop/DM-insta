@@ -643,6 +643,32 @@ public class InstagramApiService {
         return postToInstagram(url, body, accessToken);
     }
 
+    /**
+     * Webhook 구독 — IG 계정을 앱 webhook에 구독.
+     * POST /{ig-user-id}/subscribed_apps?subscribed_fields=...&access_token=...
+     *
+     * 이 호출이 없으면 Meta가 해당 IG 계정의 DM/댓글 이벤트를 webhook URL로 전달하지 않음.
+     * 계정 연결 직후와 토큰 갱신 후 호출 필요.
+     */
+    public boolean subscribeAppToIgAccount(String igUserId, String accessToken) {
+        String fields = "messages,messaging_postbacks,comments,message_reactions,message_reads";
+        String url = "https://graph.instagram.com/v21.0/" + igUserId
+                + "/subscribed_apps?subscribed_fields=" + fields
+                + "&access_token=" + accessToken;
+
+        try {
+            ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, null, JsonNode.class);
+            JsonNode body = response.getBody();
+            boolean success = body != null && body.path("success").asBoolean(false);
+            log.info("Webhook 구독 {}: igUserId={}, response={}",
+                    success ? "성공" : "응답 확인 필요", igUserId, body);
+            return success;
+        } catch (Exception e) {
+            log.error("Webhook 구독 실패: igUserId={}, error={}", igUserId, e.getMessage(), e);
+            return false;
+        }
+    }
+
     // ─── 내부 유틸 ───
 
     private JsonNode postToInstagram(String url, Map<String, Object> body, String accessToken) {

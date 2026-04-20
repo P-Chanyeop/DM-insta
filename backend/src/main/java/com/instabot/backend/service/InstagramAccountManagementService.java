@@ -14,6 +14,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class InstagramAccountManagementService {
 
     private final InstagramAccountRepository accountRepo;
@@ -21,6 +22,7 @@ public class InstagramAccountManagementService {
     private final FlowRepository flowRepo;
     private final ContactRepository contactRepo;
     private final AutomationRepository automationRepo;
+    private final InstagramApiService instagramApiService;
 
     private static final int FREE_ACCOUNT_LIMIT = 1;
     private static final int STARTER_ACCOUNT_LIMIT = 2;
@@ -65,7 +67,43 @@ public class InstagramAccountManagementService {
                 .active(isFirst)
                 .build();
 
-        return toResponse(accountRepo.save(account));
+        InstagramAccount saved = accountRepo.save(account);
+
+        // Webhook 구독 — 이게 없으면 Meta가 DM/댓글 이벤트를 webhook으로 전달 안 함
+        try {
+            String rawToken = instagramApiService.getDecryptedToken(saved);
+            boolean subscribed = instagramApiService.subscribeAppToIgAccount(saved.getIgUserId(), rawToken);
+            if (!subscribed) {
+                log.warn("Webhook 구독 실패 — 나중에 재시도 가능: igUserId={}", saved.getIgUserId());
+            }
+        } catch (Exception e) {
+            log.error("Webhook 구독 중 예외 (계정 연결은 성공): igUserId={}, error={}",
+                    saved.getIgUserId(), e.getMessage());
+            // 구독 실패해도 계정 연결 자체는 성공 — 관리자 수동 재구독 가능
+        }
+
+        return toResponse(saved);
+    }
+
+    /**
+     * Webhook 재구독 — 기존 연결된 계정의 webhook 구독을 다시 걸기.
+     * 최초 연결 시 구독이 실패했거나, 구독 fields 변경 시 수동 호출.
+     */
+    @Transactional
+    public AccountResponse resubscribeWebhook(Long userId, Long accountId) {
+        InstagramAccount account = accountRepo.findByIdAndUserId(accountId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("계정을 찾을 수 없습니다"));
+        if (!account.isConnected()) {
+            throw new BadRequestException("연결이 해제된 계정입니다. 재연결 후 사용하세요.");
+        }
+        String token = instagramApiService.getDecryptedToken(account);
+        boolean success = instagramApiService.subscribeAppToIgAccount(account.getIgUserId(), token);
+        if (!success) {
+            throw new BadRequestException("Webhook 구독에 실패했습니다. 토큰 상태를 확인하거나 재연결해주세요.");
+        }
+        log.info("Webhook 재구독 성공: userId={}, accountId={}, igUserId={}",
+                userId, accountId, account.getIgUserId());
+        return toResponse(account);
     }
 
     @Transactional

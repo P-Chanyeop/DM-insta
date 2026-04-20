@@ -53,4 +53,14 @@ public class InstagramAccountController {
     public ResponseEntity<AgencyOverview> getAgencyOverview() {
         return ResponseEntity.ok(accountService.getAgencyOverview(SecurityUtils.currentUserId()));
     }
+
+    /**
+     * Webhook 재구독 (A안) — 기존 연결된 IG 계정을 Meta webhook에 재구독.
+     * 최초 연결 시 구독 누락(이전 코드 버그) 또는 구독 필드 변경 시 사용.
+     * Meta API: POST /{ig-user-id}/subscribed_apps?subscribed_fields=...
+     */
+    @PostMapping("/{id}/resubscribe")
+    public ResponseEntity<AccountResponse> resubscribeWebhook(@PathVariable Long id) {
+        return ResponseEntity.ok(accountService.resubscribeWebhook(SecurityUtils.currentUserId(), id));
+    }
 }
