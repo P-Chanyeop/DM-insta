@@ -651,7 +651,11 @@ public class InstagramApiService {
      * 계정 연결 직후와 토큰 갱신 후 호출 필요.
      */
     public boolean subscribeAppToIgAccount(String igUserId, String accessToken) {
-        String fields = "messages,messaging_postbacks,comments,message_reactions,message_reads";
+        // Meta 공식 허용 필드 (2026 기준):
+        //   messages, messaging_postbacks, messaging_seen, messaging_optins,
+        //   message_reactions, message_edit, comments, live_comments, mentions, ...
+        // 센드잇은 DM/댓글 자동화에 필수인 것만 구독.
+        String fields = "messages,messaging_postbacks,messaging_seen,message_reactions,comments";
         String url = "https://graph.instagram.com/v21.0/" + igUserId
                 + "/subscribed_apps?subscribed_fields=" + fields
                 + "&access_token=" + accessToken;
