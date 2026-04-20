@@ -68,9 +68,11 @@ function mapConversation(conv) {
 // Map backend message object to the shape used by the UI
 function mapMessage(msg) {
   const msgType = (msg.type || '').toUpperCase()
+  // 백엔드 direction은 대문자 enum (INBOUND/OUTBOUND) — 소문자 비교 시 안 매칭됨
+  const dir = (msg.direction || '').toUpperCase()
   return {
     id: msg.id,
-    type: msg.direction === 'inbound' ? 'received' : msg.direction === 'outbound' ? 'sent' : msg.type || 'received',
+    type: dir === 'INBOUND' ? 'received' : dir === 'OUTBOUND' ? 'sent' : (msg.type || 'received'),
     text: msg.content || msg.text || '',
     time: msg.sentAt ? formatTime(msg.sentAt) : (msg.time || ''),
     auto: msg.auto || msg.isAutomated || msg.automated || false,
