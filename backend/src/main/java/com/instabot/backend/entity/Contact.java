@@ -20,6 +20,7 @@ public class Contact {
     private String igUserId;
     private String username;
     private String name;
+    @Column(length = 2048) // IG CDN URL이 signed params 포함해 매우 긴 경우가 있어 충분히 확보
     private String profilePictureUrl;
 
     @Builder.Default

@@ -55,6 +55,7 @@ export const contactService = {
   update: (id, data) => api.patch(`/contacts/${id}`, data),
   deleteBulk: (ids) => api.post('/contacts/bulk-delete', ids),
   import: (contacts) => api.post('/contacts/import', contacts),
+  refreshProfile: (id) => api.post(`/contacts/${id}/refresh-profile`),
 }
 
 export const broadcastService = {

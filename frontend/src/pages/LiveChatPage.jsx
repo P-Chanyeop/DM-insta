@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import EmptyState from '../components/EmptyState'
 import PageLoader from '../components/PageLoader'
-import { conversationService } from '../api/services'
+import { conversationService, contactService } from '../api/services'
+import { useToast } from '../components/Toast'
 import { uploadFile } from '../api/client'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
@@ -80,8 +81,10 @@ function formatTime(isoString) {
 }
 
 export default function LiveChatPage() {
+  const toast = useToast()
   const [chats, setChats] = useState([])
   const [selectedId, setSelectedId] = useState(null)
+  const [refreshingProfile, setRefreshingProfile] = useState(false)
   const [inputText, setInputText] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('전체')
@@ -562,6 +565,26 @@ export default function LiveChatPage() {
     }
   }
 
+  // 기존 Contact의 프로필을 Meta Graph API로 재조회해 DB 갱신
+  const handleRefreshProfile = async () => {
+    if (!selectedChat?.contactId || refreshingProfile) return
+    setRefreshingProfile(true)
+    try {
+      const updated = await contactService.refreshProfile(selectedChat.contactId)
+      // 리스트/선택된 채팅에 즉시 반영
+      updateChat(selectedId, {
+        name: updated.name || updated.username,
+        username: updated.username,
+        profilePictureUrl: updated.profilePictureUrl,
+      })
+      toast.success('프로필을 재조회했습니다.')
+    } catch (err) {
+      toast.error(err.message || '프로필 재조회에 실패했습니다. (App Review 권한 필요할 수 있음)')
+    } finally {
+      setRefreshingProfile(false)
+    }
+  }
+
   const handleToggleAutomation = async () => {
     if (!selectedChat) return
 
@@ -762,6 +785,15 @@ export default function LiveChatPage() {
             </div>
           </div>
           <div className="chat-header-actions">
+            <button
+              className="btn-secondary small"
+              onClick={handleRefreshProfile}
+              disabled={refreshingProfile}
+              title="Instagram 프로필 다시 불러오기 (이름·사진)"
+            >
+              <i className={refreshingProfile ? 'ri-loader-4-line spin' : 'ri-refresh-line'} />
+              {refreshingProfile ? ' 로딩...' : ' 프로필 재조회'}
+            </button>
             <button
               className={`btn-secondary small${selectedChat?.automationPaused ? ' paused' : ''}`}
               onClick={handleToggleAutomation}
