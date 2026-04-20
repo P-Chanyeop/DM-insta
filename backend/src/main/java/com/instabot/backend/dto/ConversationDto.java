@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class ConversationDto {
 
@@ -27,6 +28,8 @@ public class ConversationDto {
         private String contactName;
         private String contactUsername;
         private String contactProfilePictureUrl;
+        private List<String> tags;
+        private String memo;
     }
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder

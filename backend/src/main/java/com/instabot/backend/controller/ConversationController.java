@@ -207,6 +207,8 @@ public class ConversationController {
                 .contactName(contact.getName())
                 .contactUsername(contact.getUsername())
                 .contactProfilePictureUrl(contact.getProfilePictureUrl())
+                .tags(contact.getTags() != null ? new java.util.ArrayList<>(contact.getTags()) : java.util.List.of())
+                .memo(contact.getMemo())
                 .build();
     }
 

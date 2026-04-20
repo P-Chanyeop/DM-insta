@@ -444,21 +444,22 @@ export default function LiveChatPage() {
       const savedMsg = await conversationService.sendImage(selectedId, uploaded.url)
       // 3. Optimistic → 실제 메시지로 교체
       if (savedMsg?.id) {
-        setChats((prev) => {
-          const msgs = [...(prev[selectedId] || [])]
-          const idx = msgs.findIndex((m) => m.id === tempId)
-          if (idx >= 0) msgs[idx] = { ...msgs[idx], id: savedMsg.id, text: '[이미지]', mediaUrl: uploaded.url }
-          return { ...prev, [selectedId]: msgs }
-        })
+        updateChat(selectedId, (c) => ({
+          ...c,
+          messages: c.messages.map((m) =>
+            m.id === tempId ? { ...m, id: savedMsg.id, text: '[이미지]', mediaUrl: uploaded.url } : m
+          ),
+        }))
       }
     } catch (err) {
       // 실패 시 에러 표시
-      setChats((prev) => {
-        const msgs = [...(prev[selectedId] || [])]
-        const idx = msgs.findIndex((m) => m.id === tempId)
-        if (idx >= 0) msgs[idx] = { ...msgs[idx], text: `[이미지 전송 실패: ${err.message}]` }
-        return { ...prev, [selectedId]: msgs }
-      })
+      updateChat(selectedId, (c) => ({
+        ...c,
+        messages: c.messages.map((m) =>
+          m.id === tempId ? { ...m, text: `[이미지 전송 실패: ${err.message}]` } : m
+        ),
+      }))
+      toast.error(err.message || '이미지 전송에 실패했습니다.')
     }
   }
 
@@ -550,11 +551,12 @@ export default function LiveChatPage() {
     setShowTagSuggestions(false)
 
     try {
-      await conversationService.update(selectedId, { tags: newTags })
+      if (!selectedChat.contactId) throw new Error('연락처 없음')
+      await contactService.update(selectedChat.contactId, { tags: newTags })
     } catch (err) {
       console.error('태그 추가 실패:', err)
-      // Revert on failure
       updateChat(selectedId, (c) => ({ ...c, tags: c.tags.filter((t) => t !== trimmed) }))
+      toast.error('태그 저장에 실패했습니다.')
     }
   }
 
@@ -563,11 +565,12 @@ export default function LiveChatPage() {
     updateChat(selectedId, (c) => ({ ...c, tags: newTags }))
 
     try {
-      await conversationService.update(selectedId, { tags: newTags })
+      if (!selectedChat.contactId) throw new Error('연락처 없음')
+      await contactService.update(selectedChat.contactId, { tags: newTags })
     } catch (err) {
       console.error('태그 삭제 실패:', err)
-      // Revert on failure
       updateChat(selectedId, (c) => ({ ...c, tags: [...c.tags, tag] }))
+      toast.error('태그 삭제에 실패했습니다.')
     }
   }
 
@@ -586,9 +589,11 @@ export default function LiveChatPage() {
     const memo = e.target.value
     updateChat(selectedId, { memo })
     try {
-      await conversationService.update(selectedId, { memo })
+      if (!selectedChat?.contactId) throw new Error('연락처 없음')
+      await contactService.update(selectedChat.contactId, { memo })
     } catch (err) {
       console.error('메모 저장 실패:', err)
+      toast.error('메모 저장에 실패했습니다.')
     }
   }
 
