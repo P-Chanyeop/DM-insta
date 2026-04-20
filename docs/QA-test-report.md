@@ -119,9 +119,9 @@
 
 | # | 테스트 항목 | 결과 | 비고 |
 |---|-----------|------|------|
-| 10.1 | 연락처 목록 로딩 | 🟡 BLOCKED | B2 배포 전까지 HTTP 500 — UI는 graceful하게 "서버 오류가 발생했습니다" 배너 + 빈 테이블 표시 (크래시 없음). 프로덕션 서버 재시작 후 재검증 필요 |
+| 10.1 | 연락처 목록 로딩 | ✅ PASS | **B2 최종 fix 배포 후 재검증 완료.** import 1건 → GET /api/contacts → 200 + `{content:[{id:4,..., tags:[]}, ...]}` 정상 직렬화 확인. 커밋 `f3b23929`에서 `toResponse()`의 tags를 HashSet으로 eager copy하여 PersistentBag proxy 직렬화 실패 해결 |
 | 10.2 | 연락처 검색 | ✅ PASS | "이름, 사용자명으로 검색..." 검색창 표시 |
-| 10.3 | 연락처 상세 보기 | 🟡 BLOCKED | B2 배포 후 재검증 필요. API로 임포트 1건 성공(POST /api/contacts/import → 200 `{imported:1, skipped:0}`)했으나 목록 조회(GET /api/contacts)가 500이라 상세 진입 불가 |
+| 10.3 | 연락처 상세 보기 | ✅ PASS | GET /api/contacts/{id} → 200, 단건 상세 조회 정상 동작 |
 | 10.4 | 내보내기/가져오기 버튼 | ✅ PASS | "내보내기" / "가져오기" 버튼 표시, CSV 임포트 UI — "CSV 파일 가져오기" 타이틀 + 헤더 포맷 안내 문구("CSV 파일의 첫 번째 행은 헤더(이름, 사용자명, 이메일)로 구성해주세요") + 파일 선택 (accept=".csv") + 업로드/취소 버튼 정상. 빈 파일 상태에서 업로드 클릭 시 크래시 없이 조용히 무시 |
 | 10.5 | QuotaBar 제거 확인 | ✅ PASS | QuotaBar 없음 (연락처는 과금 포인트 아님) |
 | 10.6 | 세그먼트 탭 | ✅ PASS | 전체/VIP/신규/비활성 + "세그먼트 추가" 버튼 |
@@ -197,12 +197,11 @@
 | 구분 | 수량 |
 |------|------|
 | 총 테스트 항목 | 90 |
-| ✅ PASS | 77 |
+| ✅ PASS | 79 (10.1, 10.3 포함 — B2 fix 배포로 해결) |
 | 🟡 PARTIAL | 1 (1.9 반응형 — 코드 OK, 실 디바이스 검증 필요) |
-| 🟡 BLOCKED | 2 (10.1/10.3 — B2 배포 대기) |
 | ❌ FAIL | 0 |
 | ⏭ SKIP | 10 (7.3 포함 — IG 실연동/이메일 발송 필요) |
-| 통과율 | 100% (SKIP 제외, PASS+PARTIAL+BLOCKED 기준) |
+| 통과율 | 100% (SKIP 제외) |
 | **[기능테스트] 항목** | **22** |
 
 ---
@@ -212,7 +211,7 @@
 | # | 심각도 | 페이지 | 설명 | 스크린샷 |
 |---|--------|-------|------|---------|
 | B1 | ✅ 수정됨 | /app/flows | **쿼터 초과 시 사용자 피드백 없음** → `FlowsPage.jsx` 수정: 복사 시 `isAtLimit` 사전 체크 + 업그레이드 모달 표시, 복사 버튼 disabled 스타일 + 툴팁 추가, "새 자동화 만들기" 카드에 한도 초과 안내 문구 표시 | — |
-| B2 | ✅ 코드 수정됨 / ⏳ 배포 대기 | /app/contacts | **연락처 목록·상세·CSV 내보내기 500 에러** — `Contact.tags`가 `@ElementCollection` Lazy 필드인데 `ContactService.getContacts`/`getContact`/`exportContactsCsv`에 트랜잭션 없어 `LazyInitializationException` 발생. `@Transactional(readOnly=true)` 추가로 수정 완료(커밋 `0ca9283b`). 프로덕션 재현: import→`200 {imported:1,skipped:0}` / list→`500 INTERNAL_ERROR` / export→`500`. **프로덕션 서버 재시작 후 재검증 필요** | — |
+| B2 | ✅ 수정 & 배포 검증 완료 | /app/contacts | **연락처 목록·상세·CSV 500 에러.** 3단계 수정으로 해결: (1) `0ca9283b`: `@Transactional(readOnly=true)` 추가 — export만 해결. (2) `2fa171d0`: list가 여전히 500인 이유 분석: `toResponse()`에서 `tags`를 그대로 DTO에 담아 PersistentBag proxy가 Jackson 직렬화 시점(트랜잭션 밖)에 lazy 실패. tags를 `new ArrayList<>()`로 eager copy하려 했으나 `Set` 타입 호환 실패로 컴파일 오류. (3) `f3b23929`: `new HashSet<>()`으로 정정 및 배포. 최종 검증: import→200, list→200, detail→200, export→200 모두 OK. | — |
 
 ---
 
@@ -268,6 +267,17 @@
 5. **7.3 라이브챗 메시지 전송** — 실 IG DM 대화 선행 필요로 수동 테스트 대상 유지
 
 **후속 액션**:
-- 프로덕션 서버 재시작 → B2 fix 반영 후 10.1/10.3 재검증
+- ~~프로덕션 서버 재시작 → B2 fix 반영 후 10.1/10.3 재검증~~ ✅ 완료 (커밋 `f3b23929` 배포 + 검증)
 - 실 Android/iOS 디바이스에서 1.9 모바일 UX 검증
 - Instagram Business API 실연동 후 7.3 라이브챗 E2E 검증
+
+### B2 해결 과정 요약 (학습 포인트)
+
+1. **1차 시도** (`0ca9283b`): `@Transactional(readOnly=true)` 추가 → export만 해결, list는 여전히 500
+2. **원인 심층 분석**: `@Transactional`은 메서드 종료까지만 유효. `Page.map(toResponse)` 결과의 `tags`가 PersistentBag proxy 상태로 DTO에 담기고, Jackson이 HTTP 응답 직렬화할 때 비로소 접근 → 이땐 트랜잭션 이미 종료 → LazyInit 재발
+3. **2차 시도** (`2fa171d0`): `toResponse()`에서 tags eager copy — `new ArrayList<>()` 로 작성했으나 `Contact.tags`가 `Set<String>`이라 컴파일 오류
+4. **3차 해결** (`f3b23929`): `new HashSet<>()` 로 정정, Docker rebuild 성공, 프로덕션 검증 4개 API 모두 200 OK
+
+교훈:
+- Lazy collection을 DTO에 담을 때는 **반드시 즉시 복사** (트랜잭션 경계 인식)
+- 엔티티 타입(List vs Set) 확인 후 수정 — 실수로 2번 빌드 소요됨
