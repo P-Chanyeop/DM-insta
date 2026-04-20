@@ -38,6 +38,9 @@ export default function AuthCallbackPage() {
     } else if (token) {
       setToken(token)
       setStoredUser({ email, name, plan: 'FREE', emailVerified: true })
+      // OAuth 로그인 직후 AccountProvider/PlanContext가 비인증 상태에서
+      // 초기 fetch를 이미 했을 수 있으므로 강제 재조회 트리거
+      window.dispatchEvent(new CustomEvent('auth:login'))
 
       // 백엔드에서 onboardingCompleted 조회 (모든 디바이스에 영속)
       ;(async () => {

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { billingService } from '../api/services'
-import { getStoredUser } from '../api/client'
+import { getStoredUser, getToken } from '../api/client'
 
 const PlanContext = createContext(null)
 
@@ -82,6 +82,11 @@ export function PlanProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const fetchBilling = useCallback(async () => {
+    // 토큰 없으면 호출 skip — OAuth 콜백 등 비인증 상태에서 403 방지
+    if (!getToken()) {
+      setLoading(false)
+      return false
+    }
     try {
       const info = await billingService.getInfo()
       if (info) {
@@ -107,6 +112,15 @@ export function PlanProvider({ children }) {
 
   useEffect(() => {
     fetchBilling()
+    // OAuth/로그인 성공 후 token이 저장되면 재조회
+    const onAuthChange = () => fetchBilling()
+    window.addEventListener('auth:login', onAuthChange)
+    const onStorage = (e) => { if (e.key === 'authToken' && e.newValue) fetchBilling() }
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener('auth:login', onAuthChange)
+      window.removeEventListener('storage', onStorage)
+    }
   }, [fetchBilling])
 
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.FREE

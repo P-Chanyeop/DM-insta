@@ -93,6 +93,8 @@ export default function AuthPage() {
           // 인증 코드 재발송
           authService.resendVerification({ email: form.email }).catch(() => {})
         } else {
+          // 로그인 성공 → AccountProvider/PlanContext 재조회 트리거
+          window.dispatchEvent(new CustomEvent('auth:login'))
           // 백엔드 값 우선 (모든 디바이스에 영속), localStorage 캐시는 fallback
           const onboardingDone = res.onboardingCompleted
             || localStorage.getItem(`onboarding_completed_${form.email}`) === 'true'
@@ -123,6 +125,7 @@ export default function AuthPage() {
     setVerifyLoading(true)
     try {
       await authService.verifyEmail({ email: verifyEmail, code: verifyCode })
+      window.dispatchEvent(new CustomEvent('auth:login'))
       navigate('/app/onboarding')
     } catch (err) {
       setVerifyError(err.message || '인증에 실패했습니다.')
