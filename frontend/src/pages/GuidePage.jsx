@@ -8,6 +8,7 @@ const GUIDE_SECTIONS = [
     desc: 'Instagram 비즈니스 계정을 센드잇에 연결하여 자동화를 시작하세요.',
     color: '#E1306C',
     path: '/app/settings',
+    image: '/images/guide/settings.svg',
     steps: [
       { title: '설정 페이지로 이동', desc: '좌측 사이드바에서 "설정" 메뉴를 클릭합니다.', icon: 'ri-settings-3-line' },
       { title: '연동 탭 선택', desc: '상단 탭에서 "연동" 탭을 클릭합니다.', icon: 'ri-link' },
@@ -22,6 +23,7 @@ const GUIDE_SECTIONS = [
     desc: '댓글이나 DM 키워드에 자동으로 응답하는 플로우를 만들어보세요.',
     color: '#6366f1',
     path: '/app/flows',
+    image: '/images/guide/flows.svg',
     steps: [
       { title: '플로우 메뉴로 이동', desc: '좌측 사이드바에서 "자동화 플로우" 메뉴를 클릭합니다.', icon: 'ri-flow-chart' },
       { title: '새 플로우 만들기', desc: '우측 상단의 "새 플로우" 버튼을 클릭합니다. 또는 템플릿에서 시작할 수도 있습니다.', icon: 'ri-add-line' },
@@ -36,6 +38,7 @@ const GUIDE_SECTIONS = [
     desc: '연락처에 일괄 DM을 발송하여 프로모션, 공지사항을 전달하세요.',
     color: '#f59e0b',
     path: '/app/broadcast',
+    image: '/images/guide/broadcast.svg',
     steps: [
       { title: '브로드캐스트 메뉴 이동', desc: '좌측 사이드바에서 "브로드캐스트" 메뉴를 클릭합니다.', icon: 'ri-broadcast-line' },
       { title: '새 브로드캐스트 만들기', desc: '"새 브로드캐스트" 버튼을 클릭합니다.', icon: 'ri-add-line' },
@@ -50,6 +53,7 @@ const GUIDE_SECTIONS = [
     desc: '시간차를 두고 자동으로 연속 DM을 보내는 드립 캠페인을 설정합니다.',
     color: '#10b981',
     path: '/app/sequences',
+    image: '/images/guide/sequences.svg',
     steps: [
       { title: '시퀀스 메뉴 이동', desc: '좌측 사이드바에서 "시퀀스" 메뉴를 클릭합니다.', icon: 'ri-time-line' },
       { title: '새 시퀀스 만들기', desc: '"새 시퀀스" 버튼을 클릭합니다.', icon: 'ri-add-line' },
@@ -64,6 +68,7 @@ const GUIDE_SECTIONS = [
     desc: 'Instagram DM을 실시간으로 확인하고 대화하세요.',
     color: '#3b82f6',
     path: '/app/livechat',
+    image: '/images/guide/livechat.svg',
     steps: [
       { title: '라이브챗 메뉴 이동', desc: '좌측 사이드바에서 "라이브챗" 메뉴를 클릭합니다.', icon: 'ri-chat-3-line' },
       { title: '대화 목록 확인', desc: '좌측에 대화 목록이 표시됩니다. 검색으로 특정 대화를 찾을 수 있습니다.', icon: 'ri-list-check-3' },
@@ -78,6 +83,7 @@ const GUIDE_SECTIONS = [
     desc: 'DM을 주고받은 고객 데이터를 태그와 세그먼트로 분류하여 관리합니다.',
     color: '#8b5cf6',
     path: '/app/contacts',
+    image: '/images/guide/contacts.svg',
     steps: [
       { title: '연락처 메뉴 이동', desc: '좌측 사이드바에서 "연락처 관리" 메뉴를 클릭합니다.', icon: 'ri-contacts-book-2-line' },
       { title: '연락처 목록 확인', desc: '자동 수집된 연락처 목록이 표시됩니다. 검색과 필터를 사용할 수 있습니다.', icon: 'ri-search-line' },
@@ -92,6 +98,7 @@ const GUIDE_SECTIONS = [
     desc: 'DM 발송량, 열림률, 클릭률 등 자동화 성과를 한눈에 확인하세요.',
     color: '#14b8a6',
     path: '/app/analytics',
+    image: '/images/guide/analytics.svg',
     steps: [
       { title: '분석 메뉴 이동', desc: '좌측 사이드바에서 "분석" 메뉴를 클릭합니다.', icon: 'ri-line-chart-line' },
       { title: '대시보드 확인', desc: '전체 발송량, 열림률, 클릭률 등 주요 지표를 한눈에 확인합니다.', icon: 'ri-dashboard-3-line' },
@@ -105,6 +112,7 @@ const GUIDE_SECTIONS = [
     desc: '미리 만들어진 자동화 템플릿으로 몇 번의 클릭만으로 시작하세요.',
     color: '#f97316',
     path: '/app/templates',
+    image: '/images/guide/templates.svg',
     steps: [
       { title: '템플릿 메뉴 이동', desc: '좌측 사이드바에서 "템플릿" 메뉴를 클릭합니다.', icon: 'ri-file-copy-2-line' },
       { title: '카테고리 탐색', desc: '쇼핑몰, 예약/서비스, 이벤트, 리드수집, 고객지원 카테고리 중 선택합니다.', icon: 'ri-folder-open-line' },
@@ -167,6 +175,21 @@ export default function GuidePage() {
               <i className="ri-close-line" />
             </button>
           </div>
+
+          {/* 페이지 미리보기 이미지 */}
+          {selectedGuide.image && (
+            <div style={{ padding: '20px 32px 0', textAlign: 'center' }}>
+              <img
+                src={selectedGuide.image}
+                alt={selectedGuide.title}
+                style={{
+                  width: '100%', maxWidth: 560, height: 'auto',
+                  borderRadius: 12, border: '1px solid #e2e8f0',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                }}
+              />
+            </div>
+          )}
 
           {/* 단계별 가이드 */}
           <div style={{ padding: '24px 32px 28px' }}>

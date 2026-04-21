@@ -17,8 +17,31 @@ public class TemplateSeedData implements CommandLineRunner {
 
     private final TemplateRepository templateRepository;
 
+    private static final java.util.Map<String, String> CATEGORY_IMAGES = java.util.Map.of(
+            "SHOPPING", "/images/templates/shopping.svg",
+            "BOOKING", "/images/templates/booking.svg",
+            "EVENT", "/images/templates/event.svg",
+            "LEAD", "/images/templates/lead.svg",
+            "SUPPORT", "/images/templates/support.svg"
+    );
+
     @Override
     public void run(String... args) {
+        // 기존 템플릿에 previewImageUrl이 없으면 채워넣기
+        templateRepository.findAll().forEach(t -> {
+            if (t.getPreviewImageUrl() == null || t.getPreviewImageUrl().isBlank()) {
+                String img = CATEGORY_IMAGES.get(t.getCategory());
+                if ("SHOPPING".equals(t.getCategory()) && t.getName() != null && t.getName().contains("공동구매")) {
+                    img = "/images/templates/groupbuy.svg";
+                }
+                if (img != null) {
+                    t.setPreviewImageUrl(img);
+                    templateRepository.save(t);
+                    log.debug("템플릿 썸네일 업데이트: {} → {}", t.getName(), img);
+                }
+            }
+        });
+
         if (templateRepository.count() > 0) return;
 
         log.info("기본 템플릿 시드 데이터 생성 중...");

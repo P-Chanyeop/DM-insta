@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240" viewBox="0 0 400 240">
+  <rect width="400" height="240" rx="12" fill="#F0FDFA"/>
+  <!-- Header -->
+  <text x="24" y="36" font-family="sans-serif" font-size="16" fill="#333" font-weight="700">분석</text>
+  <!-- KPI Card 1 -->
+  <rect x="20" y="50" width="112" height="64" rx="10" fill="#fff" stroke="#14b8a6" stroke-opacity="0.15"/>
+  <text x="32" y="70" font-family="sans-serif" font-size="10" fill="#999">총 발송</text>
+  <text x="32" y="96" font-family="sans-serif" font-size="22" fill="#14b8a6" font-weight="700">3,842</text>
+  <!-- KPI Card 2 -->
+  <rect x="144" y="50" width="112" height="64" rx="10" fill="#fff" stroke="#14b8a6" stroke-opacity="0.15"/>
+  <text x="156" y="70" font-family="sans-serif" font-size="10" fill="#999">열림률</text>
+  <text x="156" y="96" font-family="sans-serif" font-size="22" fill="#14b8a6" font-weight="700">87.2%</text>
+  <!-- KPI Card 3 -->
+  <rect x="268" y="50" width="112" height="64" rx="10" fill="#fff" stroke="#14b8a6" stroke-opacity="0.15"/>
+  <text x="280" y="70" font-family="sans-serif" font-size="10" fill="#999">클릭률</text>
+  <text x="280" y="96" font-family="sans-serif" font-size="22" fill="#14b8a6" font-weight="700">24.5%</text>
+  <!-- Chart area -->
+  <rect x="20" y="126" width="360" height="100" rx="10" fill="#fff" stroke="#14b8a6" stroke-opacity="0.1"/>
+  <text x="32" y="148" font-family="sans-serif" font-size="10" fill="#999">주간 발송 추이</text>
+  <!-- Y axis labels -->
+  <text x="30" y="168" font-family="sans-serif" font-size="8" fill="#ccc">600</text>
+  <text x="30" y="188" font-family="sans-serif" font-size="8" fill="#ccc">400</text>
+  <text x="30" y="208" font-family="sans-serif" font-size="8" fill="#ccc">200</text>
+  <!-- Grid lines -->
+  <line x1="52" y1="164" x2="368" y2="164" stroke="#f0f0f0"/>
+  <line x1="52" y1="184" x2="368" y2="184" stroke="#f0f0f0"/>
+  <line x1="52" y1="204" x2="368" y2="204" stroke="#f0f0f0"/>
+  <!-- Line chart -->
+  <polyline points="68,196 113,184 158,190 203,172 248,164 293,170 338,158" fill="none" stroke="#14b8a6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Area under line -->
+  <polygon points="68,196 113,184 158,190 203,172 248,164 293,170 338,158 338,210 68,210" fill="#14b8a6" opacity="0.08"/>
+  <!-- Data points -->
+  <circle cx="68" cy="196" r="3" fill="#14b8a6"/>
+  <circle cx="113" cy="184" r="3" fill="#14b8a6"/>
+  <circle cx="158" cy="190" r="3" fill="#14b8a6"/>
+  <circle cx="203" cy="172" r="3" fill="#14b8a6"/>
+  <circle cx="248" cy="164" r="3" fill="#14b8a6"/>
+  <circle cx="293" cy="170" r="3" fill="#14b8a6"/>
+  <circle cx="338" cy="158" r="3" fill="#14b8a6"/>
+  <!-- X axis labels -->
+  <text x="60" y="220" font-family="sans-serif" font-size="8" fill="#ccc">월</text>
+  <text x="105" y="220" font-family="sans-serif" font-size="8" fill="#ccc">화</text>
+  <text x="150" y="220" font-family="sans-serif" font-size="8" fill="#ccc">수</text>
+  <text x="195" y="220" font-family="sans-serif" font-size="8" fill="#ccc">목</text>
+  <text x="240" y="220" font-family="sans-serif" font-size="8" fill="#ccc">금</text>
+  <text x="285" y="220" font-family="sans-serif" font-size="8" fill="#ccc">토</text>
+  <text x="330" y="220" font-family="sans-serif" font-size="8" fill="#ccc">일</text>
+</svg>

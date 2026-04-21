@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240" viewBox="0 0 400 240">
+  <rect width="400" height="240" rx="12" fill="#FFF7ED"/>
+  <!-- Header -->
+  <text x="24" y="36" font-family="sans-serif" font-size="16" fill="#333" font-weight="700">템플릿</text>
+  <!-- Category tabs -->
+  <rect x="24" y="48" width="60" height="24" rx="12" fill="#f97316"/>
+  <text x="33" y="64" font-family="sans-serif" font-size="10" fill="#fff" font-weight="600">쇼핑몰</text>
+  <rect x="92" y="48" width="56" height="24" rx="12" fill="#f97316" opacity="0.1"/>
+  <text x="101" y="64" font-family="sans-serif" font-size="10" fill="#f97316">이벤트</text>
+  <rect x="156" y="48" width="60" height="24" rx="12" fill="#f97316" opacity="0.1"/>
+  <text x="165" y="64" font-family="sans-serif" font-size="10" fill="#f97316">리드수집</text>
+  <!-- Template card 1 -->
+  <rect x="20" y="84" width="172" height="140" rx="10" fill="#fff" stroke="#f97316" stroke-opacity="0.15"/>
+  <!-- Thumbnail placeholder -->
+  <rect x="28" y="92" width="156" height="68" rx="6" fill="#f97316" opacity="0.08"/>
+  <rect x="48" y="108" width="50" height="8" rx="4" fill="#f97316" opacity="0.2"/>
+  <rect x="48" y="122" width="80" height="6" rx="3" fill="#f97316" opacity="0.12"/>
+  <rect x="48" y="134" width="60" height="6" rx="3" fill="#f97316" opacity="0.12"/>
+  <rect x="108" y="104" width="28" height="28" rx="6" fill="#f97316" opacity="0.15"/>
+  <text x="114" y="123" font-family="sans-serif" font-size="14">🛍</text>
+  <text x="36" y="178" font-family="sans-serif" font-size="11" fill="#333" font-weight="600">신상품 안내</text>
+  <text x="36" y="194" font-family="sans-serif" font-size="9" fill="#999">신상품 출시 소식 전달</text>
+  <rect x="36" y="202" width="64" height="16" rx="4" fill="#f97316"/>
+  <text x="44" y="213" font-family="sans-serif" font-size="8" fill="#fff" font-weight="600">사용하기</text>
+  <!-- Template card 2 -->
+  <rect x="204" y="84" width="172" height="140" rx="10" fill="#fff" stroke="#f97316" stroke-opacity="0.15"/>
+  <!-- Thumbnail placeholder -->
+  <rect x="212" y="92" width="156" height="68" rx="6" fill="#f97316" opacity="0.08"/>
+  <rect x="232" y="108" width="50" height="8" rx="4" fill="#f97316" opacity="0.2"/>
+  <rect x="232" y="122" width="80" height="6" rx="3" fill="#f97316" opacity="0.12"/>
+  <rect x="232" y="134" width="60" height="6" rx="3" fill="#f97316" opacity="0.12"/>
+  <rect x="292" y="104" width="28" height="28" rx="6" fill="#f97316" opacity="0.15"/>
+  <text x="298" y="123" font-family="sans-serif" font-size="14">🎁</text>
+  <text x="220" y="178" font-family="sans-serif" font-size="11" fill="#333" font-weight="600">할인 이벤트</text>
+  <text x="220" y="194" font-family="sans-serif" font-size="9" fill="#999">기간 한정 할인 이벤트</text>
+  <rect x="220" y="202" width="64" height="16" rx="4" fill="#f97316"/>
+  <text x="228" y="213" font-family="sans-serif" font-size="8" fill="#fff" font-weight="600">사용하기</text>
+</svg>
