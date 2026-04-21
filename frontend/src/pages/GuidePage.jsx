@@ -10,11 +10,11 @@ const GUIDE_SECTIONS = [
     path: '/app/settings',
     image: '/images/guide/settings.png',
     steps: [
-      { title: '설정 페이지로 이동', desc: '좌측 사이드바에서 "설정" 메뉴를 클릭합니다.', icon: 'ri-settings-3-line' },
-      { title: '연동 탭 선택', desc: '상단 탭에서 "연동" 탭을 클릭합니다.', icon: 'ri-link' },
+      { title: '설정 페이지로 이동', desc: '좌측 사이드바 하단의 "설정" 메뉴를 클릭합니다.', icon: 'ri-settings-3-line', image: '/images/guide/steps/sidebar.png' },
+      { title: '계정 연결 탭 선택', desc: '설정 페이지에서 "계정 연결" 탭이 기본 선택되어 있습니다.', icon: 'ri-link', image: '/images/guide/steps/settings-account.png' },
       { title: 'Instagram 연결 클릭', desc: '"Instagram 연결" 버튼을 클릭하면 Facebook 로그인 화면이 나타납니다.', icon: 'ri-instagram-line' },
       { title: 'Facebook 로그인 및 권한 승인', desc: 'Facebook 계정으로 로그인 후, Instagram 비즈니스 계정 접근 권한을 승인합니다.', icon: 'ri-shield-check-line' },
-      { title: '연결 완료!', desc: '연결이 완료되면 계정 정보가 표시됩니다. 이제 자동화를 시작할 수 있습니다!', icon: 'ri-check-double-line' },
+      { title: '연결 완료!', desc: '연결이 완료되면 계정 정보와 "연결됨" 상태가 표시됩니다. 이제 자동화를 시작할 수 있습니다!', icon: 'ri-check-double-line' },
     ],
   },
   {
@@ -26,10 +26,10 @@ const GUIDE_SECTIONS = [
     image: '/images/guide/flows.png',
     steps: [
       { title: '플로우 메뉴로 이동', desc: '좌측 사이드바에서 "자동화 플로우" 메뉴를 클릭합니다.', icon: 'ri-flow-chart' },
-      { title: '새 플로우 만들기', desc: '우측 상단의 "새 플로우" 버튼을 클릭합니다. 또는 템플릿에서 시작할 수도 있습니다.', icon: 'ri-add-line' },
+      { title: '새 플로우 만들기', desc: '우측 상단의 "새 자동화 만들기" 버튼을 클릭합니다. 또는 템플릿에서 시작할 수도 있습니다.', icon: 'ri-add-line', image: '/images/guide/steps/flows-main.png' },
       { title: '트리거 설정', desc: '어떤 상황에서 플로우가 시작될지 선택합니다. 댓글 키워드, DM 키워드, 스토리 반응 등을 설정하세요.', icon: 'ri-flashlight-line' },
       { title: '메시지 노드 추가', desc: '드래그앤드롭으로 메시지, 조건 분기, 지연 등 노드를 추가하고 연결합니다.', icon: 'ri-chat-1-line' },
-      { title: '플로우 활성화', desc: '모든 설정이 끝나면 "활성화" 버튼을 눌러 플로우를 시작합니다!', icon: 'ri-play-circle-line' },
+      { title: '플로우 활성화', desc: '모든 설정이 끝나면 토글 스위치를 켜서 플로우를 활성화합니다!', icon: 'ri-play-circle-line' },
     ],
   },
   {
@@ -40,8 +40,8 @@ const GUIDE_SECTIONS = [
     path: '/app/broadcast',
     image: '/images/guide/broadcast.png',
     steps: [
-      { title: '브로드캐스트 메뉴 이동', desc: '좌측 사이드바에서 "브로드캐스트" 메뉴를 클릭합니다.', icon: 'ri-broadcast-line' },
-      { title: '새 브로드캐스트 만들기', desc: '"새 브로드캐스트" 버튼을 클릭합니다.', icon: 'ri-add-line' },
+      { title: '브로드캐스트 메뉴 이동', desc: '좌측 사이드바에서 "브로드캐스팅" 메뉴를 클릭합니다.', icon: 'ri-broadcast-line' },
+      { title: '새 브로드캐스트 만들기', desc: '우측 상단의 "새 브로드캐스트" 버튼을 클릭합니다.', icon: 'ri-add-line', image: '/images/guide/steps/broadcast-main.png' },
       { title: '수신 대상 선택', desc: '전체 연락처 또는 특정 태그/세그먼트로 필터링하여 대상을 선택합니다.', icon: 'ri-group-line' },
       { title: '메시지 작성', desc: '발송할 메시지 내용을 작성합니다. 텍스트, 이미지, 버튼을 포함할 수 있습니다.', icon: 'ri-edit-2-line' },
       { title: '발송 시작', desc: '"지금 발송" 또는 예약 시간을 설정하여 발송합니다.', icon: 'ri-send-plane-line' },
@@ -56,7 +56,7 @@ const GUIDE_SECTIONS = [
     image: '/images/guide/sequences.png',
     steps: [
       { title: '시퀀스 메뉴 이동', desc: '좌측 사이드바에서 "시퀀스" 메뉴를 클릭합니다.', icon: 'ri-time-line' },
-      { title: '새 시퀀스 만들기', desc: '"새 시퀀스" 버튼을 클릭합니다.', icon: 'ri-add-line' },
+      { title: '새 시퀀스 만들기', desc: '우측 상단의 "새 시퀀스" 버튼을 클릭합니다.', icon: 'ri-add-line', image: '/images/guide/steps/sequences-main.png' },
       { title: '단계 추가', desc: '각 단계마다 보낼 메시지와 발송 간격(예: 1일 후, 3일 후)을 설정합니다.', icon: 'ri-list-ordered-2' },
       { title: '조건 분기 설정', desc: '특정 태그 보유 여부, 활성 상태 등에 따라 분기 조건을 설정할 수 있습니다.', icon: 'ri-git-branch-line' },
       { title: '시퀀스 활성화', desc: '설정을 완료하고 활성화하면 자동으로 실행됩니다!', icon: 'ri-play-circle-line' },
@@ -70,11 +70,11 @@ const GUIDE_SECTIONS = [
     path: '/app/livechat',
     image: '/images/guide/livechat.png',
     steps: [
-      { title: '라이브챗 메뉴 이동', desc: '좌측 사이드바에서 "라이브챗" 메뉴를 클릭합니다.', icon: 'ri-chat-3-line' },
-      { title: '대화 목록 확인', desc: '좌측에 대화 목록이 표시됩니다. 검색으로 특정 대화를 찾을 수 있습니다.', icon: 'ri-list-check-3' },
-      { title: '메시지 보내기', desc: '대화를 선택한 후, 하단 입력창에 메시지를 작성하고 전송합니다.', icon: 'ri-send-plane-line' },
-      { title: '이미지/카드 전송', desc: '첨부 버튼을 눌러 이미지나 카드 형태의 메시지도 보낼 수 있습니다.', icon: 'ri-image-line' },
-      { title: '읽음 확인', desc: '보낸 메시지 옆에 "읽음" 표시로 상대방이 읽었는지 확인할 수 있습니다.', icon: 'ri-check-double-line' },
+      { title: '라이브챗 메뉴 이동', desc: '좌측 사이드바에서 "라이브 채팅" 메뉴를 클릭합니다.', icon: 'ri-chat-3-line' },
+      { title: '대화 목록 확인', desc: '좌측에 대화 목록이 표시됩니다. 검색으로 특정 대화를 찾을 수 있습니다.', icon: 'ri-list-check-3', image: '/images/guide/steps/livechat-main.png' },
+      { title: '메시지 보내기', desc: '대화를 선택한 후, 하단 입력창에 메시지를 작성하고 전송 버튼을 누릅니다.', icon: 'ri-send-plane-line' },
+      { title: '이미지/카드 전송', desc: '입력창 좌측의 첨부 버튼을 눌러 이미지나 카드 형태의 메시지도 보낼 수 있습니다.', icon: 'ri-image-line' },
+      { title: '연락처 정보 확인', desc: '우측 패널에서 상대방의 기본 정보, 태그, 메모 등을 확인하고 관리할 수 있습니다.', icon: 'ri-check-double-line' },
     ],
   },
   {
@@ -85,9 +85,9 @@ const GUIDE_SECTIONS = [
     path: '/app/contacts',
     image: '/images/guide/contacts.png',
     steps: [
-      { title: '연락처 메뉴 이동', desc: '좌측 사이드바에서 "연락처 관리" 메뉴를 클릭합니다.', icon: 'ri-contacts-book-2-line' },
-      { title: '연락처 목록 확인', desc: '자동 수집된 연락처 목록이 표시됩니다. 검색과 필터를 사용할 수 있습니다.', icon: 'ri-search-line' },
-      { title: '상세 정보 보기', desc: '연락처를 클릭하면 대화 이력, 태그, 메모 등 상세 정보를 확인할 수 있습니다.', icon: 'ri-user-line' },
+      { title: '연락처 메뉴 이동', desc: '좌측 사이드바에서 "연락처" 메뉴를 클릭합니다.', icon: 'ri-contacts-book-2-line' },
+      { title: '연락처 목록 확인', desc: '자동 수집된 연락처 목록이 표시됩니다. 전체/VIP/신규/비활성 탭으로 필터링하세요.', icon: 'ri-search-line', image: '/images/guide/steps/contacts-main.png' },
+      { title: '상세 정보 보기', desc: '연락처 우측의 눈 아이콘을 클릭하면 상세 정보를 확인할 수 있습니다.', icon: 'ri-user-line' },
       { title: '태그 관리', desc: '연락처에 태그를 추가하여 "VIP", "신규고객" 등으로 분류하세요.', icon: 'ri-price-tag-3-line' },
       { title: '세그먼트 활용', desc: '태그 기반으로 세그먼트를 만들어 브로드캐스트 타겟팅에 활용합니다.', icon: 'ri-filter-3-line' },
     ],
@@ -101,9 +101,9 @@ const GUIDE_SECTIONS = [
     image: '/images/guide/analytics.png',
     steps: [
       { title: '분석 메뉴 이동', desc: '좌측 사이드바에서 "분석" 메뉴를 클릭합니다.', icon: 'ri-line-chart-line' },
-      { title: '대시보드 확인', desc: '전체 발송량, 열림률, 클릭률 등 주요 지표를 한눈에 확인합니다.', icon: 'ri-dashboard-3-line' },
-      { title: '기간별 비교', desc: '날짜 선택기로 특정 기간의 성과를 비교 분석할 수 있습니다.', icon: 'ri-calendar-2-line' },
-      { title: '플로우별 성과', desc: '각 플로우의 발송/열림/클릭 성과를 개별적으로 확인합니다.', icon: 'ri-bar-chart-2-line' },
+      { title: '대시보드 확인', desc: '총 발송, 열림률, 클릭률, 전환율 등 주요 지표를 카드로 한눈에 확인합니다.', icon: 'ri-dashboard-3-line', image: '/images/guide/steps/analytics-main.png' },
+      { title: '기간별 비교', desc: '우측 상단의 날짜 선택기로 최근 7일/30일 등 특정 기간의 성과를 비교 분석할 수 있습니다.', icon: 'ri-calendar-2-line' },
+      { title: '플로우별 성과', desc: '하단의 "플로우별 성과 TOP 5"와 "전환 퍼널" 차트에서 각 플로우의 성과를 확인합니다.', icon: 'ri-bar-chart-2-line' },
     ],
   },
   {
@@ -115,8 +115,8 @@ const GUIDE_SECTIONS = [
     image: '/images/guide/templates.png',
     steps: [
       { title: '템플릿 메뉴 이동', desc: '좌측 사이드바에서 "템플릿" 메뉴를 클릭합니다.', icon: 'ri-file-copy-2-line' },
-      { title: '카테고리 탐색', desc: '쇼핑몰, 예약/서비스, 이벤트, 리드수집, 고객지원 카테고리 중 선택합니다.', icon: 'ri-folder-open-line' },
-      { title: '템플릿 선택', desc: '원하는 템플릿의 "사용하기" 버튼을 클릭합니다.', icon: 'ri-cursor-line' },
+      { title: '카테고리 탐색', desc: '상단의 쇼핑몰, 예약/서비스, 이벤트, 리드수집, 고객지원 카테고리 탭 중 원하는 카테고리를 선택합니다.', icon: 'ri-folder-open-line', image: '/images/guide/steps/templates-main.png' },
+      { title: '템플릿 선택', desc: '원하는 템플릿 카드 하단의 "사용하기" 버튼을 클릭합니다.', icon: 'ri-cursor-line' },
       { title: '커스터마이징', desc: '플로우 빌더에서 메시지 내용, 키워드 등을 내 비즈니스에 맞게 수정합니다.', icon: 'ri-edit-2-line' },
       { title: '활성화', desc: '수정을 완료하고 플로우를 활성화하면 바로 작동합니다!', icon: 'ri-play-circle-line' },
     ],
@@ -176,26 +176,11 @@ export default function GuidePage() {
             </button>
           </div>
 
-          {/* 페이지 미리보기 이미지 */}
-          {selectedGuide.image && (
-            <div style={{ padding: '20px 32px 0', textAlign: 'center' }}>
-              <img
-                src={selectedGuide.image}
-                alt={selectedGuide.title}
-                style={{
-                  width: '100%', maxWidth: 560, height: 'auto',
-                  borderRadius: 12, border: '1px solid #e2e8f0',
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-                }}
-              />
-            </div>
-          )}
-
           {/* 단계별 가이드 */}
           <div style={{ padding: '24px 32px 28px' }}>
             <div style={{ position: 'relative' }}>
               {selectedGuide.steps.map((step, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: 20, marginBottom: idx < selectedGuide.steps.length - 1 ? 0 : 0 }}>
+                <div key={idx} style={{ display: 'flex', gap: 20 }}>
                   {/* 타임라인 */}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 44 }}>
                     <div style={{
@@ -235,6 +220,20 @@ export default function GuidePage() {
                     }}>
                       {step.desc}
                     </p>
+                    {/* 단계별 스크린샷 */}
+                    {step.image && (
+                      <div style={{ marginTop: 10 }}>
+                        <img
+                          src={step.image}
+                          alt={step.title}
+                          style={{
+                            width: '100%', maxWidth: 600, height: 'auto',
+                            borderRadius: 10, border: '1px solid #e2e8f0',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
