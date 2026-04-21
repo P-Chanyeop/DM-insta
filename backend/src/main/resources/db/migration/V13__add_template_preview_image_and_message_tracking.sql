@@ -12,9 +12,9 @@ ALTER TABLE sequences ADD COLUMN IF NOT EXISTS total_started BIGINT DEFAULT 0;
 ALTER TABLE sequences ADD COLUMN IF NOT EXISTS total_completed BIGINT DEFAULT 0;
 
 -- 기존 템플릿에 이미지 URL 업데이트
-UPDATE templates SET preview_image_url = '/images/templates/shopping.svg' WHERE category = 'SHOPPING' AND name LIKE '%쇼핑몰%';
-UPDATE templates SET preview_image_url = '/images/templates/groupbuy.svg' WHERE category = 'SHOPPING' AND name LIKE '%공동구매%';
-UPDATE templates SET preview_image_url = '/images/templates/booking.svg' WHERE category = 'BOOKING';
-UPDATE templates SET preview_image_url = '/images/templates/event.svg' WHERE category = 'EVENT';
-UPDATE templates SET preview_image_url = '/images/templates/lead.svg' WHERE category = 'LEAD';
-UPDATE templates SET preview_image_url = '/images/templates/support.svg' WHERE category = 'SUPPORT';
+UPDATE templates SET preview_image_url = '/images/templates/shopping.png' WHERE category = 'SHOPPING' AND name LIKE '%쇼핑몰%';
+UPDATE templates SET preview_image_url = '/images/templates/groupbuy.png' WHERE category = 'SHOPPING' AND name LIKE '%공동구매%';
+UPDATE templates SET preview_image_url = '/images/templates/booking.png' WHERE category = 'BOOKING';
+UPDATE templates SET preview_image_url = '/images/templates/event.png' WHERE category = 'EVENT';
+UPDATE templates SET preview_image_url = '/images/templates/lead.png' WHERE category = 'LEAD';
+UPDATE templates SET preview_image_url = '/images/templates/support.png' WHERE category = 'SUPPORT';
