@@ -27,7 +27,7 @@ public class Notification {
     private String link; // 클릭 시 이동할 경로
 
     @Builder.Default
-    @Column(name = "read")
+    @Column(name = "is_read")
     private boolean read = false;
 
     @Builder.Default

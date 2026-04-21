@@ -16,9 +16,9 @@ CREATE TABLE notifications (
     title VARCHAR(255) NOT NULL,
     message TEXT,
     link VARCHAR(255),
-    read BOOLEAN DEFAULT FALSE,
+    is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_notifications_user_created ON notifications(user_id, created_at DESC);
-CREATE INDEX idx_notifications_user_unread ON notifications(user_id, read) WHERE read = FALSE;
+CREATE INDEX idx_notifications_user_unread ON notifications(user_id, is_read) WHERE is_read = FALSE;
