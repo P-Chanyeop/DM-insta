@@ -416,7 +416,11 @@ export default function SettingsPage() {
     if (activeTab === 'notifications') {
       setNotifLoading(true)
       notificationService.getSettings()
-        .then(data => setNotifications(data))
+        .then(data => {
+          if (data && typeof data.newMessage !== 'undefined') {
+            setNotifications(data)
+          }
+        })
         .catch(() => {}) // fallback to defaults
         .finally(() => setNotifLoading(false))
     }

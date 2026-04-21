@@ -181,8 +181,8 @@ export default function DashboardLayout() {
           notificationService.list(),
           notificationService.unreadCount()
         ])
-        setNotifications(list || [])
-        setUnreadCount(count || 0)
+        setNotifications(Array.isArray(list) ? list : [])
+        setUnreadCount(typeof count === 'number' ? count : 0)
       } catch { /* ignore */ }
     }
     fetchNotifs()

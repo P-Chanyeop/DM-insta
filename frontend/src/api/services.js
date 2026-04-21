@@ -176,7 +176,7 @@ export const instagramProfileService = {
 
 export const notificationService = {
   list: () => api.get('/notifications').then(r => r.data),
-  unreadCount: () => api.get('/notifications/unread').then(r => r.data),
+  unreadCount: () => api.get('/notifications/unread').then(r => r.data?.count ?? 0),
   markAllRead: () => api.post('/notifications/read-all'),
   getSettings: () => api.get('/notifications/settings').then(r => r.data),
   updateSettings: (settings) => api.put('/notifications/settings', settings),
