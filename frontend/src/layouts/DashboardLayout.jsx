@@ -92,9 +92,9 @@ function formatRelativeTime(dateStr) {
 }
 
 const HELP_LINKS = [
-  { icon: 'ri-book-2-line', label: '문서', desc: '사용 가이드 및 문서', href: 'https://docs.example.com', external: true },
-  { icon: 'ri-question-answer-line', label: 'FAQ', desc: '자주 묻는 질문', href: '/app/settings', external: false },
-  { icon: 'ri-chat-1-line', label: '채팅 문의', desc: '실시간 채팅 지원', href: '/app/livechat', external: false },
+  { icon: 'ri-book-2-line', label: '가이드', desc: '센드잇 사용법 안내', href: '/app/guide', external: false },
+  { icon: 'ri-question-answer-line', label: 'FAQ', desc: '자주 묻는 질문', href: '/app/faq', external: false },
+  { icon: 'ri-mail-send-line', label: '1:1 문의', desc: '이메일로 문의하기', href: '/app/support', external: false },
   { icon: 'ri-keyboard-box-line', label: '키보드 단축키', desc: '단축키 목록 보기', action: 'shortcuts' },
 ]
 
