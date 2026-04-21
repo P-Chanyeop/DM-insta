@@ -768,3 +768,22 @@ export default function DashboardLayout() {
     </div>
   )
 }
+
+/**
+ * 사이드바 네비게이션 카운트를 갱신하는 유틸리티 함수
+ *
+ * refreshNavCount('flows', +1)  — flows 카운트 1 증가
+ * refreshNavCount('flows', -1)  — flows 카운트 1 감소
+ * refreshNavCount('unreadMessages', 0, 5) — unreadMessages를 절대값 5로 설정
+ * refreshNavCount()             — 전체 재조회
+ */
+export function refreshNavCount(key, delta, absoluteValue) {
+  if (!key) {
+    window.dispatchEvent(new CustomEvent('nav:refresh-counts'))
+    return
+  }
+  const detail = absoluteValue !== undefined
+    ? { key, value: absoluteValue }
+    : { key, delta }
+  window.dispatchEvent(new CustomEvent('nav:refresh-counts', { detail }))
+}
