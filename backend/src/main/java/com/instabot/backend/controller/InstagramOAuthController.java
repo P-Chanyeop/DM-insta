@@ -229,12 +229,19 @@ public class InstagramOAuthController {
             log.warn("Signup 후 IG 연결 실패 (유저는 생성됨): userId={}, error={}", user.getId(), e.getMessage());
         }
 
-        // 7. JWT 발급 후 프론트 콜백 페이지로 리다이렉트
-        String token = authService.generateToken(user);
+        // 7. JWT 발급 전 — DB에서 user를 email로 재확인 (detached entity ID 불일치 방지)
+        log.info("Signup JWT 생성 전: user.id={}, user.email={}, placeholderEmail={}, facebookUserId={}",
+                user.getId(), user.getEmail(), placeholderEmail, user.getFacebookUserId());
+        User verifiedUser = userRepository.findByEmail(placeholderEmail).orElse(user);
+        if (!verifiedUser.getId().equals(user.getId())) {
+            log.warn("⚠️ User ID 불일치 감지! findByFacebookUserId.id={} vs findByEmail.id={}. findByEmail 사용.",
+                    user.getId(), verifiedUser.getId());
+        }
+        String token = authService.generateToken(verifiedUser);
         StringBuilder params = new StringBuilder()
                 .append("token=").append(token)
-                .append("&email=").append(urlEncode(user.getEmail()))
-                .append("&name=").append(urlEncode(user.getName() != null ? user.getName() : ""))
+                .append("&email=").append(urlEncode(verifiedUser.getEmail()))
+                .append("&name=").append(urlEncode(verifiedUser.getName() != null ? verifiedUser.getName() : ""))
                 .append("&ig_status=").append(igStatus);
         if (igErrorCode != null) {
             params.append("&ig_error=").append(urlEncode(igErrorCode))
