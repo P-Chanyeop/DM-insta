@@ -4,6 +4,7 @@ import EmptyState from '../components/EmptyState'
 import PageLoader from '../components/PageLoader'
 import { templateService } from '../api/services'
 import { getStoredUser } from '../api/client'
+import { useToast } from '../components/Toast'
 import { INDUSTRIES } from '../components/IndustrySelectModal'
 
 // 백엔드 enum → 한글 라벨 (S13 fix)
@@ -57,6 +58,7 @@ function normalizeTemplate(raw) {
 
 export default function TemplatesPage() {
   const navigate = useNavigate()
+  const toast = useToast()
   const [activeCat, setActiveCat] = useState('전체')
   const [search, setSearch] = useState('')
   const [templates, setTemplates] = useState([])
@@ -101,7 +103,14 @@ export default function TemplatesPage() {
       } else {
         navigate('/app/flows/builder', { state: { flowId: result?.id, template: result || tpl } })
       }
-    } catch {
+    } catch (err) {
+      // 할당량 초과는 서버에서 403 + QUOTA_EXCEEDED 코드로 내려옴 — 빌더로 넘기지 말고 토스트로 안내.
+      if (err?.code === 'QUOTA_EXCEEDED' || err?.status === 403) {
+        toast?.error?.(err?.message || '현재 플랜의 플로우 생성 한도를 초과했습니다. 플랜을 업그레이드하거나 기존 플로우를 삭제해주세요.')
+        return
+      }
+      // 그 외 오류(네트워크 등)는 토스트 후 기존 동작 유지 — 로컬 템플릿으로 빌더 진입
+      toast?.error?.('템플릿 불러오기에 실패했습니다. 빈 빌더로 이동합니다.')
       navigate('/app/flows/builder', { state: { template: tpl } })
     }
   }

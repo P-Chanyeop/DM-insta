@@ -22,6 +22,7 @@ public class TemplateService {
     private final TemplateRepository templateRepository;
     private final FlowRepository flowRepository;
     private final UserRepository userRepository;
+    private final QuotaService quotaService;
 
     public List<TemplateDto.Response> getTemplates(String category) {
         List<Template> templates;
@@ -51,6 +52,9 @@ public class TemplateService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+
+        // 플랜별 플로우 할당량 검증 — 템플릿 경유 생성도 동일하게 막아야 함.
+        quotaService.checkFlowQuota(user);
 
         Flow flow = Flow.builder()
                 .user(user)
