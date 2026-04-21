@@ -20,16 +20,13 @@ services:
       context: ./backend
     ports:
       - "8080:8080"
-    depends_on:
-      mysql:
-        condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=sendit
-      - MYSQL_USER=${MYSQL_USER:-sendit}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-changeme}
+      - MYSQL_HOST=${DB_HOST:-mysql}
+      - MYSQL_PORT=${DB_PORT:-3306}
+      - MYSQL_DATABASE=${DB_NAME:-sendit}
+      - MYSQL_USER=${DB_USERNAME:-sendit}
+      - MYSQL_PASSWORD=${DB_PASSWORD:-changeme}
       - JWT_SECRET=${JWT_SECRET:-change-me-jwt-secret-key-must-be-at-least-256-bits-long}
       - ENCRYPTION_SECRET=${ENCRYPTION_SECRET:-change-me-encryption-secret-key}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost}
