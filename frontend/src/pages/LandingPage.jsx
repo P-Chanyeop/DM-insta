@@ -61,13 +61,35 @@ export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenu, setMobileMenu] = useState(false)
   const [isAnnual, setIsAnnual] = useState(false)
+  const [demoOpen, setDemoOpen] = useState(false)
   const navigate = useNavigate()
+
+  // 로그인 상태라면 대시보드로 강제 이동 (가입/랜딩 재진입 방지)
+  useEffect(() => {
+    if (getToken()) {
+      navigate('/app', { replace: true })
+    }
+  }, [navigate])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20)
     window.addEventListener('scroll', onScroll)
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  // 데모 모달 ESC 키 닫기
+  useEffect(() => {
+    if (!demoOpen) return
+    const onKey = (e) => { if (e.key === 'Escape') setDemoOpen(false) }
+    window.addEventListener('keydown', onKey)
+    // 배경 스크롤 잠금
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [demoOpen])
 
   const scrollToSection = (e, hash) => {
     e.preventDefault()
@@ -145,7 +167,7 @@ export default function LandingPage() {
             <p className="hero-desc">댓글 자동 응답, DM 키워드 트리거, 스토리 멘션 자동화, 환영 메시지까지.<br />코딩 없이 5분 만에 설정하는 인스타그램 마케팅 자동화 플랫폼</p>
             <div className="hero-cta">
               <Link to="/signup" className="btn-primary lg"><i className="ri-play-circle-line" /> 무료로 시작하기</Link>
-              <a href="#automation" className="btn-outline lg" onClick={(e) => scrollToSection(e, '#automation')}><i className="ri-video-line" /> 데모 보기</a>
+              <button type="button" className="btn-outline lg" onClick={() => setDemoOpen(true)}><i className="ri-video-line" /> 데모 보기</button>
             </div>
             <div className="hero-trust">
               <div className="trust-features">
@@ -158,11 +180,10 @@ export default function LandingPage() {
           <div className="hero-visual">
             <div className="phone-mockup">
               <div className="phone-frame">
-                <div className="phone-notch" />
                 <div className="phone-screen">
                   <div className="ig-header">
                     <i className="ri-arrow-left-s-line" />
-                    <div className="ig-user"><div className="ig-avatar-small" /><span>센드잇</span></div>
+                    <div className="ig-user"><img src="/images/sendit_03_icon_gradient.png" alt="센드잇" className="ig-avatar-small" /><span>센드잇</span></div>
                     <i className="ri-phone-line" />
                   </div>
                   <div className="ig-chat">
@@ -411,16 +432,101 @@ export default function LandingPage() {
       <section className="cta-section">
         <div className="container">
           <div className="cta-card">
-            <div className="cta-bg-shapes"><div className="cta-shape cta-shape-1" /><div className="cta-shape cta-shape-2" /></div>
-            <h2>지금 바로 인스타그램<br />자동화를 시작하세요</h2>
-            <p>무료 플랜으로 시작하고, 비즈니스가 성장하면 업그레이드하세요.<br />카드 정보 없이 바로 시작할 수 있습니다.</p>
-            <div className="cta-actions">
-              <Link to="/signup" className="btn-primary lg"><i className="ri-rocket-2-line" /> 무료로 시작하기</Link>
+            {/* 레이어드 배경: 그라데이션 + 메시 + 발바닥 워터마크 */}
+            <div className="cta-bg-layer cta-bg-gradient" />
+            <div className="cta-bg-layer cta-bg-mesh" />
+            <img src="/images/sendit_03_icon_gradient.png" alt="" aria-hidden="true" className="cta-watermark" />
+            <div className="cta-bg-shapes">
+              <div className="cta-shape cta-shape-1" />
+              <div className="cta-shape cta-shape-2" />
+              <div className="cta-shape cta-shape-3" />
             </div>
-            <div className="cta-features">
-              <span><i className="ri-check-line" /> 카드 정보 불필요</span>
-              <span><i className="ri-check-line" /> 5분 만에 설정 완료</span>
-              <span><i className="ri-check-line" /> 언제든 해지 가능</span>
+
+            <div className="cta-grid">
+              {/* 왼쪽: 카피 + CTA */}
+              <div className="cta-copy">
+                <div className="cta-badge">
+                  <span className="cta-badge-dot" />
+                  <span>지금 317명이 자동화 세팅 중</span>
+                </div>
+                <h2>
+                  하루 <span className="cta-highlight">24시간</span> 쉬지 않는<br />
+                  <span className="cta-gradient-text">DM 자동화</span>를 시작하세요
+                </h2>
+                <p>
+                  첫 자동 응답까지 평균 <strong>4분 37초</strong>.<br />
+                  카드 등록 없이, 지금 바로 무료로 시작하세요.
+                </p>
+                <div className="cta-actions">
+                  <Link to="/signup" className="btn-cta-primary">
+                    <i className="ri-rocket-2-line" />
+                    <span>무료로 시작하기</span>
+                    <i className="ri-arrow-right-line cta-arrow" />
+                  </Link>
+                  <button type="button" className="btn-cta-ghost" onClick={() => setDemoOpen(true)}>
+                    <i className="ri-play-fill" />
+                    <span>1분 데모 보기</span>
+                  </button>
+                </div>
+                <ul className="cta-features">
+                  <li><i className="ri-shield-check-line" /> 카드 정보 불필요</li>
+                  <li><i className="ri-timer-flash-line" /> 5분 만에 설정 완료</li>
+                  <li><i className="ri-refresh-line" /> 언제든 해지 가능</li>
+                </ul>
+              </div>
+
+              {/* 오른쪽: 살아있는 미니 채팅 프리뷰 */}
+              <div className="cta-preview" aria-hidden="true">
+                <div className="cta-chat-card">
+                  <div className="cta-chat-head">
+                    <div className="cta-chat-avatar" />
+                    <div className="cta-chat-meta">
+                      <strong>@my_shop</strong>
+                      <span><span className="cta-online-dot" /> 자동 응답 중</span>
+                    </div>
+                    <i className="ri-more-2-fill" />
+                  </div>
+                  <div className="cta-chat-body">
+                    <div className="cta-bubble received">
+                      안녕하세요! 가격 문의드려요 🙏
+                    </div>
+                    <div className="cta-auto-chip">
+                      <i className="ri-robot-2-line" /> 센드잇이 자동 응답
+                    </div>
+                    <div className="cta-bubble sent">
+                      반갑습니다! 가격표 전달드릴게요 ✨
+                    </div>
+                    <div className="cta-bubble sent compact">
+                      <div className="cta-card-chip">
+                        <i className="ri-file-list-3-line" />
+                        <div>
+                          <strong>2026 상품 카탈로그</strong>
+                          <span>PDF · 지금 받기</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="cta-typing">
+                      <span /><span /><span />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 플로팅 스탯 배지 */}
+                <div className="cta-float cta-float-1">
+                  <i className="ri-flashlight-line" />
+                  <div>
+                    <strong>+218</strong>
+                    <span>오늘 응답 수</span>
+                  </div>
+                </div>
+                <div className="cta-float cta-float-2">
+                  <i className="ri-heart-3-fill" />
+                  <div>
+                    <strong>98.4%</strong>
+                    <span>응답 만족도</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -531,6 +637,37 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* ── 데모 모달 ── */}
+      {demoOpen && (
+        <div className="demo-modal-overlay" onClick={() => setDemoOpen(false)} role="dialog" aria-modal="true" aria-label="센드잇 데모">
+          <div className="demo-modal" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="demo-modal-close" onClick={() => setDemoOpen(false)} aria-label="닫기">
+              <i className="ri-close-line" />
+            </button>
+            <div className="demo-modal-body">
+              <img
+                src="/images/demo.gif"
+                alt="센드잇 데모"
+                className="demo-modal-gif"
+                onError={(e) => {
+                  // GIF 파일 아직 준비되지 않았을 때 fallback
+                  e.currentTarget.style.display = 'none'
+                  e.currentTarget.nextElementSibling.style.display = 'flex'
+                }}
+              />
+              <div className="demo-modal-fallback" style={{ display: 'none' }}>
+                <i className="ri-video-line" />
+                <h3>데모 영상 준비 중</h3>
+                <p>곧 업데이트될 예정입니다.<br />먼저 체험해 보고 싶다면 무료 플랜으로 시작해 보세요.</p>
+                <Link to="/signup" className="btn-primary" onClick={() => setDemoOpen(false)}>
+                  무료로 시작하기
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

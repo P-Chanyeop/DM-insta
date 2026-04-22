@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { authService } from '../api/services'
+import { getToken } from '../api/client'
 import { useToast } from '../components/Toast'
 import TermsAgreement from '../components/TermsAgreement'
 
@@ -8,6 +9,14 @@ export default function AuthPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const isSignup = location.pathname === '/signup'
+
+  // 이미 로그인된 상태라면 대시보드로 강제 이동
+  // (URL 직접 입력 / CTA 버튼 클릭 / 뒤로가기 등 모든 진입 경로 차단)
+  useEffect(() => {
+    if (getToken()) {
+      navigate('/app', { replace: true })
+    }
+  }, [navigate])
 
   const [form, setForm] = useState({ email: '', password: '', passwordConfirm: '', name: '' })
   const [loading, setLoading] = useState(false)
