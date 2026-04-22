@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.instabot.backend.config.TossPaymentsConfig;
 import com.instabot.backend.dto.BillingDto;
+import com.instabot.backend.entity.PaymentEvent;
 import com.instabot.backend.entity.Subscription;
 import com.instabot.backend.entity.Subscription.SubscriptionStatus;
 import com.instabot.backend.entity.User;
@@ -13,10 +14,14 @@ import com.instabot.backend.repository.AutomationRepository;
 import com.instabot.backend.repository.ContactRepository;
 import com.instabot.backend.repository.FlowRepository;
 import com.instabot.backend.repository.MessageRepository;
+import com.instabot.backend.repository.PaymentEventRepository;
 import com.instabot.backend.repository.SubscriptionRepository;
 import com.instabot.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +51,7 @@ public class BillingService {
     private final AutomationRepository automationRepository;
     private final ContactRepository contactRepository;
     private final MessageRepository messageRepository;
+    private final PaymentEventRepository paymentEventRepository;
     private final TossPaymentsConfig tossConfig;
     private final TossPaymentsService tossService;
     private final ObjectMapper objectMapper;
@@ -150,6 +156,11 @@ public class BillingService {
         user.setUpdatedAt(now);
         userRepository.save(user);
 
+        // 5) 결제 이벤트 기록 — 첫 결제 성공
+        recordEvent(userId, subscription.getId(), PaymentEvent.EventType.CHARGE_SUCCESS,
+                plan.name(), paidAmount, paymentStatus,
+                paymentKey, orderId, null, null, paymentResp);
+
         notificationService.notify(userId, "BILLING",
                 "구독이 활성화되었습니다",
                 plan.name() + " 플랜이 활성화되었습니다.",
@@ -170,6 +181,11 @@ public class BillingService {
         subscription.setCancelAtPeriodEnd(true);
         subscription.setUpdatedAt(LocalDateTime.now());
         subscriptionRepository.save(subscription);
+
+        recordEvent(userId, subscription.getId(), PaymentEvent.EventType.CANCEL_SCHEDULED,
+                subscription.getPlanType(), null, null,
+                null, subscription.getTossOrderId(), null,
+                "유저 해지 예약 — " + subscription.getCurrentPeriodEnd() + " 이후 FREE 전환", null);
 
         // 빌링키는 currentPeriodEnd 이후 스케줄러가 정리. 여기서는 플래그만 변경.
         notificationService.notify(userId, "BILLING",
@@ -244,14 +260,22 @@ public class BillingService {
                 throw new BadRequestException("정기결제 실패: status=" + status);
             }
             LocalDateTime now = LocalDateTime.now();
+            String renewedPaymentKey = resp.path("paymentKey").asText(null);
+            long renewedAmount = resp.path("totalAmount").asLong(amount);
             subscription.setTossOrderId(orderId);
-            subscription.setTossPaymentKey(resp.path("paymentKey").asText(null));
+            subscription.setTossPaymentKey(renewedPaymentKey);
             subscription.setStatus(SubscriptionStatus.ACTIVE);
             subscription.setCurrentPeriodStart(now);
             subscription.setCurrentPeriodEnd(now.plusMonths(1));
             subscription.setNextPaymentAt(now.plusMonths(1));
             subscription.setUpdatedAt(now);
             subscriptionRepository.save(subscription);
+
+            recordEvent(subscription.getUserId(), subscription.getId(),
+                    PaymentEvent.EventType.CHARGE_SUCCESS,
+                    subscription.getPlanType(), renewedAmount, status,
+                    renewedPaymentKey, orderId, null, null, resp);
+
             log.info("정기결제 성공: userId={}, amount={}원", subscription.getUserId(), amount);
         } catch (Exception e) {
             log.error("정기결제 실패 → PAST_DUE: userId={}, err={}",
@@ -259,6 +283,12 @@ public class BillingService {
             subscription.setStatus(SubscriptionStatus.PAST_DUE);
             subscription.setUpdatedAt(LocalDateTime.now());
             subscriptionRepository.save(subscription);
+
+            recordEvent(subscription.getUserId(), subscription.getId(),
+                    PaymentEvent.EventType.CHARGE_FAILED,
+                    subscription.getPlanType(), amount, "FAILED",
+                    null, orderId, null, e.getMessage(), null);
+
             notificationService.notify(subscription.getUserId(), "BILLING",
                     "결제가 실패했습니다",
                     "결제 수단을 확인하고 다시 결제해주세요.",
@@ -278,6 +308,12 @@ public class BillingService {
             u.setUpdatedAt(LocalDateTime.now());
             userRepository.save(u);
         });
+
+        recordEvent(subscription.getUserId(), subscription.getId(),
+                PaymentEvent.EventType.CANCELED,
+                "FREE", null, null,
+                null, subscription.getTossOrderId(), null, message, null);
+
         notificationService.notify(subscription.getUserId(), "BILLING",
                 "구독이 해지되었습니다", message, "/app/settings");
     }
@@ -321,10 +357,32 @@ public class BillingService {
                     subscription.setUpdatedAt(LocalDateTime.now());
                     subscriptionRepository.save(subscription);
                 }
-                case "ABORTED", "EXPIRED" -> {
+                case "ABORTED" -> {
                     subscription.setStatus(SubscriptionStatus.PAST_DUE);
                     subscription.setUpdatedAt(LocalDateTime.now());
                     subscriptionRepository.save(subscription);
+
+                    // 웹훅 멱등성 — 이미 기록된 이벤트면 skip.
+                    if (paymentEventRepository.findFirstByTossOrderIdAndEventType(
+                            orderId, PaymentEvent.EventType.WEBHOOK_ABORTED).isEmpty()) {
+                        recordEvent(subscription.getUserId(), subscription.getId(),
+                                PaymentEvent.EventType.WEBHOOK_ABORTED,
+                                subscription.getPlanType(), null, status,
+                                paymentKey, orderId, null, "Toss 웹훅: ABORTED", payment);
+                    }
+                }
+                case "EXPIRED" -> {
+                    subscription.setStatus(SubscriptionStatus.PAST_DUE);
+                    subscription.setUpdatedAt(LocalDateTime.now());
+                    subscriptionRepository.save(subscription);
+
+                    if (paymentEventRepository.findFirstByTossOrderIdAndEventType(
+                            orderId, PaymentEvent.EventType.WEBHOOK_EXPIRED).isEmpty()) {
+                        recordEvent(subscription.getUserId(), subscription.getId(),
+                                PaymentEvent.EventType.WEBHOOK_EXPIRED,
+                                subscription.getPlanType(), null, status,
+                                paymentKey, orderId, null, "Toss 웹훅: EXPIRED", payment);
+                    }
                 }
                 case "CANCELED", "PARTIAL_CANCELED" -> {
                     subscription.setStatus(SubscriptionStatus.CANCELED);
@@ -384,5 +442,47 @@ public class BillingService {
     private LocalDateTime getMonthStart() {
         LocalDateTime now = LocalDateTime.now();
         return now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+    }
+
+    // ─── Payment Events (audit log) ───
+
+    /**
+     * 결제 이벤트 기록 — 모든 결제/해지/환불 상태 변화는 이 헬퍼로 append-only 저장.
+     * subscriptions 테이블은 "현재 상태"만 유지하므로 변경 불가능한 과거 내역은 여기에만 남는다.
+     */
+    private void recordEvent(Long userId, Long subscriptionId,
+                             PaymentEvent.EventType type,
+                             String planType, Long amount, String status,
+                             String paymentKey, String orderId,
+                             String failureCode, String failureReason,
+                             JsonNode rawResponse) {
+        try {
+            paymentEventRepository.save(PaymentEvent.builder()
+                    .userId(userId)
+                    .subscriptionId(subscriptionId)
+                    .eventType(type)
+                    .planType(planType)
+                    .amount(amount)
+                    .status(status)
+                    .tossPaymentKey(paymentKey)
+                    .tossOrderId(orderId)
+                    .failureCode(failureCode)
+                    .failureReason(failureReason)
+                    .rawResponse(rawResponse != null ? rawResponse.toString() : null)
+                    .createdAt(LocalDateTime.now())
+                    .build());
+        } catch (Exception e) {
+            // 이벤트 기록 실패가 본 트랜잭션을 깨뜨리면 안 됨 — 로그만 남기고 swallow.
+            log.error("결제 이벤트 기록 실패: userId={}, type={}, err={}", userId, type, e.getMessage());
+        }
+    }
+
+    /** 유저 결제 내역 — 최신순 페이지네이션. */
+    @Transactional(readOnly = true)
+    public Page<PaymentEvent> listPaymentEvents(Long userId, int page, int size) {
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        int safePage = Math.max(page, 0);
+        Pageable pageable = PageRequest.of(safePage, safeSize);
+        return paymentEventRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
     }
 }

@@ -83,6 +83,21 @@ const DEFAULT_NOTIFICATIONS = {
   systemUpdates: true,
 }
 
+// payment_events.event_type → 한국어 라벨 + 배지 색상.
+const paymentEventLabel = (type) => {
+  switch (type) {
+    case 'CHARGE_SUCCESS':    return { label: '결제 성공',  color: '#10B981' }
+    case 'CHARGE_FAILED':     return { label: '결제 실패',  color: '#EF4444' }
+    case 'PLAN_CHANGE':       return { label: '플랜 변경',  color: '#6366F1' }
+    case 'CANCEL_SCHEDULED':  return { label: '해지 예약',  color: '#F59E0B' }
+    case 'CANCELED':          return { label: '해지 완료',  color: '#6B7280' }
+    case 'REFUND':            return { label: '환불',       color: '#8B5CF6' }
+    case 'WEBHOOK_ABORTED':   return { label: '중단 (웹훅)', color: '#EF4444' }
+    case 'WEBHOOK_EXPIRED':   return { label: '만료 (웹훅)', color: '#EF4444' }
+    default:                  return { label: type || '—',   color: '#6B7280' }
+  }
+}
+
 const PLANS = [
   {
     id: 'free',
@@ -263,6 +278,10 @@ export default function SettingsPage() {
   const [planUpgrading, setPlanUpgrading] = useState(null)
   const [billingInfo, setBillingInfo] = useState(null)
   const [billingLoading, setBillingLoading] = useState(false)
+  const [paymentEvents, setPaymentEvents] = useState([])
+  const [paymentEventsLoading, setPaymentEventsLoading] = useState(false)
+  const [paymentEventsPage, setPaymentEventsPage] = useState(0)
+  const [paymentEventsTotalPages, setPaymentEventsTotalPages] = useState(0)
   const [portalLoading, setPortalLoading] = useState(false)
 
   // Ice Breaker & Persistent Menu state
@@ -445,11 +464,27 @@ export default function SettingsPage() {
     }
   }, [])
 
+  // 결제 내역 조회 — append-only audit log (payment_events 테이블).
+  const fetchPaymentEvents = useCallback(async (page = 0) => {
+    setPaymentEventsLoading(true)
+    try {
+      const res = await billingService.listEvents(page, 20)
+      setPaymentEvents(res.events || [])
+      setPaymentEventsPage(res.page || 0)
+      setPaymentEventsTotalPages(res.totalPages || 0)
+    } catch {
+      setPaymentEvents([])
+    } finally {
+      setPaymentEventsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (activeTab === 'billing') {
       fetchBillingInfo()
+      fetchPaymentEvents(0)
     }
-  }, [activeTab, fetchBillingInfo])
+  }, [activeTab, fetchBillingInfo, fetchPaymentEvents])
 
   useEffect(() => {
     if (activeTab === 'recurring') {
@@ -2331,31 +2366,91 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Billing history */}
+        {/* Billing history — payment_events audit log */}
         <div className="settings-section">
           <h3>결제 내역</h3>
-          {billingLoading ? (
+          {paymentEventsLoading ? (
             <div className="billing-history-card empty">
               <i className="ri-loader-4-line spin" style={{ fontSize: 20 }} />
-              <p>결제 정보를 불러오는 중...</p>
+              <p>결제 내역을 불러오는 중...</p>
             </div>
-          ) : isSubscribed ? (
-            <div className="billing-history-card">
-              <i className="ri-file-list-3-line" />
-              <p>다음 결제 예정일: {billingInfo?.currentPeriodEnd ? new Date(billingInfo.currentPeriodEnd).toLocaleDateString('ko-KR') : '—'}</p>
-              {billingInfo?.cancelAtPeriodEnd ? (
-                <p style={{ color: '#ef4444', fontSize: 13 }}>해지 예약됨 — 위 날짜 이후 FREE 플랜으로 전환됩니다.</p>
-              ) : (
-                <button className="btn-secondary small" onClick={handleManageSubscription} disabled={portalLoading}>
-                  {portalLoading ? <><i className="ri-loader-4-line spin" /> 처리 중...</> : <><i className="ri-close-circle-line" /> 구독 해지</>}
-                </button>
-              )}
-            </div>
-          ) : (
+          ) : paymentEvents.length === 0 ? (
             <div className="billing-history-card empty">
               <i className="ri-file-list-3-line" />
               <p>결제 내역이 없습니다.</p>
+              {isSubscribed && billingInfo?.currentPeriodEnd && (
+                <p style={{ fontSize: 13, color: '#6B7280', marginTop: 6 }}>
+                  다음 결제 예정일: {new Date(billingInfo.currentPeriodEnd).toLocaleDateString('ko-KR')}
+                </p>
+              )}
             </div>
+          ) : (
+            <>
+              <div className="payment-events-table" style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', borderBottom: '1px solid #E5E7EB', color: '#6B7280', fontSize: 13 }}>
+                      <th style={{ padding: '10px 8px' }}>일시</th>
+                      <th style={{ padding: '10px 8px' }}>구분</th>
+                      <th style={{ padding: '10px 8px' }}>플랜</th>
+                      <th style={{ padding: '10px 8px', textAlign: 'right' }}>금액</th>
+                      <th style={{ padding: '10px 8px' }}>주문번호</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paymentEvents.map((ev) => {
+                      const { label, color } = paymentEventLabel(ev.eventType)
+                      const dt = ev.createdAt ? new Date(ev.createdAt) : null
+                      return (
+                        <tr key={ev.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                          <td style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}>
+                            {dt ? dt.toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
+                          </td>
+                          <td style={{ padding: '10px 8px' }}>
+                            <span style={{
+                              display: 'inline-block', padding: '2px 8px', borderRadius: 999,
+                              fontSize: 12, fontWeight: 600, background: color + '22', color,
+                            }}>{label}</span>
+                            {ev.failureReason && (
+                              <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{ev.failureReason}</div>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 8px' }}>{ev.planType || '—'}</td>
+                          <td style={{ padding: '10px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                            {ev.amount != null ? ev.amount.toLocaleString('ko-KR') + '원' : '—'}
+                          </td>
+                          <td style={{ padding: '10px 8px', fontSize: 12, color: '#6B7280' }}>
+                            {ev.tossOrderId || '—'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {paymentEventsTotalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+                  <button
+                    className="btn-secondary small"
+                    disabled={paymentEventsPage === 0}
+                    onClick={() => fetchPaymentEvents(paymentEventsPage - 1)}
+                  >
+                    <i className="ri-arrow-left-s-line" /> 이전
+                  </button>
+                  <span style={{ alignSelf: 'center', fontSize: 13, color: '#6B7280' }}>
+                    {paymentEventsPage + 1} / {paymentEventsTotalPages}
+                  </span>
+                  <button
+                    className="btn-secondary small"
+                    disabled={paymentEventsPage + 1 >= paymentEventsTotalPages}
+                    onClick={() => fetchPaymentEvents(paymentEventsPage + 1)}
+                  >
+                    다음 <i className="ri-arrow-right-s-line" />
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </>

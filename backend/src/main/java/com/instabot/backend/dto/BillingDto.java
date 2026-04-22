@@ -58,4 +58,30 @@ public class BillingDto {
         private Long contactCount;
         private Long monthlyDMCount;
     }
+
+    /**
+     * 결제 내역 한 건 — payment_events row 의 프론트 표현.
+     *
+     * rawResponse 는 민감한 토스 내부 필드가 포함되므로 일부러 제외.
+     */
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    public static class PaymentEventResponse {
+        private Long id;
+        private String eventType;   // CHARGE_SUCCESS / CHARGE_FAILED / CANCEL_SCHEDULED / CANCELED / ...
+        private String planType;
+        private Long amount;
+        private String status;      // 토스 status (DONE / ABORTED / ...)
+        private String tossOrderId;
+        private String failureReason;
+        private String createdAt;   // ISO 8601 문자열
+    }
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    public static class PaymentEventsPage {
+        private java.util.List<PaymentEventResponse> events;
+        private long totalElements;
+        private int totalPages;
+        private int page;
+        private int size;
+    }
 }

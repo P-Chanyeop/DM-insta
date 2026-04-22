@@ -151,6 +151,8 @@ export const billingService = {
   // successUrl 콜백에서 authKey 받아 서버로 전달 → billingKey 발급 + 첫 결제
   confirmBillingAuth: (data) => api.post('/billing/confirm', data),
   cancel: () => api.post('/billing/cancel'),
+  // 결제 내역 — 최신순 페이지네이션
+  listEvents: (page = 0, size = 20) => api.get('/billing/events', { params: { page, size } }),
 }
 
 export const accountService = {
