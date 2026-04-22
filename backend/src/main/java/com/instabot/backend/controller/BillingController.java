@@ -22,10 +22,23 @@ public class BillingController {
         return ResponseEntity.ok(billingService.createCheckoutSession(userId, request.getPlanType()));
     }
 
-    @PostMapping("/portal")
-    public ResponseEntity<BillingDto.PortalResponse> createPortal() {
+    /**
+     * 프론트의 IMP.request_pay 콜백에서 imp_uid / merchant_uid 전달.
+     * 서버는 Portone REST 로 재검증 후 구독 생성/갱신.
+     */
+    @PostMapping("/confirm")
+    public ResponseEntity<BillingDto.BillingInfoResponse> confirmPayment(
+            @Valid @RequestBody BillingDto.ConfirmPaymentRequest request) {
         Long userId = SecurityUtils.currentUserId();
-        return ResponseEntity.ok(billingService.createPortalSession(userId));
+        return ResponseEntity.ok(
+                billingService.confirmPayment(userId, request.getImpUid(), request.getMerchantUid()));
+    }
+
+    /** 구독 해지 예약 — 현재 결제 주기 끝에 FREE 로 전환. */
+    @PostMapping("/cancel")
+    public ResponseEntity<BillingDto.BillingInfoResponse> cancelSubscription() {
+        Long userId = SecurityUtils.currentUserId();
+        return ResponseEntity.ok(billingService.cancelAtPeriodEnd(userId));
     }
 
     @GetMapping("/info")

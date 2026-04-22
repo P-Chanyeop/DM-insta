@@ -2,7 +2,7 @@ package com.instabot.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.instabot.backend.config.PaddleConfig;
+import com.instabot.backend.config.PortoneConfig;
 import com.instabot.backend.dto.BillingDto;
 import com.instabot.backend.entity.Subscription;
 import com.instabot.backend.entity.Subscription.SubscriptionStatus;
@@ -17,25 +17,23 @@ import com.instabot.backend.repository.SubscriptionRepository;
 import com.instabot.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.util.HexFormat;
+import java.util.Optional;
 
 /**
- * Paddle Billing 서비스.
- * Paddle Billing API (v2) 사용 — REST 기반.
- * 카카오페이, 네이버페이, 삼성페이 등 한국 결제수단 네이티브 지원.
+ * 결제/구독 관리 — Portone V1 + danal_tpay 정기결제 기반.
+ *
+ * Paddle 모델과의 근본 차이: PG 가 자동 갱신하지 않으므로 서버가 "빌링키 저장 → 매월 재결제" 루프를 직접 돌린다.
+ *
+ * 흐름
+ *   createCheckout       : 프론트가 IMP.request_pay 호출에 쓸 파라미터 생성
+ *   confirmPayment       : 프론트 결제 완료 콜백에서 서버가 imp_uid 검증 후 Subscription 저장
+ *   cancelSubscription   : cancelAtPeriodEnd=true → 스케줄러에서 재결제 제외
+ *   renewNow             : 스케줄러가 호출 — /subscribe/payments/again
+ *   handleWebhook        : Portone 에서 결제 완료/실패 알림 수신
  */
 @Service
 @RequiredArgsConstructor
@@ -48,87 +46,131 @@ public class BillingService {
     private final AutomationRepository automationRepository;
     private final ContactRepository contactRepository;
     private final MessageRepository messageRepository;
-    private final PaddleConfig paddleConfig;
+    private final PortoneConfig portoneConfig;
+    private final PortoneService portoneService;
     private final ObjectMapper objectMapper;
     private final NotificationService notificationService;
 
-    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
+    // ─── Checkout 파라미터 ───
 
-    @Value("${app.base-url}")
-    private String baseUrl;
-
-    // ─── Checkout (Paddle Overlay) ───
-
-    /**
-     * Paddle은 프론트엔드 Paddle.js 오버레이로 체크아웃을 처리.
-     * 백엔드에서는 프론트에 필요한 정보(priceId, clientToken)만 반환.
-     */
+    @Transactional(readOnly = true)
     public BillingDto.CheckoutResponse createCheckoutSession(Long userId, String planType) {
-        if ("BUSINESS".equalsIgnoreCase(planType)) {
-            throw new BadRequestException("비즈니스 플랜은 영업팀에 문의해주세요.");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
-        // 중복 활성 구독 방지
         subscriptionRepository.findByUserId(userId).ifPresent(sub -> {
-            if (sub.getStatus() == SubscriptionStatus.ACTIVE) {
-                throw new BadRequestException("이미 활성 구독이 있습니다. 구독 관리에서 변경해주세요.");
+            if (sub.getStatus() == SubscriptionStatus.ACTIVE && !sub.isCancelAtPeriodEnd()) {
+                throw new BadRequestException("이미 활성 구독이 있습니다. 변경은 구독 관리에서 진행해주세요.");
             }
         });
 
-        String priceId = resolvePriceId(planType);
+        User.PlanType plan = parsePlan(planType);
+        long amount = resolveAmount(plan);
+        long ts = System.currentTimeMillis();
+        String merchantUid = "ord_" + userId + "_" + ts;
+        String customerUid = "cus_" + userId + "_" + ts;
+        String productName = "센드잇 " + plan.name() + " 플랜";
 
-        // Paddle은 프론트에서 Paddle.js로 오버레이 체크아웃 → 결과를 웹훅으로 수신
-        // 백엔드에서는 priceId와 clientToken, customData를 반환
         return BillingDto.CheckoutResponse.builder()
-                .checkoutUrl(priceId)  // 프론트에서 Paddle.Checkout.open({ items: [{ priceId }] }) 사용
-                .paddleClientToken(paddleConfig.getClientToken())
-                .paddleEnvironment(paddleConfig.getEnvironment())
+                .impCode(portoneConfig.getImpCode())
+                .pg(portoneConfig.getPgString())
+                .payMethod("card")
+                .merchantUid(merchantUid)
+                .customerUid(customerUid)
+                .amount(amount)
+                .name(productName)
+                .buyerEmail(user.getEmail())
+                .buyerName(user.getName())
                 .build();
     }
 
-    // ─── Customer Portal (Paddle 관리 페이지) ───
+    // ─── 결제 검증 및 구독 생성 ───
 
-    public BillingDto.PortalResponse createPortalSession(Long userId) {
+    @Transactional
+    public BillingDto.BillingInfoResponse confirmPayment(Long userId, String impUid, String merchantUid) {
+        JsonNode payment = portoneService.getPayment(impUid);
+        if (payment.isMissingNode() || payment.isNull()) {
+            throw new BadRequestException("결제 정보를 찾을 수 없습니다.");
+        }
+
+        String status = payment.path("status").asText("");
+        long paidAmount = payment.path("amount").asLong(0);
+        String respMerchantUid = payment.path("merchant_uid").asText("");
+        String customerUid = payment.path("customer_uid").asText(null);
+
+        if (!"paid".equalsIgnoreCase(status)) {
+            throw new BadRequestException("결제가 완료되지 않았습니다: status=" + status);
+        }
+        if (!merchantUid.equals(respMerchantUid)) {
+            throw new BadRequestException("주문 ID가 일치하지 않습니다.");
+        }
+
+        // merchantUid 에서 userId 파싱해 이중 확인 (변조 방지).
+        if (!merchantUid.startsWith("ord_" + userId + "_")) {
+            throw new BadRequestException("주문 소유자가 일치하지 않습니다.");
+        }
+
+        User.PlanType planType = deducePlanFromAmount(paidAmount);
+        long expectedAmount = resolveAmount(planType);
+        if (paidAmount != expectedAmount) {
+            log.warn("결제 금액 불일치: 받은={}, 기대={}", paidAmount, expectedAmount);
+            throw new BadRequestException("결제 금액이 일치하지 않습니다.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
         Subscription subscription = subscriptionRepository.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("구독 정보를 찾을 수 없습니다."));
+                .orElse(Subscription.builder().userId(userId).build());
+        subscription.setPortoneCustomerUid(customerUid);
+        subscription.setPortoneMerchantUid(merchantUid);
+        subscription.setPortoneImpUid(impUid);
+        subscription.setPlanType(planType.name());
+        subscription.setAmount(paidAmount);
+        subscription.setStatus(SubscriptionStatus.ACTIVE);
+        subscription.setCurrentPeriodStart(now);
+        subscription.setCurrentPeriodEnd(now.plusMonths(1));
+        subscription.setNextPaymentAt(now.plusMonths(1));
+        subscription.setCancelAtPeriodEnd(false);
+        subscription.setUpdatedAt(now);
+        subscriptionRepository.save(subscription);
 
-        if (subscription.getPaddleSubscriptionId() == null) {
-            throw new BadRequestException("결제 정보가 없습니다.");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+        user.setPlan(planType);
+        user.setUpdatedAt(now);
+        userRepository.save(user);
 
-        try {
-            // Paddle API: 구독 업데이트 URL 생성
-            String url = paddleConfig.getApiBaseUrl()
-                    + "/subscriptions/" + subscription.getPaddleSubscriptionId()
-                    + "/update-payment-method-transaction";
+        notificationService.notify(userId, "BILLING",
+                "구독이 활성화되었습니다",
+                planType.name() + " 플랜이 활성화되었습니다.",
+                "/app/settings");
 
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("Authorization", "Bearer " + paddleConfig.getApiKey())
-                    .header("Content-Type", "application/json")
-                    .GET()
-                    .build();
-
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            JsonNode body = objectMapper.readTree(response.body());
-
-            // Paddle의 구독 관리 페이지 URL 반환
-            // 또는 update-payment-method-transaction 결과의 checkout URL 사용
-            String portalUrl = paddleConfig.isSandbox()
-                    ? "https://sandbox-buyer-portal.paddle.com/subscriptions/" + subscription.getPaddleSubscriptionId()
-                    : "https://customer-portal.paddle.com/subscriptions/" + subscription.getPaddleSubscriptionId();
-
-            return BillingDto.PortalResponse.builder()
-                    .portalUrl(portalUrl)
-                    .build();
-        } catch (Exception e) {
-            log.error("Paddle 포털 URL 생성 실패: {}", e.getMessage(), e);
-            throw new BadRequestException("포털 세션 생성에 실패했습니다.");
-        }
+        return getBillingInfo(userId);
     }
 
-    // ─── 구독 정보 조회 ───
+    // ─── 해지 예약 ───
 
+    @Transactional
+    public BillingDto.BillingInfoResponse cancelAtPeriodEnd(Long userId) {
+        Subscription subscription = subscriptionRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("구독 정보를 찾을 수 없습니다."));
+        if (subscription.getStatus() != SubscriptionStatus.ACTIVE) {
+            throw new BadRequestException("활성 구독만 해지할 수 있습니다.");
+        }
+        subscription.setCancelAtPeriodEnd(true);
+        subscription.setUpdatedAt(LocalDateTime.now());
+        subscriptionRepository.save(subscription);
+
+        // 빌링키는 currentPeriodEnd 이후 정리. 여기서는 다음 재결제를 skip 하도록 플래그만.
+        notificationService.notify(userId, "BILLING",
+                "구독 해지가 예약되었습니다",
+                "현재 결제 주기 종료일 이후에 FREE 플랜으로 전환됩니다.",
+                "/app/settings");
+        return getBillingInfo(userId);
+    }
+
+    // ─── 조회 ───
+
+    @Transactional(readOnly = true)
     public BillingDto.BillingInfoResponse getBillingInfo(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
@@ -138,292 +180,144 @@ public class BillingService {
         long contactCount = contactRepository.countByUserId(userId);
         long monthlyDMCount = messageRepository.countOutboundByUserIdAndSince(userId, getMonthStart());
 
-        return subscriptionRepository.findByUserId(userId)
-                .map(sub -> BillingDto.BillingInfoResponse.builder()
-                        .plan(user.getPlan().name())
-                        .status(sub.getStatus().name())
-                        .currentPeriodEnd(sub.getCurrentPeriodEnd() != null
-                                ? sub.getCurrentPeriodEnd().toString() : null)
-                        .cancelAtPeriodEnd(sub.isCancelAtPeriodEnd())
-                        .flowCount(flowCount)
-                        .automationCount(automationCount)
-                        .contactCount(contactCount)
-                        .monthlyDMCount(monthlyDMCount)
-                        .build())
-                .orElse(BillingDto.BillingInfoResponse.builder()
-                        .plan(user.getPlan().name())
-                        .status("NONE")
-                        .cancelAtPeriodEnd(false)
-                        .flowCount(flowCount)
-                        .automationCount(automationCount)
-                        .contactCount(contactCount)
-                        .monthlyDMCount(monthlyDMCount)
-                        .build());
+        Optional<Subscription> subOpt = subscriptionRepository.findByUserId(userId);
+        BillingDto.BillingInfoResponse.BillingInfoResponseBuilder b = BillingDto.BillingInfoResponse.builder()
+                .plan(user.getPlan().name())
+                .flowCount(flowCount)
+                .automationCount(automationCount)
+                .contactCount(contactCount)
+                .monthlyDMCount(monthlyDMCount);
+        if (subOpt.isPresent()) {
+            Subscription s = subOpt.get();
+            b.status(s.getStatus().name())
+                    .currentPeriodEnd(s.getCurrentPeriodEnd() != null ? s.getCurrentPeriodEnd().toString() : null)
+                    .cancelAtPeriodEnd(s.isCancelAtPeriodEnd());
+        } else {
+            b.status("NONE").cancelAtPeriodEnd(false);
+        }
+        return b.build();
     }
 
-    // ─── Paddle Webhook 처리 ───
+    // ─── 정기결제 재호출 (스케줄러에서) ───
 
     @Transactional
-    public void handleWebhook(String payload, String signature) {
-        // Paddle 웹훅 서명 검증
-        if (!verifyPaddleSignature(payload, signature)) {
-            log.error("Paddle 웹훅 서명 검증 실패");
-            throw new BadRequestException("웹훅 서명이 유효하지 않습니다.");
+    public void renewNow(Long subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new ResourceNotFoundException("구독을 찾을 수 없습니다."));
+        if (subscription.isCancelAtPeriodEnd()) {
+            // 해지 예약 — 빌링키 정리하고 FREE 로 전환.
+            markCanceled(subscription, "구독 해지 예약에 따라 FREE 플랜으로 전환되었습니다.");
+            return;
         }
 
+        long amount = subscription.getAmount() != null
+                ? subscription.getAmount()
+                : resolveAmount(User.PlanType.valueOf(subscription.getPlanType()));
+        long ts = System.currentTimeMillis();
+        String merchantUid = "ord_" + subscription.getUserId() + "_" + ts;
+        String name = "센드잇 " + subscription.getPlanType() + " 플랜 정기결제";
+
         try {
-            JsonNode event = objectMapper.readTree(payload);
-            String eventType = event.path("event_type").asText("");
-            JsonNode data = event.path("data");
-
-            log.info("Paddle webhook 수신: type={}", eventType);
-
-            switch (eventType) {
-                case "subscription.created" -> handleSubscriptionCreated(data);
-                case "subscription.updated" -> handleSubscriptionUpdated(data);
-                case "subscription.canceled" -> handleSubscriptionCanceled(data);
-                case "subscription.paused" -> handleSubscriptionPaused(data);
-                case "subscription.resumed" -> handleSubscriptionResumed(data);
-                case "transaction.completed" -> handleTransactionCompleted(data);
-                case "transaction.payment_failed" -> handlePaymentFailed(data);
-                default -> log.debug("처리하지 않는 Paddle 이벤트: {}", eventType);
+            JsonNode resp = portoneService.requestAgain(
+                    subscription.getPortoneCustomerUid(), merchantUid, amount, name);
+            String status = resp.path("status").asText("");
+            if (!"paid".equalsIgnoreCase(status)) {
+                throw new BadRequestException("정기결제 실패: status=" + status);
             }
-        } catch (BadRequestException e) {
-            throw e;
+            LocalDateTime now = LocalDateTime.now();
+            subscription.setPortoneMerchantUid(merchantUid);
+            subscription.setPortoneImpUid(resp.path("imp_uid").asText(null));
+            subscription.setStatus(SubscriptionStatus.ACTIVE);
+            subscription.setCurrentPeriodStart(now);
+            subscription.setCurrentPeriodEnd(now.plusMonths(1));
+            subscription.setNextPaymentAt(now.plusMonths(1));
+            subscription.setUpdatedAt(now);
+            subscriptionRepository.save(subscription);
+            log.info("정기결제 성공: userId={}, amount={}원", subscription.getUserId(), amount);
         } catch (Exception e) {
-            log.error("Paddle 웹훅 처리 실패: {}", e.getMessage(), e);
-            throw new RuntimeException("Paddle webhook processing failed", e);
+            log.error("정기결제 실패 → PAST_DUE: userId={}, err={}",
+                    subscription.getUserId(), e.getMessage());
+            subscription.setStatus(SubscriptionStatus.PAST_DUE);
+            subscription.setUpdatedAt(LocalDateTime.now());
+            subscriptionRepository.save(subscription);
+            notificationService.notify(subscription.getUserId(), "BILLING",
+                    "결제가 실패했습니다",
+                    "결제 수단을 확인하고 다시 결제해주세요.",
+                    "/app/settings");
         }
     }
 
-    // ─── Private: Webhook 핸들러 ───
-
-    private void handleSubscriptionCreated(JsonNode data) {
-        String paddleSubId = data.path("id").asText();
-        String paddleCustomerId = data.path("customer_id").asText();
-        String priceId = data.path("items").path(0).path("price").path("id").asText();
-
-        // custom_data에서 userId 추출
-        Long userId = extractUserId(data);
-        if (userId == null) {
-            log.warn("구독 생성 이벤트에 userId 없음: paddleSubId={}", paddleSubId);
-            return;
+    private void markCanceled(Subscription subscription, String message) {
+        if (subscription.getPortoneCustomerUid() != null) {
+            portoneService.deleteBillingKey(subscription.getPortoneCustomerUid());
         }
-
-        // 멱등성 — 이미 처리된 경우 스킵
-        if (subscriptionRepository.findByPaddleSubscriptionId(paddleSubId)
-                .filter(s -> s.getStatus() == SubscriptionStatus.ACTIVE)
-                .isPresent()) {
-            log.info("이미 처리된 구독 — 스킵: paddleSubId={}", paddleSubId);
-            return;
-        }
-
-        Subscription subscription = subscriptionRepository.findByUserId(userId)
-                .orElse(Subscription.builder().userId(userId).build());
-
-        subscription.setPaddleCustomerId(paddleCustomerId);
-        subscription.setPaddleSubscriptionId(paddleSubId);
-        subscription.setPaddlePriceId(priceId);
-        subscription.setStatus(mapPaddleStatus(data.path("status").asText("active")));
-        subscription.setCurrentPeriodStart(parsePaddleDate(data.path("current_billing_period").path("starts_at").asText(null)));
-        subscription.setCurrentPeriodEnd(parsePaddleDate(data.path("current_billing_period").path("ends_at").asText(null)));
-        subscription.setCancelAtPeriodEnd(data.path("scheduled_change").has("action")
-                && "cancel".equals(data.path("scheduled_change").path("action").asText()));
+        subscription.setStatus(SubscriptionStatus.CANCELED);
         subscription.setUpdatedAt(LocalDateTime.now());
         subscriptionRepository.save(subscription);
 
-        // 사용자 플랜 업데이트
-        userRepository.findById(userId).ifPresent(user -> {
-            user.setPlan(resolvePlanType(priceId));
-            user.setUpdatedAt(LocalDateTime.now());
-            userRepository.save(user);
+        userRepository.findById(subscription.getUserId()).ifPresent(u -> {
+            u.setPlan(User.PlanType.FREE);
+            u.setUpdatedAt(LocalDateTime.now());
+            userRepository.save(u);
         });
-
-        log.info("Paddle 구독 생성 완료: userId={}, paddleSubId={}", userId, paddleSubId);
-
-        // 구독 활성화 알림
-        User.PlanType planType = resolvePlanType(priceId);
-        notificationService.notify(userId, "BILLING",
-                "구독이 활성화되었습니다",
-                planType.name() + " 플랜이 활성화되었습니다.",
-                "/app/settings");
+        notificationService.notify(subscription.getUserId(), "BILLING",
+                "구독이 해지되었습니다", message, "/app/settings");
     }
 
-    private void handleSubscriptionUpdated(JsonNode data) {
-        String paddleSubId = data.path("id").asText();
-        subscriptionRepository.findByPaddleSubscriptionId(paddleSubId)
-                .ifPresent(subscription -> {
-                    String priceId = data.path("items").path(0).path("price").path("id").asText(
-                            subscription.getPaddlePriceId());
-                    subscription.setStatus(mapPaddleStatus(data.path("status").asText("active")));
-                    subscription.setPaddlePriceId(priceId);
-                    subscription.setCurrentPeriodStart(parsePaddleDate(
-                            data.path("current_billing_period").path("starts_at").asText(null)));
-                    subscription.setCurrentPeriodEnd(parsePaddleDate(
-                            data.path("current_billing_period").path("ends_at").asText(null)));
+    // ─── Webhook ───
 
-                    JsonNode scheduledChange = data.path("scheduled_change");
-                    subscription.setCancelAtPeriodEnd(
-                            scheduledChange.has("action") && "cancel".equals(scheduledChange.path("action").asText()));
+    /**
+     * Portone Webhook — body 예: { imp_uid, merchant_uid, status }.
+     * 서명 검증: Portone 은 v1 에서 HMAC 필드를 기본 제공하지 않으므로 imp_uid 를 API 로 재조회하는
+     * "풀(pull) 검증" 패턴을 따른다.
+     */
+    @Transactional
+    public void handleWebhook(String payload) {
+        try {
+            JsonNode body = objectMapper.readTree(payload);
+            String impUid = body.path("imp_uid").asText(null);
+            if (impUid == null || impUid.isBlank()) {
+                log.warn("Portone 웹훅에 imp_uid 없음: {}", payload);
+                return;
+            }
+            JsonNode payment = portoneService.getPayment(impUid);
+            String status = payment.path("status").asText("");
+            String merchantUid = payment.path("merchant_uid").asText("");
 
-                    subscription.setUpdatedAt(LocalDateTime.now());
-                    subscriptionRepository.save(subscription);
+            Optional<Subscription> subOpt = subscriptionRepository.findByPortoneMerchantUid(merchantUid);
+            if (subOpt.isEmpty()) {
+                log.debug("웹훅 무시 — 매칭되는 구독 없음: merchantUid={}", merchantUid);
+                return;
+            }
+            Subscription subscription = subOpt.get();
 
-                    // 플랜 동기화
-                    userRepository.findById(subscription.getUserId()).ifPresent(user -> {
-                        user.setPlan(resolvePlanType(priceId));
-                        user.setUpdatedAt(LocalDateTime.now());
-                        userRepository.save(user);
-                    });
-
-                    log.info("Paddle 구독 업데이트: paddleSubId={}, status={}", paddleSubId, subscription.getStatus());
-                });
-    }
-
-    private void handleSubscriptionCanceled(JsonNode data) {
-        String paddleSubId = data.path("id").asText();
-        subscriptionRepository.findByPaddleSubscriptionId(paddleSubId)
-                .ifPresent(subscription -> {
-                    subscription.setStatus(SubscriptionStatus.CANCELED);
-                    subscription.setUpdatedAt(LocalDateTime.now());
-                    subscriptionRepository.save(subscription);
-
-                    // FREE로 다운그레이드
-                    userRepository.findById(subscription.getUserId()).ifPresent(user -> {
-                        user.setPlan(User.PlanType.FREE);
-                        user.setUpdatedAt(LocalDateTime.now());
-                        userRepository.save(user);
-                    });
-
-                    log.info("Paddle 구독 취소 → FREE: userId={}", subscription.getUserId());
-
-                    notificationService.notify(subscription.getUserId(), "BILLING",
-                            "구독이 해지되었습니다",
-                            "구독이 해지되어 FREE 플랜으로 전환되었습니다.",
-                            "/app/settings");
-                });
-    }
-
-    private void handleSubscriptionPaused(JsonNode data) {
-        String paddleSubId = data.path("id").asText();
-        subscriptionRepository.findByPaddleSubscriptionId(paddleSubId)
-                .ifPresent(subscription -> {
-                    subscription.setStatus(SubscriptionStatus.PAUSED);
-                    subscription.setUpdatedAt(LocalDateTime.now());
-                    subscriptionRepository.save(subscription);
-                    log.info("Paddle 구독 일시정지: paddleSubId={}", paddleSubId);
-                });
-    }
-
-    private void handleSubscriptionResumed(JsonNode data) {
-        String paddleSubId = data.path("id").asText();
-        subscriptionRepository.findByPaddleSubscriptionId(paddleSubId)
-                .ifPresent(subscription -> {
+            switch (status.toLowerCase()) {
+                case "paid" -> {
                     subscription.setStatus(SubscriptionStatus.ACTIVE);
+                    subscription.setPortoneImpUid(impUid);
                     subscription.setUpdatedAt(LocalDateTime.now());
                     subscriptionRepository.save(subscription);
-                    log.info("Paddle 구독 재개: paddleSubId={}", paddleSubId);
-                });
-    }
-
-    private void handleTransactionCompleted(JsonNode data) {
-        // 결제 완료 — subscription.created와 함께 오므로 추가 로깅만
-        String transactionId = data.path("id").asText();
-        log.info("Paddle 결제 완료: transactionId={}", transactionId);
-    }
-
-    private void handlePaymentFailed(JsonNode data) {
-        String subId = data.path("subscription_id").asText(null);
-        if (subId == null) return;
-
-        subscriptionRepository.findByPaddleSubscriptionId(subId)
-                .ifPresent(subscription -> {
+                }
+                case "failed" -> {
                     subscription.setStatus(SubscriptionStatus.PAST_DUE);
                     subscription.setUpdatedAt(LocalDateTime.now());
                     subscriptionRepository.save(subscription);
-                    log.warn("Paddle 결제 실패 → PAST_DUE: userId={}", subscription.getUserId());
-                });
-    }
-
-    // ─── Private: 유틸리티 ───
-
-    private Long extractUserId(JsonNode data) {
-        // custom_data에서 userId 추출
-        JsonNode customData = data.path("custom_data");
-        if (customData.has("userId")) {
-            return customData.path("userId").asLong();
-        }
-        // passthrough에서도 시도
-        String passthrough = data.path("passthrough").asText(null);
-        if (passthrough != null) {
-            try {
-                JsonNode pt = objectMapper.readTree(passthrough);
-                return pt.path("userId").asLong();
-            } catch (Exception ignored) {}
-        }
-        return null;
-    }
-
-    private boolean verifyPaddleSignature(String payload, String signature) {
-        if (signature == null || signature.isBlank()) return false;
-        try {
-            // Paddle Billing v2: ts=...;h1=... 형식
-            String[] parts = signature.split(";");
-            String ts = null;
-            String h1 = null;
-            for (String part : parts) {
-                if (part.startsWith("ts=")) ts = part.substring(3);
-                else if (part.startsWith("h1=")) h1 = part.substring(3);
+                }
+                case "cancelled", "canceled" -> {
+                    subscription.setStatus(SubscriptionStatus.CANCELED);
+                    subscription.setUpdatedAt(LocalDateTime.now());
+                    subscriptionRepository.save(subscription);
+                }
+                default -> log.debug("처리하지 않는 Portone 상태: {}", status);
             }
-            if (ts == null || h1 == null) return false;
-
-            String signedPayload = ts + ":" + payload;
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(paddleConfig.getWebhookSecret().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            byte[] hash = mac.doFinal(signedPayload.getBytes(StandardCharsets.UTF_8));
-            String computed = HexFormat.of().formatHex(hash);
-
-            return computed.equals(h1);
         } catch (Exception e) {
-            log.error("Paddle 서명 검증 오류: {}", e.getMessage());
-            return false;
+            log.error("Portone 웹훅 처리 실패: {}", e.getMessage(), e);
+            throw new BadRequestException("Webhook processing failed: " + e.getMessage());
         }
     }
 
-    private String resolvePriceId(String planType) {
-        return switch (planType.toUpperCase()) {
-            case "STARTER" -> paddleConfig.getStarterPriceId();
-            case "PRO" -> paddleConfig.getProPriceId();
-            case "BUSINESS" -> paddleConfig.getBusinessPriceId();
-            default -> throw new BadRequestException("유효하지 않은 플랜입니다: " + planType);
-        };
-    }
+    // ─── 플랜 한도 ───
 
-    private User.PlanType resolvePlanType(String priceId) {
-        if (priceId != null && priceId.equals(paddleConfig.getStarterPriceId())) {
-            return User.PlanType.STARTER;
-        } else if (priceId != null && priceId.equals(paddleConfig.getProPriceId())) {
-            return User.PlanType.PRO;
-        } else if (priceId != null && priceId.equals(paddleConfig.getBusinessPriceId())) {
-            return User.PlanType.BUSINESS;
-        }
-        return User.PlanType.FREE;
-    }
-
-    private SubscriptionStatus mapPaddleStatus(String paddleStatus) {
-        return switch (paddleStatus) {
-            case "active" -> SubscriptionStatus.ACTIVE;
-            case "canceled" -> SubscriptionStatus.CANCELED;
-            case "past_due" -> SubscriptionStatus.PAST_DUE;
-            case "trialing" -> SubscriptionStatus.TRIALING;
-            case "paused" -> SubscriptionStatus.PAUSED;
-            default -> SubscriptionStatus.PAST_DUE;
-        };
-    }
-
-    /**
-     * DM 발송 한도 초과 여부 확인
-     */
     public boolean canSendDM(Long userId) {
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) return false;
@@ -441,17 +335,38 @@ public class BillingService {
         };
     }
 
+    // ─── Private utilities ───
+
+    private User.PlanType parsePlan(String planType) {
+        try {
+            User.PlanType p = User.PlanType.valueOf(planType.toUpperCase());
+            if (p == User.PlanType.FREE) {
+                throw new BadRequestException("유료 플랜만 결제할 수 있습니다.");
+            }
+            return p;
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("유효하지 않은 플랜입니다: " + planType);
+        }
+    }
+
+    private long resolveAmount(User.PlanType plan) {
+        return switch (plan) {
+            case STARTER -> portoneConfig.getStarterPrice();
+            case PRO -> portoneConfig.getProPrice();
+            case BUSINESS -> portoneConfig.getBusinessPrice();
+            default -> throw new BadRequestException("결제 불가 플랜: " + plan);
+        };
+    }
+
+    private User.PlanType deducePlanFromAmount(long amount) {
+        if (amount == portoneConfig.getStarterPrice()) return User.PlanType.STARTER;
+        if (amount == portoneConfig.getProPrice()) return User.PlanType.PRO;
+        if (amount == portoneConfig.getBusinessPrice()) return User.PlanType.BUSINESS;
+        throw new BadRequestException("결제 금액에 해당하는 플랜이 없습니다: " + amount);
+    }
+
     private LocalDateTime getMonthStart() {
         LocalDateTime now = LocalDateTime.now();
         return now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
-    }
-
-    private LocalDateTime parsePaddleDate(String dateStr) {
-        if (dateStr == null || dateStr.isBlank()) return null;
-        try {
-            return OffsetDateTime.parse(dateStr).toLocalDateTime();
-        } catch (Exception e) {
-            return null;
-        }
     }
 }

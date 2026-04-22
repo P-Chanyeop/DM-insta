@@ -60,15 +60,18 @@ app:
 cors:
   allowed-origins: http://localhost:5173,http://localhost:3000
 
-# Paddle (dummy for tests)
-paddle:
-  api-key: pdl_api_test_dummy
-  webhook-secret: pdl_ntfset_test_dummy
-  environment: sandbox
-  client-token: test_dummy_client_token
+# Portone (dummy for tests)
+portone:
+  imp-code: imp_test
+  api-key: test-api-key
+  api-secret: test-api-secret
+  channel-key: test-channel-key
+  pg-provider: danal_tpay
+  cpid: test_cpid
   prices:
-    pro: pri_test_pro
-    enterprise: pri_test_enterprise
+    starter: 19900
+    pro: 49900
+    business: 149900
 
 # Rate limiting
 rate-limit:

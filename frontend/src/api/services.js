@@ -146,7 +146,8 @@ export const analyticsService = {
 export const billingService = {
   getInfo: () => api.get('/billing/info'),
   createCheckout: (data) => api.post('/billing/checkout', data),
-  createPortal: () => api.post('/billing/portal'),
+  confirmPayment: (data) => api.post('/billing/confirm', data),
+  cancel: () => api.post('/billing/cancel'),
 }
 
 export const accountService = {

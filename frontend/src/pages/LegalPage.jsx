@@ -82,10 +82,10 @@ function TermsContent() {
 
       <Section title="제 5조 (서비스 요금 및 결제)">
         <ol style={{ paddingLeft: '1.2rem', margin: '0.5rem 0' }}>
-          <li>서비스는 무료 플랜과 유료 플랜(Pro, Business)을 제공합니다.</li>
-          <li>결제는 Paddle을 통해 처리되며, 구독은 자동 갱신됩니다.</li>
-          <li>구독 취소 시 현재 결제 주기 종료까지 서비스를 이용할 수 있습니다.</li>
-          <li>환불 정책은 Paddle의 환불 정책에 따릅니다.</li>
+          <li>서비스는 무료 플랜(Free)과 유료 플랜(Starter, Pro, Business)을 제공합니다.</li>
+          <li>결제는 Portone(다날 PG)을 통해 처리되며, 등록된 신용카드로 매월 자동 청구됩니다.</li>
+          <li>구독 해지 시 현재 결제 주기 종료까지 서비스를 이용할 수 있으며, 이후 Free 플랜으로 전환됩니다.</li>
+          <li>환불은 결제일로부터 7일 이내에 서비스를 사용하지 않은 경우에 한해 「전자상거래법」에 따라 청구 가능합니다.</li>
         </ol>
       </Section>
 
@@ -172,7 +172,7 @@ function PrivacyContent() {
           <li>단, 다음의 경우 예외로 합니다:
             <ul style={{ paddingLeft: '1rem', margin: '0.3rem 0' }}>
               <li>Meta/Instagram: 서비스 제공을 위한 API 연동 (Instagram 사용자 ID, 메시지 내용)</li>
-              <li>Paddle: 결제 처리 (이메일 주소, 결제 정보)</li>
+              <li>Portone(아임포트) / 다날: 결제 처리 (이메일 주소, 결제 정보)</li>
               <li>법률에 따른 요청이 있는 경우</li>
             </ul>
           </li>

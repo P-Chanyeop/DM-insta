@@ -461,44 +461,8 @@ export default function SettingsPage() {
     }
   }, [activeTab])
 
-  // Handle Paddle checkout success redirect — 폴링으로 webhook 처리 대기
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('paddle_success') || params.get('session_id')) {
-      setActiveTab('billing')
-      showToast('결제가 완료되었습니다!', 'success')
-      window.history.replaceState({}, '', window.location.pathname)
-      refreshPlan()
-
-      // webhook 처리가 지연될 수 있으므로 폴링
-      let retries = 0
-      const maxRetries = 3
-      const pollInterval = 2000
-
-      const poll = async () => {
-        try {
-          const info = await billingService.getInfo()
-          setBillingInfo(info)
-          if (info.plan) {
-            // plan 상태는 PlanContext에서 관리 — refreshPlan()으로 동기화
-        refreshPlan()
-          }
-          if (info.status === 'ACTIVE' || retries >= maxRetries) {
-            return
-          }
-        } catch {
-          // ignore polling errors
-        }
-        retries++
-        if (retries < maxRetries) {
-          setTimeout(poll, pollInterval)
-        }
-      }
-
-      // 즉시 한 번 + 최대 2번 재시도 (2초 간격)
-      setTimeout(poll, pollInterval)
-    }
-  }, [showToast])
+  // Portone 결제는 팝업/모바일 리다이렉트 모두 프론트 콜백 기반 — success 쿼리 파라미터 처리 불필요.
+  // (handlePlanAction 에서 confirmPayment 후 직접 refreshPlan 호출.)
 
   // Profile handlers
   const handleProfileChange = (field, value) => {
@@ -804,41 +768,54 @@ export default function SettingsPage() {
     }
   }
 
-  // Plan upgrade via Paddle.js Overlay Checkout
+  // Portone(다날) 정기결제 — IMP.request_pay 로 빌링키 등록 + 첫 결제 동시 처리
   const handlePlanAction = async (planId) => {
-    if (planId === 'business') {
-      window.open('/contact', '_blank')
+    if (!window.IMP) {
+      showToast('결제 모듈이 로드되지 않았습니다. 페이지를 새로고침해주세요.', 'error')
       return
     }
     setPlanUpgrading(planId)
     try {
-      const resp = await billingService.createCheckout({ planType: planId.toUpperCase() })
-      const priceId = resp.checkoutUrl  // 백엔드에서 priceId를 checkoutUrl 필드로 반환
+      // 1) 서버에서 결제 파라미터 발급 (merchant_uid, customer_uid, 금액 등)
+      const params = await billingService.createCheckout({ planType: planId.toUpperCase() })
 
-      if (!priceId || !window.Paddle) {
-        showToast('결제 모듈을 불러올 수 없습니다.', 'error')
-        return
-      }
+      // 2) IMP 초기화
+      window.IMP.init(params.impCode)
 
-      // Paddle.js 초기화 (한 번만)
-      if (!window.__paddleInitialized) {
-        if (resp.paddleEnvironment === 'sandbox') {
-          window.Paddle.Environment.set('sandbox')
-        }
-        window.Paddle.Initialize({ token: resp.paddleClientToken })
-        window.__paddleInitialized = true
-      }
-
-      // Paddle 오버레이 체크아웃
-      window.Paddle.Checkout.open({
-        items: [{ priceId, quantity: 1 }],
-        customData: { userId: String(profile.id || '') },
-        settings: {
-          displayMode: 'overlay',
-          theme: 'light',
-          locale: 'ko',
-          successUrl: window.location.origin + '/settings?paddle_success=1',
-        },
+      // 3) 결제창 호출 — customer_uid 포함 시 Portone 이 빌링키 자동 저장
+      await new Promise((resolve) => {
+        window.IMP.request_pay({
+          pg: params.pg,
+          pay_method: params.payMethod || 'card',
+          merchant_uid: params.merchantUid,
+          customer_uid: params.customerUid,
+          name: params.name,
+          amount: params.amount,
+          buyer_email: params.buyerEmail,
+          buyer_name: params.buyerName,
+          currency: 'KRW',
+        }, async (rsp) => {
+          if (!rsp.success) {
+            showToast(rsp.error_msg || '결제가 취소되었거나 실패했습니다.', 'error')
+            resolve()
+            return
+          }
+          try {
+            // 4) 서버 검증 — 금액/상태 재확인 후 Subscription 저장
+            await billingService.confirmPayment({
+              impUid: rsp.imp_uid,
+              merchantUid: rsp.merchant_uid,
+            })
+            showToast('결제가 완료되었습니다!', 'success')
+            const info = await billingService.getInfo()
+            setBillingInfo(info)
+            refreshPlan()
+          } catch (e) {
+            showToast(e.message || '결제 검증에 실패했습니다.', 'error')
+          } finally {
+            resolve()
+          }
+        })
       })
     } catch (err) {
       showToast(err.message || '결제 처리 중 오류가 발생했습니다.', 'error')
@@ -847,18 +824,18 @@ export default function SettingsPage() {
     }
   }
 
-  // Open Paddle Customer Portal
+  // 구독 해지 — 현재 결제 주기 종료 시 FREE 로 전환
   const handleManageSubscription = async () => {
+    const ok = window.confirm('구독을 해지하시겠습니까? 현재 결제 주기가 끝나면 FREE 플랜으로 전환됩니다.')
+    if (!ok) return
     setPortalLoading(true)
     try {
-      const { portalUrl } = await billingService.createPortal()
-      if (portalUrl) {
-        window.location.href = portalUrl
-      } else {
-        showToast('구독 관리 페이지를 불러올 수 없습니다.', 'error')
-      }
+      const info = await billingService.cancel()
+      setBillingInfo(info)
+      refreshPlan()
+      showToast('구독 해지가 예약되었습니다.', 'success')
     } catch (err) {
-      showToast(err.message || '구독 관리 페이지를 열 수 없습니다.', 'error')
+      showToast(err.message || '구독 해지 요청에 실패했습니다.', 'error')
     } finally {
       setPortalLoading(false)
     }
@@ -2330,10 +2307,14 @@ export default function SettingsPage() {
           ) : isSubscribed ? (
             <div className="billing-history-card">
               <i className="ri-file-list-3-line" />
-              <p>결제 내역 및 인보이스는 Paddle 고객 포털에서 확인할 수 있습니다.</p>
-              <button className="btn-secondary small" onClick={handleManageSubscription} disabled={portalLoading}>
-                {portalLoading ? <><i className="ri-loader-4-line spin" /> 로딩 중...</> : <><i className="ri-external-link-line" /> 결제 내역 보기</>}
-              </button>
+              <p>다음 결제 예정일: {billingInfo?.currentPeriodEnd ? new Date(billingInfo.currentPeriodEnd).toLocaleDateString('ko-KR') : '—'}</p>
+              {billingInfo?.cancelAtPeriodEnd ? (
+                <p style={{ color: '#ef4444', fontSize: 13 }}>해지 예약됨 — 위 날짜 이후 FREE 플랜으로 전환됩니다.</p>
+              ) : (
+                <button className="btn-secondary small" onClick={handleManageSubscription} disabled={portalLoading}>
+                  {portalLoading ? <><i className="ri-loader-4-line spin" /> 처리 중...</> : <><i className="ri-close-circle-line" /> 구독 해지</>}
+                </button>
+              )}
             </div>
           ) : (
             <div className="billing-history-card empty">

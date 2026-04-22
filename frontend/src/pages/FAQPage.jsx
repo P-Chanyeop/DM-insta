@@ -67,7 +67,7 @@ const FAQ_DATA = [
     category: '결제',
     icon: 'ri-bank-card-line',
     question: '결제는 어떤 수단을 지원하나요?',
-    answer: 'Paddle 결제 시스템을 통해 다양한 결제 수단을 지원합니다:\n• 카카오페이\n• 네이버페이\n• 신용카드/체크카드 (Visa, Mastercard, 국내 카드)\n• PayPal\n월간/연간 구독 방식이며, 연간 구독 시 20% 할인이 적용됩니다.',
+    answer: 'Portone(다날) 결제 시스템을 통해 국내 신용/체크카드로 결제할 수 있습니다.\n• 신용/체크카드 (Visa, Mastercard, 국내 카드)\n월간 정기결제 방식이며, 최초 결제 시 등록된 카드로 매월 자동 청구됩니다. 구독 해지는 설정 메뉴에서 언제든 가능하며, 현재 결제 주기 종료일 이후 FREE 플랜으로 전환됩니다.',
   },
   {
     category: '결제',
