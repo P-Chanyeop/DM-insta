@@ -7,6 +7,9 @@
 
 services:
   # ── Frontend (Nginx + React SPA) ──
+  # 주의: 80/443 은 호스트 시스템 nginx(/etc/nginx/sites-available/sendit)가 SSL 터미네이션.
+  #       여기서 포트를 공개로 열면 시스템 nginx 가 바인딩 실패해 HTTPS 가 죽는다. (과거 사고 이력)
+  #       반드시 127.0.0.1 바인딩을 유지할 것.
   frontend:
     build:
       context: ./frontend
@@ -14,8 +17,7 @@ services:
         VITE_API_BASE_URL: /api
         VITE_WS_BASE_URL: /ws
     ports:
-      - "80:80"
-      - "443:443"
+      - "127.0.0.1:8081:80"
     depends_on:
       - backend
     restart: always
