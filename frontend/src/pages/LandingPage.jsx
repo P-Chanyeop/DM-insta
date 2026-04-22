@@ -470,20 +470,34 @@ export default function LandingPage() {
           </div>
           {/* 사업자/법적 고지 — 전자상거래법 제13조 필수 기재사항 */}
           <div className="footer-company-info">
-            <dl>
-              <dt>상호</dt><dd>소프트캣</dd>
-              <dt>대표</dt><dd>박찬엽</dd>
-              <dt>사업자등록번호</dt><dd>292-56-00756</dd>
-              <dt>통신판매업 신고번호</dt><dd>제 2025-고양덕양구-0992호</dd>
-              <dt>주소</dt><dd>경기도 고양시 덕양구 원흥3로 16, 904호</dd>
-              <dt>고객센터</dt>
-              <dd>
-                <a href="tel:01044147579">010-4414-7579</a>
-                <span className="footer-hours"> · 평일 09:00 ~ 18:00 (주말·공휴일 휴무)</span>
-              </dd>
-              <dt>이메일</dt><dd><a href="mailto:oracle7579@gmail.com">oracle7579@gmail.com</a></dd>
-              <dt>개인정보 보호책임자</dt><dd>박찬엽 (oracle7579@gmail.com)</dd>
-            </dl>
+            <div className="footer-company-row">
+              <div className="footer-company-item"><span>상호</span><strong>소프트캣</strong></div>
+              <div className="footer-company-item"><span>대표</span><strong>박찬엽</strong></div>
+              <div className="footer-company-item"><span>사업자등록번호</span><strong>292-56-00756</strong></div>
+              <div className="footer-company-item"><span>통신판매업 신고번호</span><strong>제 2025-고양덕양구-0992호</strong></div>
+            </div>
+            <div className="footer-company-row">
+              <div className="footer-company-item footer-company-item--wide">
+                <span>주소</span><strong>경기도 고양시 덕양구 원흥3로 16, 904호</strong>
+              </div>
+              <div className="footer-company-item">
+                <span>고객센터</span>
+                <strong>
+                  <a href="tel:01044147579">010-4414-7579</a>
+                  <em>평일 09:00 ~ 18:00 (주말·공휴일 휴무)</em>
+                </strong>
+              </div>
+            </div>
+            <div className="footer-company-row">
+              <div className="footer-company-item">
+                <span>이메일</span>
+                <strong><a href="mailto:oracle7579@gmail.com">oracle7579@gmail.com</a></strong>
+              </div>
+              <div className="footer-company-item">
+                <span>개인정보 보호책임자</span>
+                <strong>박찬엽 <a href="mailto:oracle7579@gmail.com">(oracle7579@gmail.com)</a></strong>
+              </div>
+            </div>
           </div>
           <div className="footer-bottom">
             <p>&copy; 2026 센드잇. All rights reserved.</p>
