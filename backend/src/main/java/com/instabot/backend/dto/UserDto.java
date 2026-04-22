@@ -14,6 +14,10 @@ public class UserDto {
         private String plan;
         private String industry;
         private boolean onboardingCompleted;
+        /** 마케팅 수신 동의 여부 (알림 설정 탭 토글용). */
+        private boolean marketingAgreed;
+        /** 동의한 시각 (증빙용). */
+        private String marketingAgreedAt;
         private String createdAt;
     }
 

@@ -63,6 +63,19 @@ public class User {
     private String resetCode;
     private LocalDateTime resetCodeExpiresAt;
 
+    // ── 약관 동의 (전자상거래법/개인정보보호법 증빙) ──
+    /** 이용약관 동의 시각. 가입 시 필수 → 항상 NOT NULL 이어야 함. */
+    @Column(name = "terms_agreed_at")
+    private LocalDateTime termsAgreedAt;
+
+    /** 개인정보처리방침 동의 시각. 가입 시 필수. */
+    @Column(name = "privacy_agreed_at")
+    private LocalDateTime privacyAgreedAt;
+
+    /** 마케팅 정보 수신 동의 시각. 선택 — 동의 거부 시 NULL, 나중에 토글 가능. */
+    @Column(name = "marketing_agreed_at")
+    private LocalDateTime marketingAgreedAt;
+
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 

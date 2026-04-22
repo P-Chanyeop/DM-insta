@@ -1,6 +1,7 @@
 package com.instabot.backend.controller;
 
 import com.instabot.backend.config.SecurityUtils;
+import com.instabot.backend.dto.AuthDto;
 import com.instabot.backend.dto.UserDto;
 import com.instabot.backend.entity.User;
 import com.instabot.backend.exception.BadRequestException;
@@ -74,8 +75,26 @@ public class UserController {
                 .plan(user.getPlan().name())
                 .industry(user.getIndustry())
                 .onboardingCompleted(user.isOnboardingCompleted())
+                .marketingAgreed(user.getMarketingAgreedAt() != null)
+                .marketingAgreedAt(user.getMarketingAgreedAt() != null ? user.getMarketingAgreedAt().toString() : null)
                 .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null)
                 .build();
+    }
+
+    /**
+     * 마케팅 정보 수신 동의 토글 — 설정 > 알림 탭에서 사용.
+     * 동의: marketing_agreed_at 현재 시각으로 설정, 철회: NULL.
+     */
+    @PatchMapping("/me/marketing-consent")
+    public ResponseEntity<UserDto.UserResponse> updateMarketingConsent(
+            @Valid @RequestBody AuthDto.MarketingConsentRequest request) {
+        Long userId = SecurityUtils.currentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+        user.setMarketingAgreedAt(Boolean.TRUE.equals(request.getAgreed()) ? LocalDateTime.now() : null);
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+        return ResponseEntity.ok(toResponse(user));
     }
 
     @PutMapping("/me/password")

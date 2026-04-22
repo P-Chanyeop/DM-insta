@@ -1,7 +1,9 @@
 package com.instabot.backend.dto;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
@@ -15,6 +17,14 @@ public class AuthDto {
         private String password;
         @NotBlank
         private String name;
+
+        // ── 약관 동의 ──
+        @AssertTrue(message = "이용약관에 동의해야 가입할 수 있습니다.")
+        private boolean termsAgreed;
+        @AssertTrue(message = "개인정보처리방침에 동의해야 가입할 수 있습니다.")
+        private boolean privacyAgreed;
+        /** 마케팅 수신은 선택 — 기본 false. */
+        private boolean marketingAgreed;
     }
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor
@@ -84,5 +94,18 @@ public class AuthDto {
         private String password;
         @NotBlank
         private String name;
+
+        // ── 약관 동의 ──
+        @AssertTrue(message = "이용약관에 동의해야 가입할 수 있습니다.")
+        private boolean termsAgreed;
+        @AssertTrue(message = "개인정보처리방침에 동의해야 가입할 수 있습니다.")
+        private boolean privacyAgreed;
+        private boolean marketingAgreed;
+    }
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+    public static class MarketingConsentRequest {
+        @NotNull
+        private Boolean agreed;
     }
 }

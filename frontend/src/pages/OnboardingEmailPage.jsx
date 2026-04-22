@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { api, setToken, setStoredUser } from '../api/client'
 import { authService } from '../api/services'
+import TermsAgreement from '../components/TermsAgreement'
 
 /**
  * Instagram OAuth 직후 신규 가입 흐름에서만 진입하는 이메일 입력 페이지.
@@ -25,6 +26,8 @@ export default function OnboardingEmailPage() {
     passwordConfirm: '',
     name: igName || igUsername || '',
   })
+  const [agreement, setAgreement] = useState({ terms: false, privacy: false, marketing: false })
+  const [agreementError, setAgreementError] = useState('')
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
   const [serverError, setServerError] = useState('')
@@ -59,6 +62,11 @@ export default function OnboardingEmailPage() {
     else if (form.password.length < 6) next.password = '비밀번호는 6자 이상이어야 합니다.'
     if (form.password !== form.passwordConfirm) next.passwordConfirm = '비밀번호가 일치하지 않습니다.'
     setErrors(next)
+    if (!agreement.terms || !agreement.privacy) {
+      setAgreementError('필수 약관에 동의해야 가입할 수 있습니다.')
+      return false
+    }
+    setAgreementError('')
     return Object.keys(next).length === 0
   }
 
@@ -73,6 +81,9 @@ export default function OnboardingEmailPage() {
         email: form.email.trim(),
         password: form.password,
         name: form.name.trim(),
+        termsAgreed: agreement.terms,
+        privacyAgreed: agreement.privacy,
+        marketingAgreed: agreement.marketing,
       })
       setToken(res.token)
       setStoredUser({
@@ -259,6 +270,12 @@ export default function OnboardingEmailPage() {
               autoComplete="new-password"
             />
           </Field>
+
+          <TermsAgreement
+            value={agreement}
+            onChange={(next) => { setAgreement(next); if (next.terms && next.privacy) setAgreementError('') }}
+            error={agreementError}
+          />
 
           {serverError && (
             <div style={{

@@ -61,6 +61,7 @@ public class AuthService {
         }
 
         String verificationCode = generateCode();
+        LocalDateTime now = LocalDateTime.now();
 
         User user = User.builder()
                 .email(request.getEmail())
@@ -68,7 +69,11 @@ public class AuthService {
                 .name(request.getName())
                 .emailVerified(false)
                 .verificationCode(verificationCode)
-                .verificationCodeExpiresAt(LocalDateTime.now().plusMinutes(CODE_EXPIRY_MINUTES))
+                .verificationCodeExpiresAt(now.plusMinutes(CODE_EXPIRY_MINUTES))
+                // 약관 동의 기록 — DTO 에서 @AssertTrue 검증이 통과했으므로 필수 동의는 보장됨.
+                .termsAgreedAt(now)
+                .privacyAgreedAt(now)
+                .marketingAgreedAt(request.isMarketingAgreed() ? now : null)
                 .build();
 
         userRepository.save(user);
@@ -314,6 +319,7 @@ public class AuthService {
                     "이 Instagram 계정은 이미 다른 계정에 연결되어 있습니다. 기존 계정으로 로그인해주세요.");
         });
 
+        LocalDateTime now = LocalDateTime.now();
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
@@ -321,14 +327,18 @@ public class AuthService {
                 .authProvider(User.AuthProvider.INSTAGRAM)
                 .facebookUserId(igsid)
                 .facebookAccessToken(encryptedIgToken)
-                .facebookTokenExpiresAt(LocalDateTime.now().plusDays(60))
+                .facebookTokenExpiresAt(now.plusDays(60))
                 // IG OAuth 를 거쳤으므로 실소유자 확인됨 → 이메일 인증은 별도 진행(코드 메일 발송).
                 .emailVerified(false)
                 .plan(User.PlanType.FREE)
+                // 약관 동의 기록
+                .termsAgreedAt(now)
+                .privacyAgreedAt(now)
+                .marketingAgreedAt(request.isMarketingAgreed() ? now : null)
                 .build();
         String verificationCode = generateCode();
         user.setVerificationCode(verificationCode);
-        user.setVerificationCodeExpiresAt(LocalDateTime.now().plusMinutes(CODE_EXPIRY_MINUTES));
+        user.setVerificationCodeExpiresAt(now.plusMinutes(CODE_EXPIRY_MINUTES));
         user = userRepository.save(user);
 
         teamMemberRepository.save(TeamMember.builder()

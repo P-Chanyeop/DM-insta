@@ -126,6 +126,7 @@ export const userService = {
   updateMe: (data) => api.put('/users/me', data),
   changePassword: (data) => api.put('/users/me/password', data),
   markOnboardingComplete: () => api.patch('/users/me/onboarding-complete'),
+  updateMarketingConsent: (agreed) => api.patch('/users/me/marketing-consent', { agreed }),
 }
 
 export const teamService = {

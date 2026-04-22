@@ -304,6 +304,8 @@ export default function SettingsPage() {
           name: userData.name || '',
           email: userData.email || '',
           industry: userData.industry || null,
+          marketingAgreed: !!userData.marketingAgreed,
+          marketingAgreedAt: userData.marketingAgreedAt || null,
         }))
         setStoredUser({
           ...(getStoredUser() || {}),
@@ -595,6 +597,24 @@ export default function SettingsPage() {
     } catch {
       setNotifications(prev => ({ ...prev, [key]: !prev[key] })) // rollback
       showToast('저장에 실패했습니다.', 'error')
+    }
+  }
+
+  const handleToggleMarketingConsent = async () => {
+    const next = !profile?.marketingAgreed
+    // optimistic update
+    setProfile(prev => ({ ...prev, marketingAgreed: next }))
+    try {
+      const updated = await userService.updateMarketingConsent(next)
+      setProfile(prev => ({
+        ...prev,
+        marketingAgreed: !!updated.marketingAgreed,
+        marketingAgreedAt: updated.marketingAgreedAt || null,
+      }))
+      showToast(next ? '마케팅 정보 수신에 동의했습니다.' : '마케팅 정보 수신 동의를 철회했습니다.')
+    } catch (err) {
+      setProfile(prev => ({ ...prev, marketingAgreed: !next })) // rollback
+      showToast(err?.message || '설정 변경에 실패했습니다.', 'error')
     }
   }
 
@@ -1719,6 +1739,23 @@ export default function SettingsPage() {
           />
         </div>
       ))}
+
+      <div className="setting-row" style={{ marginTop: 20, borderTop: '1px solid #e5e7eb', paddingTop: 20 }}>
+        <div className="setting-info">
+          <strong>마케팅 정보 수신 (선택)</strong>
+          <p>신규 기능 안내, 프로모션/혜택 등 마케팅 정보를 이메일로 받습니다.</p>
+          {profile?.marketingAgreedAt && (
+            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+              동의 일시: {new Date(profile.marketingAgreedAt).toLocaleString('ko-KR')}
+            </p>
+          )}
+        </div>
+        <div
+          className={`flow-card-toggle${profile?.marketingAgreed ? ' active' : ''}`}
+          onClick={handleToggleMarketingConsent}
+          title="클릭하여 동의/철회"
+        />
+      </div>
     </div>
   )
 

@@ -2,16 +2,20 @@ import { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { authService } from '../api/services'
 import { useToast } from '../components/Toast'
+import TermsAgreement from '../components/TermsAgreement'
 
 export default function AuthPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const isSignup = location.pathname === '/signup'
 
-  const [form, setForm] = useState({ email: '', password: '', name: '' })
+  const [form, setForm] = useState({ email: '', password: '', passwordConfirm: '', name: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
+  // 약관 동의 상태 — 가입 시에만 사용
+  const [agreement, setAgreement] = useState({ terms: false, privacy: false, marketing: false })
+  const [agreementError, setAgreementError] = useState('')
 
   // Email verification state
   const [showVerification, setShowVerification] = useState(false)
@@ -64,7 +68,25 @@ export default function AuthPage() {
       errors.password = '비밀번호는 6자 이상이어야 합니다'
     }
 
+    if (isSignup) {
+      if (!form.passwordConfirm) {
+        errors.passwordConfirm = '비밀번호를 한 번 더 입력해주세요'
+      } else if (form.password !== form.passwordConfirm) {
+        errors.passwordConfirm = '비밀번호가 일치하지 않습니다'
+      }
+    }
+
     setFieldErrors(errors)
+
+    // 가입 시에만 약관 동의 체크
+    if (isSignup) {
+      if (!agreement.terms || !agreement.privacy) {
+        setAgreementError('필수 약관에 동의해야 가입할 수 있습니다.')
+        return false
+      }
+      setAgreementError('')
+    }
+
     return Object.keys(errors).length === 0
   }
 
@@ -78,7 +100,14 @@ export default function AuthPage() {
 
     try {
       if (isSignup) {
-        const res = await authService.signup(form)
+        const res = await authService.signup({
+          email: form.email,
+          password: form.password,
+          name: form.name,
+          termsAgreed: agreement.terms,
+          privacyAgreed: agreement.privacy,
+          marketingAgreed: agreement.marketing,
+        })
         // 회원가입 후 이메일 인증 화면으로
         setVerifyEmail(form.email)
         setShowVerification(true)
@@ -460,6 +489,31 @@ export default function AuthPage() {
               </div>
               {fieldErrors.password && <span style={{ fontSize: 12, color: '#ef4444', marginTop: 4, display: 'block' }}>{fieldErrors.password}</span>}
             </div>
+
+            {isSignup && (
+              <div className="auth-field">
+                <label>비밀번호 확인</label>
+                <div className="auth-input-wrap" style={fieldErrors.passwordConfirm ? { borderColor: '#ef4444' } : {}}>
+                  <i className="ri-lock-line" />
+                  <input
+                    type="password"
+                    name="passwordConfirm"
+                    value={form.passwordConfirm}
+                    onChange={handleChange}
+                    placeholder="비밀번호를 다시 입력해주세요"
+                  />
+                </div>
+                {fieldErrors.passwordConfirm && <span style={{ fontSize: 12, color: '#ef4444', marginTop: 4, display: 'block' }}>{fieldErrors.passwordConfirm}</span>}
+              </div>
+            )}
+
+            {isSignup && (
+              <TermsAgreement
+                value={agreement}
+                onChange={(next) => { setAgreement(next); if (next.terms && next.privacy) setAgreementError('') }}
+                error={agreementError}
+              />
+            )}
 
             {!isSignup && (
               <div className="auth-field-row">
