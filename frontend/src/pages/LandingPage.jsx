@@ -471,14 +471,18 @@ export default function LandingPage() {
           {/* 사업자/법적 고지 — 전자상거래법 제13조 필수 기재사항 */}
           <div className="footer-company-info">
             <dl>
-              <dt>상호</dt><dd>센드잇</dd>
-              <dt>대표자</dt><dd>박찬엽</dd>
-              <dt>사업자등록번호</dt><dd>000-00-00000</dd>
-              <dt>통신판매업 신고번호</dt><dd>제 0000-서울-00000호</dd>
-              <dt>주소</dt><dd>서울특별시 (상세 주소 입력)</dd>
-              <dt>고객센터</dt><dd><a href="tel:01044147579">010-4414-7579</a></dd>
-              <dt>이메일</dt><dd><a href="mailto:support@sendit.io.kr">support@sendit.io.kr</a></dd>
-              <dt>개인정보 보호책임자</dt><dd>박찬엽 (privacy@sendit.io.kr)</dd>
+              <dt>상호</dt><dd>소프트캣</dd>
+              <dt>대표</dt><dd>박찬엽</dd>
+              <dt>사업자등록번호</dt><dd>292-56-00756</dd>
+              <dt>통신판매업 신고번호</dt><dd>제 2025-고양덕양구-0992호</dd>
+              <dt>주소</dt><dd>경기도 고양시 덕양구 원흥3로 16, 904호</dd>
+              <dt>고객센터</dt>
+              <dd>
+                <a href="tel:01055029714">010-5502-9714</a>
+                <span className="footer-hours"> · 평일 09:00 ~ 18:00 (주말·공휴일 휴무)</span>
+              </dd>
+              <dt>이메일</dt><dd><a href="mailto:oracle7579@gmail.com">oracle7579@gmail.com</a></dd>
+              <dt>개인정보 보호책임자</dt><dd>박찬엽 (oracle7579@gmail.com)</dd>
             </dl>
           </div>
           <div className="footer-bottom">

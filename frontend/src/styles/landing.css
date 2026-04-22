@@ -359,6 +359,7 @@
 }
 .footer-company-info a { color: var(--gray-400); transition: color 0.2s; }
 .footer-company-info a:hover { color: white; }
+.footer-hours { color: var(--gray-600); font-size: 11px; margin-left: 4px; }
 .footer-bottom {
   display: flex; justify-content: space-between; align-items: center;
   padding: 24px 0; border-top: 1px solid rgba(255,255,255,0.08);
