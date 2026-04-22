@@ -146,8 +146,10 @@ export const analyticsService = {
 
 export const billingService = {
   getInfo: () => api.get('/billing/info'),
+  // 토스페이먼츠: 프론트 requestBillingAuth 에 쓸 clientKey/customerKey/orderId 발급
   createCheckout: (data) => api.post('/billing/checkout', data),
-  confirmPayment: (data) => api.post('/billing/confirm', data),
+  // successUrl 콜백에서 authKey 받아 서버로 전달 → billingKey 발급 + 첫 결제
+  confirmBillingAuth: (data) => api.post('/billing/confirm', data),
   cancel: () => api.post('/billing/cancel'),
 }
 

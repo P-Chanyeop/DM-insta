@@ -35,6 +35,8 @@ const OnboardingEmailPage = lazy(() => import('./pages/OnboardingEmailPage'))
 const InquiryPage = lazy(() => import('./pages/InquiryPage'))
 const GuidePage = lazy(() => import('./pages/GuidePage'))
 const FAQPage = lazy(() => import('./pages/FAQPage'))
+const BillingSuccessPage = lazy(() => import('./pages/BillingSuccessPage'))
+const BillingFailPage = lazy(() => import('./pages/BillingFailPage'))
 
 export default function App() {
   return (
@@ -44,10 +46,13 @@ export default function App() {
       <Route path="/login" element={<AuthPage />} />
       <Route path="/terms" element={<Suspense fallback={<PageLoader />}><LegalPage /></Suspense>} />
       <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><LegalPage /></Suspense>} />
+      <Route path="/refund" element={<Suspense fallback={<PageLoader />}><LegalPage /></Suspense>} />
       <Route path="/signup" element={<AuthPage />} />
       <Route path="/contact" element={<Suspense fallback={<PageLoader />}><InquiryPage /></Suspense>} />
       <Route path="/auth/callback" element={<Suspense fallback={<PageLoader />}><AuthCallbackPage /></Suspense>} />
       <Route path="/onboarding/email" element={<Suspense fallback={<PageLoader />}><OnboardingEmailPage /></Suspense>} />
+      <Route path="/billing/success" element={<RequireAuth><Suspense fallback={<PageLoader />}><BillingSuccessPage /></Suspense></RequireAuth>} />
+      <Route path="/billing/fail" element={<RequireAuth><Suspense fallback={<PageLoader />}><BillingFailPage /></Suspense></RequireAuth>} />
       <Route path="/app/onboarding" element={<RequireAuth><Suspense fallback={<PageLoader />}><OnboardingPage /></Suspense></RequireAuth>} />
       <Route path="/app" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
         <Route index element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />

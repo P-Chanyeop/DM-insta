@@ -2,7 +2,7 @@ package com.instabot.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.instabot.backend.config.PortoneConfig;
+import com.instabot.backend.config.TossPaymentsConfig;
 import com.instabot.backend.dto.BillingDto;
 import com.instabot.backend.entity.Subscription;
 import com.instabot.backend.entity.Subscription.SubscriptionStatus;
@@ -22,18 +22,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
- * 결제/구독 관리 — Portone V1 + danal_tpay 정기결제 기반.
- *
- * Paddle 모델과의 근본 차이: PG 가 자동 갱신하지 않으므로 서버가 "빌링키 저장 → 매월 재결제" 루프를 직접 돌린다.
+ * 결제/구독 관리 — 토스페이먼츠 정기결제(빌링키) 기반.
  *
  * 흐름
- *   createCheckout       : 프론트가 IMP.request_pay 호출에 쓸 파라미터 생성
- *   confirmPayment       : 프론트 결제 완료 콜백에서 서버가 imp_uid 검증 후 Subscription 저장
- *   cancelSubscription   : cancelAtPeriodEnd=true → 스케줄러에서 재결제 제외
- *   renewNow             : 스케줄러가 호출 — /subscribe/payments/again
- *   handleWebhook        : Portone 에서 결제 완료/실패 알림 수신
+ *   createCheckoutSession   : 프론트가 tossPayments.requestBillingAuth 호출에 쓸 파라미터 생성
+ *                             (customerKey + orderId 를 서버가 발급하고 DB 에 임시 저장)
+ *   confirmBillingAuth      : 결제창 성공 후 authKey → billingKey 교환 → 첫 결제 실행 → Subscription 저장
+ *   cancelAtPeriodEnd       : cancelAtPeriodEnd=true → 스케줄러에서 재결제 제외
+ *   renewNow                : 스케줄러가 매일 호출 — /v1/billing/{billingKey} 로 다음 회차 청구
+ *   handleWebhook           : 토스에서 결제 상태 변경 알림 수신 (paymentKey 재조회로 pull-verify)
  */
 @Service
 @RequiredArgsConstructor
@@ -46,14 +46,14 @@ public class BillingService {
     private final AutomationRepository automationRepository;
     private final ContactRepository contactRepository;
     private final MessageRepository messageRepository;
-    private final PortoneConfig portoneConfig;
-    private final PortoneService portoneService;
+    private final TossPaymentsConfig tossConfig;
+    private final TossPaymentsService tossService;
     private final ObjectMapper objectMapper;
     private final NotificationService notificationService;
 
-    // ─── Checkout 파라미터 ───
+    // ─── Checkout 파라미터 발급 ───
 
-    @Transactional(readOnly = true)
+    @Transactional
     public BillingDto.CheckoutResponse createCheckoutSession(Long userId, String planType) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
@@ -66,64 +66,76 @@ public class BillingService {
 
         User.PlanType plan = parsePlan(planType);
         long amount = resolveAmount(plan);
-        long ts = System.currentTimeMillis();
-        String merchantUid = "ord_" + userId + "_" + ts;
-        String customerUid = "cus_" + userId + "_" + ts;
-        String productName = "센드잇 " + plan.name() + " 플랜";
+
+        // customerKey 는 한번 발급하면 재활용 가능하지만, 깔끔하게 신규 가입 시 새로 발급.
+        String customerKey = "cust_" + userId + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        String orderId = "ord_" + userId + "_" + System.currentTimeMillis();
+        String orderName = "센드잇 " + plan.name() + " 플랜";
 
         return BillingDto.CheckoutResponse.builder()
-                .impCode(portoneConfig.getImpCode())
-                .pg(portoneConfig.getPgString())
-                .payMethod("card")
-                .merchantUid(merchantUid)
-                .customerUid(customerUid)
+                .clientKey(tossConfig.getClientKey())
+                .customerKey(customerKey)
+                .orderId(orderId)
+                .orderName(orderName)
                 .amount(amount)
-                .name(productName)
-                .buyerEmail(user.getEmail())
-                .buyerName(user.getName())
+                .customerEmail(user.getEmail())
+                .customerName(user.getName())
+                .planType(plan.name())
                 .build();
     }
 
-    // ─── 결제 검증 및 구독 생성 ───
+    // ─── 빌링키 발급 + 첫 결제 ───
 
     @Transactional
-    public BillingDto.BillingInfoResponse confirmPayment(Long userId, String impUid, String merchantUid) {
-        JsonNode payment = portoneService.getPayment(impUid);
-        if (payment.isMissingNode() || payment.isNull()) {
-            throw new BadRequestException("결제 정보를 찾을 수 없습니다.");
+    public BillingDto.BillingInfoResponse confirmBillingAuth(Long userId, String authKey, String customerKey,
+                                                              String planType, String orderId) {
+        // customerKey 소유권 검증 — prefix 에 userId 가 포함되어 있어야 함 (변조 방지).
+        if (!customerKey.startsWith("cust_" + userId + "_")) {
+            throw new BadRequestException("잘못된 고객 식별자입니다.");
         }
-
-        String status = payment.path("status").asText("");
-        long paidAmount = payment.path("amount").asLong(0);
-        String respMerchantUid = payment.path("merchant_uid").asText("");
-        String customerUid = payment.path("customer_uid").asText(null);
-
-        if (!"paid".equalsIgnoreCase(status)) {
-            throw new BadRequestException("결제가 완료되지 않았습니다: status=" + status);
-        }
-        if (!merchantUid.equals(respMerchantUid)) {
-            throw new BadRequestException("주문 ID가 일치하지 않습니다.");
-        }
-
-        // merchantUid 에서 userId 파싱해 이중 확인 (변조 방지).
-        if (!merchantUid.startsWith("ord_" + userId + "_")) {
+        if (!orderId.startsWith("ord_" + userId + "_")) {
             throw new BadRequestException("주문 소유자가 일치하지 않습니다.");
         }
 
-        User.PlanType planType = deducePlanFromAmount(paidAmount);
-        long expectedAmount = resolveAmount(planType);
-        if (paidAmount != expectedAmount) {
-            log.warn("결제 금액 불일치: 받은={}, 기대={}", paidAmount, expectedAmount);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
+        User.PlanType plan = parsePlan(planType);
+        long amount = resolveAmount(plan);
+
+        // 1) authKey → billingKey 교환
+        JsonNode billingResp = tossService.issueBillingKey(authKey, customerKey);
+        String billingKey = billingResp.path("billingKey").asText(null);
+        if (billingKey == null || billingKey.isBlank()) {
+            throw new BadRequestException("빌링키 발급에 실패했습니다.");
+        }
+        log.info("빌링키 발급 성공: userId={}, customerKey={}", userId, customerKey);
+
+        // 2) 첫 결제 실행
+        String orderName = "센드잇 " + plan.name() + " 플랜";
+        JsonNode paymentResp = tossService.chargeWithBillingKey(
+                billingKey, customerKey, amount, orderId, orderName,
+                user.getEmail(), user.getName());
+
+        String paymentStatus = paymentResp.path("status").asText("");
+        if (!"DONE".equalsIgnoreCase(paymentStatus)) {
+            throw new BadRequestException("첫 결제가 완료되지 않았습니다: status=" + paymentStatus);
+        }
+        String paymentKey = paymentResp.path("paymentKey").asText(null);
+        long paidAmount = paymentResp.path("totalAmount").asLong(0);
+        if (paidAmount != amount) {
+            log.warn("결제 금액 불일치: 받은={}, 기대={}", paidAmount, amount);
             throw new BadRequestException("결제 금액이 일치하지 않습니다.");
         }
 
+        // 3) Subscription 저장
         LocalDateTime now = LocalDateTime.now();
         Subscription subscription = subscriptionRepository.findByUserId(userId)
                 .orElse(Subscription.builder().userId(userId).build());
-        subscription.setPortoneCustomerUid(customerUid);
-        subscription.setPortoneMerchantUid(merchantUid);
-        subscription.setPortoneImpUid(impUid);
-        subscription.setPlanType(planType.name());
+        subscription.setTossCustomerKey(customerKey);
+        subscription.setTossBillingKey(billingKey);
+        subscription.setTossOrderId(orderId);
+        subscription.setTossPaymentKey(paymentKey);
+        subscription.setPlanType(plan.name());
         subscription.setAmount(paidAmount);
         subscription.setStatus(SubscriptionStatus.ACTIVE);
         subscription.setCurrentPeriodStart(now);
@@ -133,15 +145,14 @@ public class BillingService {
         subscription.setUpdatedAt(now);
         subscriptionRepository.save(subscription);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
-        user.setPlan(planType);
+        // 4) User plan 승급
+        user.setPlan(plan);
         user.setUpdatedAt(now);
         userRepository.save(user);
 
         notificationService.notify(userId, "BILLING",
                 "구독이 활성화되었습니다",
-                planType.name() + " 플랜이 활성화되었습니다.",
+                plan.name() + " 플랜이 활성화되었습니다.",
                 "/app/settings");
 
         return getBillingInfo(userId);
@@ -160,7 +171,7 @@ public class BillingService {
         subscription.setUpdatedAt(LocalDateTime.now());
         subscriptionRepository.save(subscription);
 
-        // 빌링키는 currentPeriodEnd 이후 정리. 여기서는 다음 재결제를 skip 하도록 플래그만.
+        // 빌링키는 currentPeriodEnd 이후 스케줄러가 정리. 여기서는 플래그만 변경.
         notificationService.notify(userId, "BILLING",
                 "구독 해지가 예약되었습니다",
                 "현재 결제 주기 종료일 이후에 FREE 플랜으로 전환됩니다.",
@@ -205,28 +216,36 @@ public class BillingService {
         Subscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new ResourceNotFoundException("구독을 찾을 수 없습니다."));
         if (subscription.isCancelAtPeriodEnd()) {
-            // 해지 예약 — 빌링키 정리하고 FREE 로 전환.
+            // 해지 예약 — 빌링키 정리 후 FREE 전환.
             markCanceled(subscription, "구독 해지 예약에 따라 FREE 플랜으로 전환되었습니다.");
+            return;
+        }
+
+        User user = userRepository.findById(subscription.getUserId()).orElse(null);
+        if (user == null) {
+            log.error("구독의 사용자가 존재하지 않음: subscriptionId={}", subscriptionId);
             return;
         }
 
         long amount = subscription.getAmount() != null
                 ? subscription.getAmount()
                 : resolveAmount(User.PlanType.valueOf(subscription.getPlanType()));
-        long ts = System.currentTimeMillis();
-        String merchantUid = "ord_" + subscription.getUserId() + "_" + ts;
-        String name = "센드잇 " + subscription.getPlanType() + " 플랜 정기결제";
+        String orderId = "ord_" + subscription.getUserId() + "_" + System.currentTimeMillis();
+        String orderName = "센드잇 " + subscription.getPlanType() + " 플랜 정기결제";
 
         try {
-            JsonNode resp = portoneService.requestAgain(
-                    subscription.getPortoneCustomerUid(), merchantUid, amount, name);
+            JsonNode resp = tossService.chargeWithBillingKey(
+                    subscription.getTossBillingKey(),
+                    subscription.getTossCustomerKey(),
+                    amount, orderId, orderName,
+                    user.getEmail(), user.getName());
             String status = resp.path("status").asText("");
-            if (!"paid".equalsIgnoreCase(status)) {
+            if (!"DONE".equalsIgnoreCase(status)) {
                 throw new BadRequestException("정기결제 실패: status=" + status);
             }
             LocalDateTime now = LocalDateTime.now();
-            subscription.setPortoneMerchantUid(merchantUid);
-            subscription.setPortoneImpUid(resp.path("imp_uid").asText(null));
+            subscription.setTossOrderId(orderId);
+            subscription.setTossPaymentKey(resp.path("paymentKey").asText(null));
             subscription.setStatus(SubscriptionStatus.ACTIVE);
             subscription.setCurrentPeriodStart(now);
             subscription.setCurrentPeriodEnd(now.plusMonths(1));
@@ -248,9 +267,8 @@ public class BillingService {
     }
 
     private void markCanceled(Subscription subscription, String message) {
-        if (subscription.getPortoneCustomerUid() != null) {
-            portoneService.deleteBillingKey(subscription.getPortoneCustomerUid());
-        }
+        // 토스는 빌링키 별도 삭제 API 가 없으며, 빌링키 자체가 카드 토큰이므로
+        // 재사용하지 않으면 자동으로 만료됨. billingKey/customerKey 필드는 히스토리 목적으로 유지.
         subscription.setStatus(SubscriptionStatus.CANCELED);
         subscription.setUpdatedAt(LocalDateTime.now());
         subscriptionRepository.save(subscription);
@@ -267,51 +285,56 @@ public class BillingService {
     // ─── Webhook ───
 
     /**
-     * Portone Webhook — body 예: { imp_uid, merchant_uid, status }.
-     * 서명 검증: Portone 은 v1 에서 HMAC 필드를 기본 제공하지 않으므로 imp_uid 를 API 로 재조회하는
-     * "풀(pull) 검증" 패턴을 따른다.
+     * 토스페이먼츠 Webhook — 결제 상태 변경 알림.
+     * body 예: { eventType: "PAYMENT_STATUS_CHANGED", data: { paymentKey, status, orderId, ... } }
+     *
+     * 서명 검증: 토스는 Webhook 에 별도 서명 헤더를 보내지 않으므로 paymentKey 를 API 로 재조회하는
+     * pull-verify 패턴을 따른다.
      */
     @Transactional
     public void handleWebhook(String payload) {
         try {
             JsonNode body = objectMapper.readTree(payload);
-            String impUid = body.path("imp_uid").asText(null);
-            if (impUid == null || impUid.isBlank()) {
-                log.warn("Portone 웹훅에 imp_uid 없음: {}", payload);
+            String eventType = body.path("eventType").asText("");
+            JsonNode data = body.path("data");
+            String paymentKey = data.path("paymentKey").asText(null);
+            if (paymentKey == null || paymentKey.isBlank()) {
+                log.warn("Toss 웹훅에 paymentKey 없음: eventType={}, payload={}", eventType, payload);
                 return;
             }
-            JsonNode payment = portoneService.getPayment(impUid);
+            // pull-verify — API 로 실제 상태 재조회.
+            JsonNode payment = tossService.getPayment(paymentKey);
             String status = payment.path("status").asText("");
-            String merchantUid = payment.path("merchant_uid").asText("");
+            String orderId = payment.path("orderId").asText("");
 
-            Optional<Subscription> subOpt = subscriptionRepository.findByPortoneMerchantUid(merchantUid);
+            Optional<Subscription> subOpt = subscriptionRepository.findByTossOrderId(orderId);
             if (subOpt.isEmpty()) {
-                log.debug("웹훅 무시 — 매칭되는 구독 없음: merchantUid={}", merchantUid);
+                log.debug("웹훅 무시 — 매칭되는 구독 없음: orderId={}", orderId);
                 return;
             }
             Subscription subscription = subOpt.get();
 
-            switch (status.toLowerCase()) {
-                case "paid" -> {
+            switch (status.toUpperCase()) {
+                case "DONE" -> {
                     subscription.setStatus(SubscriptionStatus.ACTIVE);
-                    subscription.setPortoneImpUid(impUid);
+                    subscription.setTossPaymentKey(paymentKey);
                     subscription.setUpdatedAt(LocalDateTime.now());
                     subscriptionRepository.save(subscription);
                 }
-                case "failed" -> {
+                case "ABORTED", "EXPIRED" -> {
                     subscription.setStatus(SubscriptionStatus.PAST_DUE);
                     subscription.setUpdatedAt(LocalDateTime.now());
                     subscriptionRepository.save(subscription);
                 }
-                case "cancelled", "canceled" -> {
+                case "CANCELED", "PARTIAL_CANCELED" -> {
                     subscription.setStatus(SubscriptionStatus.CANCELED);
                     subscription.setUpdatedAt(LocalDateTime.now());
                     subscriptionRepository.save(subscription);
                 }
-                default -> log.debug("처리하지 않는 Portone 상태: {}", status);
+                default -> log.debug("처리하지 않는 Toss 상태: {}", status);
             }
         } catch (Exception e) {
-            log.error("Portone 웹훅 처리 실패: {}", e.getMessage(), e);
+            log.error("Toss 웹훅 처리 실패: {}", e.getMessage(), e);
             throw new BadRequestException("Webhook processing failed: " + e.getMessage());
         }
     }
@@ -351,18 +374,11 @@ public class BillingService {
 
     private long resolveAmount(User.PlanType plan) {
         return switch (plan) {
-            case STARTER -> portoneConfig.getStarterPrice();
-            case PRO -> portoneConfig.getProPrice();
-            case BUSINESS -> portoneConfig.getBusinessPrice();
+            case STARTER -> tossConfig.getStarterPrice();
+            case PRO -> tossConfig.getProPrice();
+            case BUSINESS -> tossConfig.getBusinessPrice();
             default -> throw new BadRequestException("결제 불가 플랜: " + plan);
         };
-    }
-
-    private User.PlanType deducePlanFromAmount(long amount) {
-        if (amount == portoneConfig.getStarterPrice()) return User.PlanType.STARTER;
-        if (amount == portoneConfig.getProPrice()) return User.PlanType.PRO;
-        if (amount == portoneConfig.getBusinessPrice()) return User.PlanType.BUSINESS;
-        throw new BadRequestException("결제 금액에 해당하는 플랜이 없습니다: " + amount);
     }
 
     private LocalDateTime getMonthStart() {

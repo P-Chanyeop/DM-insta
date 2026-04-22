@@ -11,9 +11,11 @@ import java.util.Optional;
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
     Optional<Subscription> findByUserId(Long userId);
 
-    Optional<Subscription> findByPortoneMerchantUid(String portoneMerchantUid);
+    Optional<Subscription> findByTossOrderId(String tossOrderId);
 
-    Optional<Subscription> findByPortoneCustomerUid(String portoneCustomerUid);
+    Optional<Subscription> findByTossCustomerKey(String tossCustomerKey);
+
+    Optional<Subscription> findByTossPaymentKey(String tossPaymentKey);
 
     /** 재결제 스케줄러용 — 결제 예정 시각이 지난 ACTIVE 구독. */
     @Query("SELECT s FROM Subscription s " +

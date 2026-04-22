@@ -60,14 +60,10 @@ app:
 cors:
   allowed-origins: http://localhost:5173,http://localhost:3000
 
-# Portone (dummy for tests)
-portone:
-  imp-code: imp_test
-  api-key: test-api-key
-  api-secret: test-api-secret
-  channel-key: test-channel-key
-  pg-provider: danal_tpay
-  cpid: test_cpid
+# 토스페이먼츠 (dummy for tests)
+toss:
+  client-key: test_ck_dummy
+  secret-key: test_sk_dummy
   prices:
     starter: 19900
     pro: 49900

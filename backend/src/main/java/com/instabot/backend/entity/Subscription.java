@@ -15,17 +15,28 @@ public class Subscription {
     @Column(name = "user_id", nullable = false, unique = true)
     private Long userId;
 
-    /** Portone 빌링키 식별자 (cus_{userId}_{timestamp}) — 최초 결제 시 발급. */
-    @Column(name = "portone_customer_uid")
-    private String portoneCustomerUid;
+    /**
+     * 토스페이먼츠 customerKey — 빌링키 발급 시 사용한 고객 식별자.
+     * 프론트 SDK 초기화에 사용되며, 재결제 시에도 billingKey + customerKey 매칭 검증.
+     * 형식: "cust_{userId}_{uuid}"
+     */
+    @Column(name = "toss_customer_key", length = 64)
+    private String tossCustomerKey;
 
-    /** 최근 회차 주문 ID — 매 회차 새로 발급되지만 조회/멱등 목적으로 최신값 보관. */
-    @Column(name = "portone_merchant_uid")
-    private String portoneMerchantUid;
+    /**
+     * 토스페이먼츠 billingKey — 정기결제용 영구 카드 토큰.
+     * authKey 교환으로 발급받으며, 이 값으로 매월 /v1/billing/{billingKey} 호출.
+     */
+    @Column(name = "toss_billing_key", length = 255)
+    private String tossBillingKey;
 
-    /** 최근 성공한 imp_uid — 환불/조회용. */
-    @Column(name = "portone_imp_uid")
-    private String portoneImpUid;
+    /** 최근 회차 주문 ID — 매 회차 새로 발급. 멱등성 체크 및 조회용. */
+    @Column(name = "toss_order_id", length = 64)
+    private String tossOrderId;
+
+    /** 최근 성공한 paymentKey — 환불/결제 단건 조회용. */
+    @Column(name = "toss_payment_key", length = 255)
+    private String tossPaymentKey;
 
     /** 플랜 (STARTER/PRO/BUSINESS). FREE 는 구독 row 생성 안 함. */
     @Column(name = "plan_type", length = 20)

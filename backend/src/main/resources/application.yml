@@ -57,18 +57,16 @@ instagram:
   webhook:
     verify-token: ${INSTAGRAM_WEBHOOK_VERIFY_TOKEN:instabot-webhook-verify-token}
 
-# Portone (Iamport) + Danal 정기결제
-portone:
-  imp-code: ${PORTONE_IMP_CODE:imp32683681}
-  api-key: ${PORTONE_API_KEY:7884408858256314}
-  api-secret: ${PORTONE_API_SECRET:change-me}
-  channel-key: ${PORTONE_CHANNEL_KEY:}
-  pg-provider: ${PORTONE_PG_PROVIDER:danal_tpay}
-  cpid: ${PORTONE_CPID:9810030929}
+# 토스페이먼츠 정기결제 (빌링키 기반)
+# 가맹점(MID): bill_sendiomau — 자동결제(빌링) 전용 MID
+# API 개별 연동 키: https://docs.tosspayments.com/reference/using-api/api-keys
+toss:
+  client-key: ${TOSS_CLIENT_KEY:test_ck_4yKeq5bgrp56k0GoJ4Rx8GX0lzW6}
+  secret-key: ${TOSS_SECRET_KEY:test_sk_kYG57Eba3GRnGEBvmlwE8pWDOxmA}
   prices:
-    starter: ${PORTONE_PRICE_STARTER:19900}
-    pro: ${PORTONE_PRICE_PRO:49900}
-    business: ${PORTONE_PRICE_BUSINESS:149900}
+    starter: ${TOSS_PRICE_STARTER:19900}
+    pro: ${TOSS_PRICE_PRO:49900}
+    business: ${TOSS_PRICE_BUSINESS:149900}
 
 # Actuator
 management:

@@ -463,8 +463,23 @@ export default function SettingsPage() {
     }
   }, [activeTab])
 
-  // Portone 결제는 팝업/모바일 리다이렉트 모두 프론트 콜백 기반 — success 쿼리 파라미터 처리 불필요.
-  // (handlePlanAction 에서 confirmPayment 후 직접 refreshPlan 호출.)
+  // 토스 결제 성공은 /billing/success 페이지에서 처리. 이 페이지는 confirmBillingAuth 완료 후
+  // /app/settings?tab=billing 으로 돌아오므로 여기서는 쿼리 파라미터로 성공 여부만 확인해 토스트 표시.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('billing') === 'success') {
+      showToast('결제가 완료되었습니다!', 'success')
+      refreshPlan()
+      billingService.getInfo().then(setBillingInfo).catch(() => {})
+      // 쿼리 제거
+      window.history.replaceState({}, '', location.pathname)
+    } else if (params.get('billing') === 'fail') {
+      const msg = params.get('message') || '결제가 취소되었거나 실패했습니다.'
+      showToast(msg, 'error')
+      window.history.replaceState({}, '', location.pathname)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search])
 
   // Profile handlers
   const handleProfileChange = (field, value) => {
@@ -788,60 +803,43 @@ export default function SettingsPage() {
     }
   }
 
-  // Portone(다날) 정기결제 — IMP.request_pay 로 빌링키 등록 + 첫 결제 동시 처리
+  // 토스페이먼츠 정기결제 — requestBillingAuth 로 빌링키 카드 등록 후 successUrl 로 리다이렉트.
+  // authKey 교환 및 첫 결제는 BillingSuccessPage 에서 처리한다.
   const handlePlanAction = async (planId) => {
-    if (!window.IMP) {
-      showToast('결제 모듈이 로드되지 않았습니다. 페이지를 새로고침해주세요.', 'error')
-      return
-    }
     setPlanUpgrading(planId)
     try {
-      // 1) 서버에서 결제 파라미터 발급 (merchant_uid, customer_uid, 금액 등)
+      // 1) 서버에서 clientKey/customerKey/orderId 발급
       const params = await billingService.createCheckout({ planType: planId.toUpperCase() })
 
-      // 2) IMP 초기화
-      window.IMP.init(params.impCode)
+      // 2) 성공/실패 페이지에서 복원할 컨텍스트를 sessionStorage 에 저장
+      //    (토스 SDK 는 successUrl 쿼리에 authKey + customerKey 만 전달함)
+      sessionStorage.setItem('toss_billing_ctx', JSON.stringify({
+        planType: params.planType,
+        orderId: params.orderId,
+        orderName: params.orderName,
+        amount: params.amount,
+      }))
 
-      // 3) 결제창 호출 — customer_uid 포함 시 Portone 이 빌링키 자동 저장
-      await new Promise((resolve) => {
-        window.IMP.request_pay({
-          pg: params.pg,
-          pay_method: params.payMethod || 'card',
-          merchant_uid: params.merchantUid,
-          customer_uid: params.customerUid,
-          name: params.name,
-          amount: params.amount,
-          buyer_email: params.buyerEmail,
-          buyer_name: params.buyerName,
-          currency: 'KRW',
-        }, async (rsp) => {
-          if (!rsp.success) {
-            showToast(rsp.error_msg || '결제가 취소되었거나 실패했습니다.', 'error')
-            resolve()
-            return
-          }
-          try {
-            // 4) 서버 검증 — 금액/상태 재확인 후 Subscription 저장
-            await billingService.confirmPayment({
-              impUid: rsp.imp_uid,
-              merchantUid: rsp.merchant_uid,
-            })
-            showToast('결제가 완료되었습니다!', 'success')
-            const info = await billingService.getInfo()
-            setBillingInfo(info)
-            refreshPlan()
-          } catch (e) {
-            showToast(e.message || '결제 검증에 실패했습니다.', 'error')
-          } finally {
-            resolve()
-          }
-        })
+      // 3) 토스 SDK 동적 로드 (번들 사이즈 최적화)
+      const { loadTossPayments, ANONYMOUS } = await import('@tosspayments/tosspayments-sdk')
+      void ANONYMOUS
+      const tossPayments = await loadTossPayments(params.clientKey)
+      const payment = tossPayments.payment({ customerKey: params.customerKey })
+
+      // 4) 빌링키 발급 요청 — 토스 결제창으로 리다이렉트 (현재 페이지 언마운트됨).
+      //    완료 후 토스가 successUrl/failUrl 로 돌려보내면서 쿼리에 authKey/customerKey 포함.
+      await payment.requestBillingAuth({
+        method: 'CARD',
+        successUrl: `${window.location.origin}/billing/success`,
+        failUrl:    `${window.location.origin}/billing/fail`,
+        customerEmail: params.customerEmail || undefined,
+        customerName:  params.customerName  || undefined,
       })
     } catch (err) {
       showToast(err.message || '결제 처리 중 오류가 발생했습니다.', 'error')
-    } finally {
       setPlanUpgrading(null)
     }
+    // 성공 시 페이지가 리다이렉트되므로 finally 불필요.
   }
 
   // 구독 해지 — 현재 결제 주기 종료 시 FREE 로 전환

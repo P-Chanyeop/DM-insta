@@ -11,23 +11,24 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Portone(Iamport) 결제 Webhook 엔드포인트.
- * 대시보드 → 결제알림(Webhook) 관리에서 URL 등록: https://<domain>/api/webhook/portone
+ * 토스페이먼츠 Webhook 엔드포인트.
+ * 토스 대시보드 → 상점관리 → 웹훅 에서 URL 등록: https://<domain>/api/webhook/toss
  *
- * Portone V1 의 웹훅은 서명 필드가 기본 제공되지 않아 imp_uid 를 다시 서버가 조회해 신뢰성을 확보한다.
+ * 토스는 Webhook 에 서명 필드를 기본 제공하지 않아 paymentKey 를 서버가 재조회해
+ * 실제 상태를 확인하는 pull-verify 패턴을 사용한다.
  */
 @RestController
 @RequestMapping("/api/webhook")
 @RequiredArgsConstructor
 @Slf4j
-public class PortoneWebhookController {
+public class TossWebhookController {
 
     private final BillingService billingService;
 
-    @PostMapping("/portone")
-    public ResponseEntity<String> handlePortoneWebhook(HttpServletRequest request) throws IOException {
+    @PostMapping("/toss")
+    public ResponseEntity<String> handleTossWebhook(HttpServletRequest request) throws IOException {
         String payload = new String(request.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        log.info("Portone webhook 수신: {}", payload);
+        log.info("Toss webhook 수신: {}", payload);
         billingService.handleWebhook(payload);
         return ResponseEntity.ok("ok");
     }

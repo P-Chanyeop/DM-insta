@@ -12,10 +12,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Portone+Danal 정기결제 스케줄러.
+ * 토스페이먼츠 정기결제 스케줄러.
  *
  * 매일 오전 04:00 (서버 KST) — 당일까지 결제가 필요한 구독을 조회해 BillingService.renewNow 호출.
- * 실행 시간이 자정이 아닌 새벽 4시인 이유: Portone API 피크 회피 + 실패 시 당일 오전에 수동 대응 여지 확보.
+ * 실행 시간이 자정이 아닌 새벽 4시인 이유: 토스 API 피크 회피 + 실패 시 당일 오전에 수동 대응 여지 확보.
  */
 @Slf4j
 @Component

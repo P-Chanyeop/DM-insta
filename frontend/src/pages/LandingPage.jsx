@@ -52,6 +52,7 @@ const FOOTER_COMPANY_LINKS = {
   '채용': '/login',
   '이용약관': '/terms',
   '개인정보처리방침': '/privacy',
+  '환불정책': '/refund',
   '파트너십': '/login',
   '문의하기': '/login',
 }
@@ -363,6 +364,27 @@ export default function LandingPage() {
               <Link to="/contact" className="btn-price">영업팀 문의</Link>
             </div>
           </div>
+          {/* 정기결제 안내 — 전자상거래법 및 토스페이먼츠 심사 요구사항 */}
+          <div style={{
+            maxWidth: 820,
+            margin: '2.5rem auto 0',
+            padding: '1.25rem 1.5rem',
+            background: 'rgba(37, 99, 235, 0.05)',
+            border: '1px solid rgba(37, 99, 235, 0.15)',
+            borderRadius: 12,
+            fontSize: '0.9rem',
+            color: '#475569',
+            lineHeight: 1.7,
+          }}>
+            <p style={{ fontWeight: 600, color: '#1E293B', marginBottom: 6 }}>
+              <i className="ri-information-line" style={{ marginRight: 6 }} />정기결제 안내
+            </p>
+            <ul style={{ paddingLeft: '1.1rem', margin: 0 }}>
+              <li>유료 플랜은 <strong>월 단위 자동 결제</strong>로 등록된 카드에서 매월 동일한 날짜에 청구됩니다.</li>
+              <li>언제든지 <strong>설정 &gt; 요금제</strong>에서 해지 가능하며, 해지 시 다음 결제일부터 과금되지 않습니다.</li>
+              <li>결제 대행: <strong>토스페이먼츠(주)</strong> · 신용/체크카드 / 환불은 <Link to="/refund" style={{ color: '#2563EB' }}>환불정책</Link>에 따릅니다.</li>
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -458,7 +480,7 @@ export default function LandingPage() {
               <ul>
                 {Object.entries(FOOTER_COMPANY_LINKS).map(([label, href]) => (
                   <li key={label}>
-                    {href.startsWith('/terms') || href.startsWith('/privacy') ? (
+                    {href.startsWith('/terms') || href.startsWith('/privacy') || href.startsWith('/refund') ? (
                       <Link to={href} target="_blank" rel="noopener noreferrer">{label}</Link>
                     ) : (
                       <Link to={href}>{label}</Link>
