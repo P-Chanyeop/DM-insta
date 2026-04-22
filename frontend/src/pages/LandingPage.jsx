@@ -646,12 +646,17 @@ export default function LandingPage() {
               <i className="ri-close-line" />
             </button>
             <div className="demo-modal-body">
-              <img
-                src="/images/demo.gif"
-                alt="센드잇 데모"
-                className="demo-modal-gif"
+              <video
+                src="/images/demo.mp4"
+                className="demo-modal-video"
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="auto"
+                aria-label="센드잇 데모 영상"
                 onError={(e) => {
-                  // GIF 파일 아직 준비되지 않았을 때 fallback
+                  // MP4 아직 준비되지 않았을 때 fallback
                   e.currentTarget.style.display = 'none'
                   e.currentTarget.nextElementSibling.style.display = 'flex'
                 }}

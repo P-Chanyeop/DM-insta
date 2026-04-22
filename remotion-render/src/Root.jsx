@@ -54,8 +54,8 @@ export const RemotionRoot = () => {
       <Composition
         id="DemoFlow"
         component={DemoFlow}
-        durationInFrames={360}
-        fps={24}
+        durationInFrames={450}
+        fps={30}
         width={1080}
         height={675}
       />
