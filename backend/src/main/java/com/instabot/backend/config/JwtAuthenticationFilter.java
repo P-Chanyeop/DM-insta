@@ -43,6 +43,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 String email = claims.getSubject();
                 Long userId = claims.get("userId", Long.class);
+                String scope = claims.get("scope", String.class);
+
+                // pending-signup 토큰은 complete-ig-signup 전용 — 일반 API 인증으로 사용 금지.
+                if ("SIGNUP_PENDING".equals(scope)) {
+                    chain.doFilter(request, response);
+                    return;
+                }
 
                 if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                     UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(

@@ -69,4 +69,20 @@ public class AuthDto {
     public static class MessageResponse {
         private String message;
     }
+
+    /**
+     * Instagram OAuth 후 이메일 입력 스텝에서 사용.
+     * OAuth 콜백이 발급한 pending-signup 토큰을 이메일/비밀번호/이름과 함께 서버로 전송해 실제 가입을 완료한다.
+     */
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+    public static class CompleteIgSignupRequest {
+        @NotBlank
+        private String pendingToken;
+        @NotBlank @Email
+        private String email;
+        @NotBlank @Size(min = 6)
+        private String password;
+        @NotBlank
+        private String name;
+    }
 }

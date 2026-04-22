@@ -43,4 +43,13 @@ public class AuthController {
     public ResponseEntity<AuthDto.MessageResponse> resetPassword(@Valid @RequestBody AuthDto.ResetPasswordRequest request) {
         return ResponseEntity.ok(authService.resetPassword(request));
     }
+
+    /**
+     * Instagram OAuth 직후 발급된 pending-signup 토큰으로 이메일/비번을 받아 가입 완료.
+     */
+    @PostMapping("/complete-ig-signup")
+    public ResponseEntity<AuthDto.AuthResponse> completeIgSignup(
+            @Valid @RequestBody AuthDto.CompleteIgSignupRequest request) {
+        return ResponseEntity.ok(authService.completeInstagramSignup(request));
+    }
 }

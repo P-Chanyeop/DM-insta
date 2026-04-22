@@ -156,7 +156,15 @@ public class InstagramOAuthController {
         }
     }
 
-    /** 회원가입/로그인 플로우 — Instagram 토큰으로 직접 연결 */
+    /**
+     * 회원가입/로그인 플로우.
+     *
+     *   1) 장기 토큰 교환 + 프로필 조회.
+     *   2) IGSID 로 기존 유저 조회:
+     *      - 존재 → 정상 로그인 (JWT 발급 + IG 재연결).
+     *      - 없음 → pending-signup 토큰만 발급해 /onboarding/email 로 리다이렉트.
+     *        유저 생성은 이메일 입력 스텝에서 POST /auth/complete-ig-signup 이 수행.
+     */
     private ResponseEntity<String> handleSignupFlow(String shortLivedToken, String igUserId) {
         // 1. 장기 토큰 교환
         String longLivedToken;
@@ -179,127 +187,73 @@ public class InstagramOAuthController {
         String username = igProfile.path("username").asText("");
         String name = igProfile.path("name").asText(username);
         String igId = igProfile.path("user_id").asText(igUserId);
-
         if (igId == null || igId.isEmpty()) {
             igId = igUserId;
         }
-
-        // 3. find-or-create User — Native SQL로 ID를 먼저 확인하여 JPA 매핑 오류 방지
         final String igIdFinal = igId;
-        final String nameFinal = name.isEmpty() ? username : name;
-        final String placeholderEmail = "ig_" + igIdFinal + "@sendit.local";
+        final String igUsernameFinal = username;
+        final String igNameFinal = name.isEmpty() ? username : name;
 
-        // 3-1. Native SQL로 정확한 user ID 조회 (JPA 캐시/매핑 이슈 완전 우회)
-        User user = null;
-        boolean isNewUser = false;
-
-        // 우선순위 1: email로 조회 (가장 신뢰도 높음 — unique constraint)
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT id FROM users WHERE email = ?", placeholderEmail);
-        if (!rows.isEmpty()) {
-            Long dbUserId = ((Number) rows.get(0).get("id")).longValue();
-            log.info("Native SQL 유저 조회 성공: email={}, dbId={}", placeholderEmail, dbUserId);
-            user = userRepository.findById(dbUserId).orElse(null);
-        }
-
-        // 우선순위 2: facebook_user_id로 조회
-        if (user == null) {
-            rows = jdbcTemplate.queryForList(
-                    "SELECT id FROM users WHERE facebook_user_id = ?", igIdFinal);
-            if (!rows.isEmpty()) {
-                Long dbUserId = ((Number) rows.get(0).get("id")).longValue();
-                log.info("Native SQL facebook_user_id 조회 성공: igId={}, dbId={}", igIdFinal, dbUserId);
-                user = userRepository.findById(dbUserId).orElse(null);
-            }
-        }
-
-        // 우선순위 3: InstagramAccount의 ig_user_id로 조회
-        if (user == null) {
-            rows = jdbcTemplate.queryForList(
+        // 3. IGSID 로 기존 유저 조회 (User.facebook_user_id 또는 instagram_accounts.ig_user_id)
+        User existing = userRepository.findByFacebookUserId(igIdFinal).orElse(null);
+        if (existing == null) {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                     "SELECT user_id FROM instagram_accounts WHERE ig_user_id = ?", igIdFinal);
             if (!rows.isEmpty()) {
                 Long dbUserId = ((Number) rows.get(0).get("user_id")).longValue();
-                log.info("Native SQL instagram_accounts 조회 성공: igId={}, dbUserId={}", igIdFinal, dbUserId);
-                user = userRepository.findById(dbUserId).orElse(null);
+                existing = userRepository.findById(dbUserId).orElse(null);
             }
         }
 
-        // 우선순위 4: 신규 유저 생성
-        if (user == null) {
-            User u = User.builder()
-                    .email(placeholderEmail)
-                    .name(nameFinal)
-                    .password(null)
-                    .authProvider(User.AuthProvider.INSTAGRAM)
-                    .facebookUserId(igIdFinal)
-                    .emailVerified(true)
-                    .plan(User.PlanType.FREE)
-                    .build();
-            user = userRepository.save(u);
-            isNewUser = true;
-            log.info("Instagram OAuth 신규 가입: userId={}, username={}", user.getId(), username);
+        if (existing != null) {
+            // 4-A. 기존 유저 → IG 토큰 갱신 + 필요 시 재연결 + JWT 발급.
+            jdbcTemplate.update(
+                    "UPDATE users SET facebook_user_id = ?, facebook_access_token = ?, facebook_token_expires_at = ? WHERE id = ?",
+                    igIdFinal, encryptionUtil.encrypt(longLivedToken),
+                    java.sql.Timestamp.valueOf(LocalDateTime.now().plusDays(60)),
+                    existing.getId());
+            log.info("IG 로그인(기존 유저): userId={}, igUsername={}", existing.getId(), igUsernameFinal);
 
-            // OWNER TeamMember 생성
-            teamMemberRepository.save(TeamMember.builder()
-                    .teamOwnerId(user.getId())
-                    .userId(user.getId())
-                    .role(TeamMember.Role.OWNER)
-                    .joinedAt(LocalDateTime.now())
-                    .build());
-        }
-
-        // 5. IG 토큰 저장 — Native SQL로 직접 업데이트 (JPA entity ID 불일치 방지)
-        jdbcTemplate.update(
-                "UPDATE users SET facebook_user_id = ?, facebook_access_token = ?, facebook_token_expires_at = ? WHERE id = ?",
-                igIdFinal, encryptionUtil.encrypt(longLivedToken),
-                java.sql.Timestamp.valueOf(LocalDateTime.now().plusDays(60)),
-                user.getId());
-        log.info("IG 토큰 저장 완료 (native SQL): userId={}", user.getId());
-
-        // 6. Instagram 계정 직접 연결
-        String igStatus = "none";
-        String igErrorCode = null;
-        String igErrorMsg = null;
-        try {
-            InstagramAccount acc = instagramApiService.connectInstagramDirect(user, longLivedToken, igProfile);
-            igStatus = "connected";
-            log.info("Signup + IG 연결 성공: userId={}, igUsername={}", user.getId(), acc.getUsername());
-        } catch (IgConnectionException e) {
-            igErrorCode = e.getCode();
-            igErrorMsg = e.getMessage();
-            log.warn("Signup 후 IG 연결 실패 (유저는 생성됨): userId={}, code={}, msg={}",
-                    user.getId(), igErrorCode, igErrorMsg);
-        } catch (Exception e) {
-            igErrorCode = "UNKNOWN";
-            igErrorMsg = e.getMessage();
-            log.warn("Signup 후 IG 연결 실패 (유저는 생성됨): userId={}, error={}", user.getId(), e.getMessage());
-        }
-
-        // 7. JWT 발급 — Native SQL로 최종 검증 후 토큰 생성
-        Long finalUserId = user.getId();
-        List<Map<String, Object>> verifyRows = jdbcTemplate.queryForList(
-                "SELECT id, email FROM users WHERE email = ?", placeholderEmail);
-        if (!verifyRows.isEmpty()) {
-            Long dbId = ((Number) verifyRows.get(0).get("id")).longValue();
-            if (!dbId.equals(finalUserId)) {
-                log.warn("⚠️ JPA ID 불일치! JPA.id={}, DB.id={}, email={}. DB 값으로 교정.",
-                        finalUserId, dbId, placeholderEmail);
-                user = userRepository.findById(dbId).orElse(user);
-                finalUserId = user.getId();
+            String igStatus = "connected";
+            String igErrorCode = null;
+            String igErrorMsg = null;
+            try {
+                InstagramAccount acc = instagramApiService.connectInstagramDirect(existing, longLivedToken, igProfile);
+                log.info("IG 재연결 성공: userId={}, igUsername={}", existing.getId(), acc.getUsername());
+            } catch (IgConnectionException e) {
+                igErrorCode = e.getCode();
+                igErrorMsg = e.getMessage();
+                igStatus = "reconnect_failed";
+                log.warn("IG 재연결 실패(로그인은 진행): userId={}, code={}", existing.getId(), igErrorCode);
+            } catch (Exception e) {
+                igErrorCode = "UNKNOWN";
+                igErrorMsg = e.getMessage();
+                igStatus = "reconnect_failed";
             }
+
+            String token = authService.generateToken(existing);
+            StringBuilder params = new StringBuilder()
+                    .append("token=").append(token)
+                    .append("&email=").append(urlEncode(existing.getEmail()))
+                    .append("&name=").append(urlEncode(existing.getName() != null ? existing.getName() : ""))
+                    .append("&ig_status=").append(igStatus);
+            if (igErrorCode != null) {
+                params.append("&ig_error=").append(urlEncode(igErrorCode))
+                        .append("&ig_reason=").append(urlEncode(igErrorMsg != null ? igErrorMsg : ""));
+            }
+            return redirectToFrontend("/auth/callback", params.toString());
         }
-        log.info("JWT 생성: userId={}, email={}", finalUserId, user.getEmail());
-        String token = authService.generateToken(user);
-        StringBuilder params = new StringBuilder()
-                .append("token=").append(token)
-                .append("&email=").append(urlEncode(user.getEmail()))
-                .append("&name=").append(urlEncode(user.getName() != null ? user.getName() : ""))
-                .append("&ig_status=").append(igStatus);
-        if (igErrorCode != null) {
-            params.append("&ig_error=").append(urlEncode(igErrorCode))
-                    .append("&ig_reason=").append(urlEncode(igErrorMsg != null ? igErrorMsg : ""));
-        }
-        return redirectToFrontend("/auth/callback", params.toString());
+
+        // 4-B. 신규 가입 → User 생성은 하지 않고 pending 토큰만 발급 → 이메일 입력 페이지로.
+        String encryptedIgToken = encryptionUtil.encrypt(longLivedToken);
+        String pendingToken = authService.generatePendingSignupToken(
+                igIdFinal, encryptedIgToken, igUsernameFinal, igNameFinal);
+        log.info("IG OAuth 신규 가입 후보 — 이메일 입력 단계로: igsid={}, igUsername={}", igIdFinal, igUsernameFinal);
+
+        String params = "pending_token=" + urlEncode(pendingToken)
+                + "&ig_username=" + urlEncode(igUsernameFinal)
+                + "&ig_name=" + urlEncode(igNameFinal);
+        return redirectToFrontend("/onboarding/email", params);
     }
 
     /** 기존 유저 IG 연결 플로우 */

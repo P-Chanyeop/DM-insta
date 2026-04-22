@@ -494,10 +494,12 @@ export default function AuthPage() {
             onClick={handleInstagramOAuth}
             style={{ cursor: 'pointer', opacity: 1 }}
           >
-            <i className="ri-instagram-line" /> Instagram으로 {isSignup ? '가입' : '로그인'}
+            <i className="ri-instagram-line" /> Instagram으로 {isSignup ? '빠른 가입' : '로그인'}
           </button>
           <p style={{ fontSize: 12, color: 'var(--text-tertiary, #888)', textAlign: 'center', marginTop: 8, marginBottom: 0 }}>
-            <i className="ri-information-line" /> Facebook에 연결된 Instagram 비즈니스 계정이 필요합니다
+            <i className="ri-information-line" /> {isSignup
+              ? 'Instagram 인증 후 이메일만 한 번 입력하면 가입이 완료됩니다.'
+              : 'Facebook에 연결된 Instagram 비즈니스 계정이 필요합니다'}
           </p>
 
           <div className="auth-switch">
