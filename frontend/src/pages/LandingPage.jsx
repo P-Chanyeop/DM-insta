@@ -478,7 +478,7 @@ export default function LandingPage() {
               <dt>주소</dt><dd>경기도 고양시 덕양구 원흥3로 16, 904호</dd>
               <dt>고객센터</dt>
               <dd>
-                <a href="tel:01055029714">010-5502-9714</a>
+                <a href="tel:01044147579">010-4414-7579</a>
                 <span className="footer-hours"> · 평일 09:00 ~ 18:00 (주말·공휴일 휴무)</span>
               </dd>
               <dt>이메일</dt><dd><a href="mailto:oracle7579@gmail.com">oracle7579@gmail.com</a></dd>
