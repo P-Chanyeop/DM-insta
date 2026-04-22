@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { api, setToken, setStoredUser } from '../api/client'
+import { authService } from '../api/services'
 
 /**
  * Instagram OAuth 직후 신규 가입 흐름에서만 진입하는 이메일 입력 페이지.
@@ -27,6 +28,14 @@ export default function OnboardingEmailPage() {
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
   const [serverError, setServerError] = useState('')
+
+  // 이메일 인증 단계 — complete-ig-signup 이후 emailVerified=false 이면 이 화면으로 전환.
+  const [step, setStep] = useState('signup')        // 'signup' | 'verify'
+  const [verifyCode, setVerifyCode] = useState('')
+  const [verifyError, setVerifyError] = useState('')
+  const [verifyMessage, setVerifyMessage] = useState('')
+  const [verifyLoading, setVerifyLoading] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
 
   useEffect(() => {
     if (!pendingToken) {
@@ -73,8 +82,14 @@ export default function OnboardingEmailPage() {
         emailVerified: res.emailVerified,
         onboardingCompleted: res.onboardingCompleted,
       })
-      window.dispatchEvent(new CustomEvent('auth:login'))
-      navigate('/app/onboarding?ig_connected=true', { replace: true })
+      // 일반 이메일 가입과 동일하게, emailVerified=false 이면 인증 코드 입력 단계로 전환.
+      if (!res.emailVerified) {
+        setVerifyMessage('인증 코드가 이메일로 발송되었습니다.')
+        setStep('verify')
+      } else {
+        window.dispatchEvent(new CustomEvent('auth:login'))
+        navigate('/app/onboarding?ig_connected=true', { replace: true })
+      }
     } catch (err) {
       setServerError(err.message || '가입 처리에 실패했습니다. 다시 시도해주세요.')
     } finally {
@@ -82,7 +97,102 @@ export default function OnboardingEmailPage() {
     }
   }
 
+  const onSubmitVerify = async (e) => {
+    e.preventDefault()
+    setVerifyError('')
+    if (!verifyCode.trim()) {
+      setVerifyError('인증 코드를 입력해주세요.')
+      return
+    }
+    setVerifyLoading(true)
+    try {
+      await authService.verifyEmail({ email: form.email.trim(), code: verifyCode.trim() })
+      window.dispatchEvent(new CustomEvent('auth:login'))
+      navigate('/app/onboarding?ig_connected=true', { replace: true })
+    } catch (err) {
+      setVerifyError(err.message || '인증에 실패했습니다. 코드를 확인하고 다시 시도해주세요.')
+    } finally {
+      setVerifyLoading(false)
+    }
+  }
+
+  const onResendCode = async () => {
+    setResendLoading(true)
+    setVerifyError('')
+    try {
+      await authService.resendVerification({ email: form.email.trim() })
+      setVerifyMessage('인증 코드를 다시 보냈습니다. 메일함을 확인해주세요.')
+    } catch (err) {
+      setVerifyError(err.message || '재발송에 실패했습니다.')
+    } finally {
+      setResendLoading(false)
+    }
+  }
+
   if (!pendingToken) return null
+
+  if (step === 'verify') {
+    return (
+      <div style={wrapStyle}>
+        <div style={cardStyle}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <i className="ri-mail-check-line" style={{ fontSize: 40, color: '#7c3aed' }} />
+            <h1 style={{ fontSize: 22, margin: '12px 0 6px', color: '#1f2937' }}>
+              이메일 인증
+            </h1>
+            <p style={{ color: '#6b7280', fontSize: 14, margin: 0 }}>
+              <strong>{form.email}</strong> 으로 6자리 인증 코드를 보냈습니다.
+            </p>
+          </div>
+
+          <form onSubmit={onSubmitVerify} noValidate>
+            <Field label="인증 코드" error={verifyError} help="메일이 안 오면 스팸함도 확인해주세요.">
+              <input
+                value={verifyCode}
+                onChange={(e) => { setVerifyCode(e.target.value); setVerifyError('') }}
+                placeholder="6자리 코드"
+                maxLength={6}
+                style={{ ...inputStyle(!!verifyError), letterSpacing: 4, textAlign: 'center', fontSize: 18 }}
+                inputMode="numeric"
+                autoFocus
+              />
+            </Field>
+
+            {verifyMessage && !verifyError && (
+              <div style={{
+                padding: '10px 12px', borderRadius: 8, background: '#eef2ff',
+                color: '#4338ca', fontSize: 13, marginBottom: 12,
+              }}>
+                {verifyMessage}
+              </div>
+            )}
+
+            <button type="submit" disabled={verifyLoading} style={submitStyle(verifyLoading)}>
+              {verifyLoading ? (
+                <><i className="ri-loader-4-line spin" /> 인증 중...</>
+              ) : (
+                <>인증 완료하기</>
+              )}
+            </button>
+          </form>
+
+          <div style={{ textAlign: 'center', marginTop: 14 }}>
+            <button
+              type="button"
+              onClick={onResendCode}
+              disabled={resendLoading}
+              style={{
+                background: 'none', border: 'none', color: '#7c3aed', fontSize: 13,
+                cursor: resendLoading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {resendLoading ? '재발송 중...' : '인증 코드 다시 받기'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={wrapStyle}>
