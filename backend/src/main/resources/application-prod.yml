@@ -14,15 +14,22 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      # Flyway 로 스키마 관리 전환 이후에는 validate 로 두어 엔티티/DB 불일치를 조기 감지.
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
         format_sql: false
     open-in-view: false
 
+  # Flyway 마이그레이션 — 기존 DB 는 Hibernate ddl-auto 로 키워졌으므로 baseline=17 로
+  # 시작해 V1~V17 은 "이미 적용된 것"으로 간주, V18 이상부터 새로 적용.
   flyway:
-    enabled: false
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 17
+    baseline-description: "Hibernate ddl-auto 로 만들어진 스키마 기준 baseline (paddle 컬럼 수동 정리 후)"
+    validate-on-migrate: false
 
   h2:
     console:
