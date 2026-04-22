@@ -468,6 +468,19 @@ export default function LandingPage() {
               </ul>
             </div>
           </div>
+          {/* 사업자/법적 고지 — 전자상거래법 제13조 필수 기재사항 */}
+          <div className="footer-company-info">
+            <dl>
+              <dt>상호</dt><dd>센드잇</dd>
+              <dt>대표자</dt><dd>박찬엽</dd>
+              <dt>사업자등록번호</dt><dd>000-00-00000</dd>
+              <dt>통신판매업 신고번호</dt><dd>제 0000-서울-00000호</dd>
+              <dt>주소</dt><dd>서울특별시 (상세 주소 입력)</dd>
+              <dt>고객센터</dt><dd><a href="tel:01044147579">010-4414-7579</a></dd>
+              <dt>이메일</dt><dd><a href="mailto:support@sendit.io.kr">support@sendit.io.kr</a></dd>
+              <dt>개인정보 보호책임자</dt><dd>박찬엽 (privacy@sendit.io.kr)</dd>
+            </dl>
+          </div>
           <div className="footer-bottom">
             <p>&copy; 2026 센드잇. All rights reserved.</p>
             <div className="footer-badges">
