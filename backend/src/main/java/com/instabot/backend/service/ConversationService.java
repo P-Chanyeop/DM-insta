@@ -97,9 +97,14 @@ public class ConversationService {
                                         boolean automated, String automationName,
                                         Message.MessageType type, String mediaUrl,
                                         String igMessageId, Long flowId, Long broadcastId) {
+        // 댓글 트리거 시나리오: bot 이 사용자에게 먼저 DM 을 보내는 순간 Contact 가 아직 없을 수 있음.
+        // 없으면 즉시 최소 정보로 생성해서 라이브 채팅에도 정상 노출되게 한다.
         Contact contact = contactRepository.findByUserIdAndIgUserId(user.getId(), recipientIgId)
-                .orElse(null);
-        if (contact == null) return null;
+                .orElseGet(() -> contactRepository.save(Contact.builder()
+                        .user(user)
+                        .igUserId(recipientIgId)
+                        .username(recipientIgId)
+                        .build()));
 
         Conversation conversation = getOrCreateConversation(user, contact);
         String preview = type == Message.MessageType.IMAGE ? "[이미지]"

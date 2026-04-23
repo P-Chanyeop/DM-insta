@@ -117,6 +117,15 @@ public class FlowExecutionService {
                 hasOpeningDm = executeOpeningDm(flowData.get("openingDm"), botIgId, senderIgId, accessToken, contact, triggerText, commentId);
                 if (hasOpeningDm) {
                     trackNode(flow.getId(), "openingDm", NodeExecution.Action.COMPLETED, contactId);
+                    // 라이브 채팅에 노출되도록 발신 메시지 저장
+                    String openingMsg = replaceVariables(
+                            flowData.path("openingDm").path("message").asText(""), contact, triggerText);
+                    if (!openingMsg.isBlank()) {
+                        conversationService.saveOutboundMessage(
+                                flow.getUser(), senderIgId, openingMsg, true,
+                                flow.getName() + " — 오프닝 DM",
+                                Message.MessageType.TEXT, null, null, flow.getId(), null);
+                    }
                 }
             }
 
