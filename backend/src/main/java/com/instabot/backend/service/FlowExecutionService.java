@@ -623,33 +623,50 @@ public class FlowExecutionService {
 
         if (message.isBlank()) return false;
 
-        try {
-            // 댓글 트리거 → Private Reply 로 첫 DM 전송 (24시간 창 오픈).
-            // Private Reply 는 quick_reply 를 지원하지 않으므로 텍스트로만 보냄 — 버튼이 필요하면
-            // 바로 뒤에 일반 quick_reply 메시지를 한 번 더 보내서 창이 열린 직후 버튼을 붙인다.
-            if (commentId != null && !commentId.isBlank()) {
-                instagramApiService.sendPrivateReplyToComment(botIgId, commentId, message, accessToken);
+        List<Map<String, String>> quickReplies = buttonText.isBlank() ? null : List.of(
+                Map.of("title", buttonText, "payload", "OPENING_DM_CLICKED")
+        );
 
-                if (!buttonText.isBlank()) {
-                    List<Map<String, String>> quickReplies = List.of(
-                            Map.of("title", buttonText, "payload", "OPENING_DM_CLICKED")
-                    );
-                    // 창이 막 열렸으므로 일반 DM 으로 버튼 메시지 추가 발송
-                    instagramApiService.sendQuickReplyMessage(botIgId, recipientId, buttonText, quickReplies, accessToken);
+        // 댓글 트리거 케이스 — Private Reply 시도 (24시간 창 오픈용).
+        // Meta 는 동일 (계정, 사용자) 조합에 짧은 시간 내 반복 private reply 를 anti-spam 으로 막기도 하므로,
+        // 실패 시엔 regular DM 으로 fallback 해본다 (이전에 private reply 성공한 적 있으면 창이 열려있음).
+        boolean privateReplyTried = false;
+        boolean privateReplyOk = false;
+        if (commentId != null && !commentId.isBlank()) {
+            privateReplyTried = true;
+            try {
+                instagramApiService.sendPrivateReplyToComment(botIgId, commentId, message, accessToken);
+                privateReplyOk = true;
+
+                if (quickReplies != null) {
+                    // Private reply 로 창이 막 열렸으니 버튼 메시지 뒤이어 발송
+                    try {
+                        instagramApiService.sendQuickReplyMessage(botIgId, recipientId, buttonText, quickReplies, accessToken);
+                    } catch (Exception btnE) {
+                        log.warn("오프닝 DM 버튼 발송 실패 (본 메시지는 성공): {}", btnE.getMessage());
+                    }
                 }
-            } else if (!buttonText.isBlank()) {
-                List<Map<String, String>> quickReplies = List.of(
-                        Map.of("title", buttonText, "payload", "OPENING_DM_CLICKED")
-                );
+                log.info("오프닝 DM 발송 완료 (private reply): recipient={}, commentId={}", recipientId, commentId);
+                return true;
+            } catch (Exception privateE) {
+                log.warn("Private reply 실패 — regular DM fallback 시도: {}", privateE.getMessage());
+                // fall through to regular DM 시도
+            }
+        }
+
+        // Fallback / 비-댓글 경로 — regular DM (24시간 창이 열려있으면 성공)
+        try {
+            if (quickReplies != null) {
                 instagramApiService.sendQuickReplyMessage(botIgId, recipientId, message, quickReplies, accessToken);
             } else {
                 instagramApiService.sendTextMessage(botIgId, recipientId, message, accessToken);
             }
-            log.info("오프닝 DM 발송 완료: recipient={}, privateReply={}",
-                    recipientId, commentId != null && !commentId.isBlank());
+            log.info("오프닝 DM 발송 완료 (regular DM): recipient={}, privateReplyFallback={}",
+                    recipientId, privateReplyTried && !privateReplyOk);
             return true;
         } catch (Exception e) {
-            log.error("오프닝 DM 발송 실패: {}", e.getMessage());
+            log.error("오프닝 DM 발송 실패: recipient={}, privateReplyTried={}, error={}",
+                    recipientId, privateReplyTried, e.getMessage());
             return false;
         }
     }
