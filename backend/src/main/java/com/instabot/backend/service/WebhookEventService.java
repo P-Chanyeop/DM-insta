@@ -108,11 +108,17 @@ public class WebhookEventService {
         // ── Postback (버튼 클릭) ──
         if (event.has("postback")) {
             String payload = event.path("postback").path("payload").asText("");
-            log.info("Postback 수신: sender={}, payload={}", senderId, payload);
+            String title = event.path("postback").path("title").asText("");
+            log.info("Postback 수신: sender={}, payload={}, title={}", senderId, payload, title);
+
+            // 사용자가 버튼을 "누른" 것도 대화상 메시지 — 라이브 채팅에 inbound 로 저장
+            // title 이 비어있으면 payload 로 대체해서라도 기록 (맥락 상실 방지)
+            String displayText = !title.isBlank() ? title : "[버튼 클릭] " + payload;
+            conversationService.handleInboundMessage(user, senderId, null, displayText, Message.MessageType.TEXT);
 
             // 외부 Webhook 전달
             integrationService.forwardWebhookEvent(user.getId(), "postback",
-                    Map.of("senderIgId", senderId, "payload", payload));
+                    Map.of("senderIgId", senderId, "payload", payload, "title", title));
 
             // FlowExecutionService에서 requirements 진행
             flowExecutionService.handlePostback(senderId, payload);

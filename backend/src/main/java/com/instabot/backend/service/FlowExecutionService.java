@@ -96,6 +96,10 @@ public class FlowExecutionService {
             String accessToken = instagramApiService.getDecryptedToken(igAccount);
             String botIgId = igAccount.getIgUserId();
 
+            // Contact 보장: 없으면 Instagram 프로필 조회해서 username/name 채워 생성.
+            // 라이브 채팅에 PSID 대신 @username + 이름이 뜨게 하기 위함.
+            ensureContactWithProfile(igAccount.getUser(), senderIgId, accessToken);
+
             // 변수 치환을 위한 Contact 조회
             Contact contact = findContact(igAccount.getUser().getId(), senderIgId);
             Long contactId = contact != null ? contact.getId() : null;
@@ -1329,6 +1333,41 @@ public class FlowExecutionService {
      */
     private Contact findContact(Long userId, String senderIgId) {
         return contactRepository.findByUserIdAndIgUserId(userId, senderIgId).orElse(null);
+    }
+
+    /**
+     * Contact 가 없으면 Instagram Graph API 로 프로필(username/name/profile_pic) 조회해서 생성.
+     * 댓글 트리거 첫 진입 시 호출 — 라이브 채팅에 PSID 가 아닌 사람 이름/아이디가 보이도록 함.
+     * 프로필 조회 실패해도 조용히 PSID 기반 최소 Contact 라도 생성해서 후속 저장이 막히지 않게 한다.
+     */
+    private void ensureContactWithProfile(User user, String senderIgId, String accessToken) {
+        if (contactRepository.findByUserIdAndIgUserId(user.getId(), senderIgId).isPresent()) return;
+
+        String username = senderIgId;
+        String name = null;
+        String profilePic = null;
+        try {
+            JsonNode profile = instagramApiService.fetchUserProfile(senderIgId, accessToken);
+            if (profile != null) {
+                String fetchedUsername = profile.path("username").asText("");
+                String fetchedName = profile.path("name").asText("");
+                String fetchedPic = profile.path("profile_pic").asText("");
+                if (!fetchedUsername.isBlank()) username = fetchedUsername;
+                if (!fetchedName.isBlank()) name = fetchedName;
+                if (!fetchedPic.isBlank()) profilePic = fetchedPic;
+            }
+        } catch (Exception e) {
+            log.debug("프로필 조회 실패 — PSID 기반 Contact 생성: sender={}, error={}", senderIgId, e.getMessage());
+        }
+
+        Contact.ContactBuilder builder = Contact.builder()
+                .user(user)
+                .igUserId(senderIgId)
+                .username(username);
+        if (name != null) builder.name(name);
+        if (profilePic != null) builder.profilePictureUrl(profilePic);
+        contactRepository.save(builder.build());
+        log.info("Contact 생성: user={}, sender={}, username={}, name={}", user.getId(), senderIgId, username, name);
     }
 
     // ─── 트리거 매칭 ───
