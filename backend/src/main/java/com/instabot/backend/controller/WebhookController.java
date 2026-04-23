@@ -48,8 +48,6 @@ public class WebhookController {
     @PostMapping("/instagram")
     public ResponseEntity<String> receiveEvent(@RequestBody JsonNode payload) {
         log.info("Webhook 이벤트 수신: {}", payload.get("object"));
-        // [DEBUG] 진단용 raw payload 덤프 — DM 미수신 원인 추적. 진단 끝나면 제거.
-        log.info("[WEBHOOK RAW] {}", payload.toString());
 
         try {
             webhookEventService.processWebhookEvent(payload);

@@ -905,7 +905,11 @@ public class FlowExecutionService {
                 .triggerKeyword(triggerKeyword)
                 .currentNodeId(currentNodeId)
                 .pendingStep(step)
-                .expiresAt(LocalDateTime.now().plusHours(24))
+                // 2시간 만료 — 24시간은 사용자가 포기한 이후에도 계속 active 취급돼
+                // 새 DM 트리거를 차단하는 부작용이 있었음. 2시간이면 사용자 세션 관점에서
+                // 충분하고, 새 키워드 DM 온 경우엔 WebhookEventService 가 즉시 폐기하므로
+                // 만료 자체가 문제 되는 경우는 드뭄.
+                .expiresAt(LocalDateTime.now().plusHours(2))
                 .build();
         pendingFlowActionRepository.save(action);
     }

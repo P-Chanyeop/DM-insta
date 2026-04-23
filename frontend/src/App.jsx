@@ -27,6 +27,7 @@ const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
 const GroupBuyPage = lazy(() => import('./pages/GroupBuyPage'))
 const AgencyPage = lazy(() => import('./pages/AgencyPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const PendingActionsPage = lazy(() => import('./pages/PendingActionsPage'))
 const SupportPage = lazy(() => import('./pages/SupportPage'))
 const LegalPage = lazy(() => import('./pages/LegalPage'))
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'))
@@ -73,6 +74,7 @@ export default function App() {
         <Route path="group-buys" element={<Suspense fallback={<PageLoader />}><GroupBuyPage /></Suspense>} />
         <Route path="agency" element={<Suspense fallback={<PageLoader />}><AgencyPage /></Suspense>} />
         <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
+        <Route path="pending-actions" element={<Suspense fallback={<PageLoader />}><PendingActionsPage /></Suspense>} />
         <Route path="guide" element={<Suspense fallback={<PageLoader />}><GuidePage /></Suspense>} />
         <Route path="faq" element={<Suspense fallback={<PageLoader />}><FAQPage /></Suspense>} />
         <Route path="support" element={<Suspense fallback={<PageLoader />}><SupportPage /></Suspense>} />

@@ -50,6 +50,7 @@ const NAV_SECTIONS = [
     items: [
       { to: '/app/agency', icon: 'ri-building-2-line', label: '에이전시' },
       { to: '/app/templates', icon: 'ri-file-copy-2-line', label: '템플릿', countKey: 'templates' },
+      { to: '/app/pending-actions', icon: 'ri-hourglass-line', label: '대기 액션' },
       { to: '/app/settings', icon: 'ri-settings-3-line', label: '설정' },
     ]
   }
@@ -69,6 +70,7 @@ const PAGE_TITLES = {
   '/app/agency': '에이전시',
   '/app/templates': '템플릿',
   '/app/settings': '설정',
+  '/app/pending-actions': '대기 액션',
   '/app/flows/builder': '플로우 빌더',
 }
 

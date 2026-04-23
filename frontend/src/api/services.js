@@ -49,6 +49,12 @@ export const automationService = {
   delete: (id) => api.delete(`/automations/${id}`),
 }
 
+export const pendingActionService = {
+  list: () => api.get('/pending-actions'),
+  cleanupAll: () => api.post('/pending-actions/cleanup'),
+  complete: (id) => api.delete(`/pending-actions/${id}`),
+}
+
 export const contactService = {
   list: (page = 0, size = 20) => api.get(`/contacts?page=${page}&size=${size}`),
   get: (id) => api.get(`/contacts/${id}`),

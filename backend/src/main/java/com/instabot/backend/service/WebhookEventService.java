@@ -176,18 +176,42 @@ public class WebhookEventService {
 
             // DM 키워드 트리거 매칭 (이메일이 아닌 일반 메시지에만)
             if (flowExecutionService.extractEmail(text).isEmpty()) {
-                // 먼저 AWAITING_FOLLOW 상태인지 확인 (팔로우는 DM으로 확인 불가하므로 스킵)
-                // AWAITING_POSTBACK/EMAIL이 아닌 경우에만 새 자동화 트리거
-                boolean hasPendingAction = pendingFlowActionRepository
-                        .findActiveBySenderIgId(senderId, LocalDateTime.now())
-                        .isPresent();
+                // 활성 pending action 존재 시 처리 정책:
+                //   (A) 새 DM 키워드가 매칭되면 → 기존 pending 폐기 후 새 플로우 시작
+                //       (사용자가 버튼을 누르지 않고 새 주제로 DM 보냈다 = 이전 플로우 포기 의사)
+                //   (B) 매칭되는 키워드가 없으면 → 기존 플로우(예: 이메일 입력 대기 등) 유지
+                var activePending = pendingFlowActionRepository
+                        .findActiveBySenderIgId(senderId, LocalDateTime.now());
 
-                if (!hasPendingAction) {
+                if (activePending.isEmpty()) {
                     handleDmKeywordTrigger(igAccount, user, senderId, text);
                     handleWelcomeTrigger(igAccount, user, senderId, text);
+                } else if (anyDmKeywordMatches(user, text)) {
+                    PendingFlowAction stale = activePending.get();
+                    log.info("새 DM 키워드 매칭 감지 → 기존 pending 폐기: sender={}, pendingId={}, step={}",
+                            senderId, stale.getId(), stale.getPendingStep());
+                    stale.setPendingStep(PendingStep.COMPLETED);
+                    pendingFlowActionRepository.save(stale);
+                    handleDmKeywordTrigger(igAccount, user, senderId, text);
+                    handleWelcomeTrigger(igAccount, user, senderId, text);
+                } else {
+                    // 새 키워드 미매칭 — 기존 pending 유지. 단, 과거 버전처럼 사일런트 스킵하면
+                    // 디버깅이 불가하므로 반드시 로그를 남긴다.
+                    log.info("DM 키워드 스킵 (활성 pending 존재, 새 키워드 미매칭): sender={}, pendingId={}, step={}",
+                            senderId, activePending.get().getId(), activePending.get().getPendingStep());
                 }
             }
         }
+    }
+
+    /**
+     * 해당 사용자의 활성 DM_KEYWORD 자동화 중 하나라도 매칭되는지 확인.
+     * 새 키워드 발동 시 stale pending 을 폐기할지 판단용.
+     */
+    private boolean anyDmKeywordMatches(User user, String text) {
+        return automationRepository.findByUserIdAndActiveTrue(user.getId()).stream()
+                .filter(a -> a.getType() == Automation.AutomationType.DM_KEYWORD)
+                .anyMatch(a -> matchesAutomationKeyword(a, text));
     }
 
     // ─── Comment / Story 이벤트 ───
