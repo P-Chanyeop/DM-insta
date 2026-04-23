@@ -324,10 +324,17 @@ public class WebhookEventService {
         }
         executionCache.put(cacheKey, System.currentTimeMillis());
 
-        // 연결된 Flow가 있으면 실행
-        Flow flow = automation.getFlow();
-        if (flow == null) {
+        // 연결된 Flow 재조회 — LazyInitializationException 방지 (webhook 요청은 트랜잭션 밖에서 들어옴).
+        // automation.getFlow() 는 프록시이므로 Hibernate 세션 없이 건드리면 터진다.
+        // 또한 @Async 인 executeFlow 로 넘기기 전에 실체를 확보해야 다른 스레드에서 lazy 로딩 사고가 안 남.
+        Flow flowProxy = automation.getFlow();
+        if (flowProxy == null) {
             log.warn("자동화에 연결된 플로우 없음: automationId={}", automation.getId());
+            return;
+        }
+        Flow flow = flowRepository.findById(flowProxy.getId()).orElse(null);
+        if (flow == null) {
+            log.warn("연결된 플로우가 삭제됨: automationId={}, flowId={}", automation.getId(), flowProxy.getId());
             return;
         }
 
