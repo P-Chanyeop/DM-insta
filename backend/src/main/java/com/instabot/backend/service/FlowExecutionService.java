@@ -623,50 +623,35 @@ public class FlowExecutionService {
 
         if (message.isBlank()) return false;
 
-        List<Map<String, String>> quickReplies = buttonText.isBlank() ? null : List.of(
-                Map.of("title", buttonText, "payload", "OPENING_DM_CLICKED")
-        );
+        boolean hasComment = commentId != null && !commentId.isBlank();
+        boolean hasButton = !buttonText.isBlank();
 
-        // 댓글 트리거 케이스 — Private Reply 시도 (24시간 창 오픈용).
-        // Meta 는 동일 (계정, 사용자) 조합에 짧은 시간 내 반복 private reply 를 anti-spam 으로 막기도 하므로,
-        // 실패 시엔 regular DM 으로 fallback 해본다 (이전에 private reply 성공한 적 있으면 창이 열려있음).
-        boolean privateReplyTried = false;
-        boolean privateReplyOk = false;
-        if (commentId != null && !commentId.isBlank()) {
-            privateReplyTried = true;
-            try {
-                instagramApiService.sendPrivateReplyToComment(botIgId, commentId, message, accessToken);
-                privateReplyOk = true;
-
-                if (quickReplies != null) {
-                    // Private reply 로 창이 막 열렸으니 버튼 메시지 뒤이어 발송
-                    try {
-                        instagramApiService.sendQuickReplyMessage(botIgId, recipientId, buttonText, quickReplies, accessToken);
-                    } catch (Exception btnE) {
-                        log.warn("오프닝 DM 버튼 발송 실패 (본 메시지는 성공): {}", btnE.getMessage());
-                    }
-                }
-                log.info("오프닝 DM 발송 완료 (private reply): recipient={}, commentId={}", recipientId, commentId);
-                return true;
-            } catch (Exception privateE) {
-                log.warn("Private reply 실패 — regular DM fallback 시도: {}", privateE.getMessage());
-                // fall through to regular DM 시도
-            }
-        }
-
-        // Fallback / 비-댓글 경로 — regular DM (24시간 창이 열려있으면 성공)
+        // 댓글 트리거: Private Reply 로 1번에 텍스트+버튼 발송 — Instagram 24h 창은 실제로
+        // "사용자가 응답/버튼 클릭"해야만 열리므로, 후속 DM(메인/팔로업)이 막히지 않으려면
+        // 오프닝 DM 에 반드시 버튼을 포함해 사용자 상호작용을 유도해야 함.
+        // generic_template (postback 버튼) 은 Private Reply 에서 허용되는 몇 안되는 구조 중 하나.
         try {
-            if (quickReplies != null) {
+            if (hasComment && hasButton) {
+                instagramApiService.sendPrivateReplyWithPostbackButton(
+                        botIgId, commentId, message, buttonText, "OPENING_DM_CLICKED", accessToken);
+            } else if (hasComment) {
+                // 버튼 없는 경우 — 단순 텍스트 Private Reply. 사용자 응답 없으면 창 안 열림.
+                instagramApiService.sendPrivateReplyToComment(botIgId, commentId, message, accessToken);
+            } else if (hasButton) {
+                // 비-댓글(DM keyword 등) 트리거 — 이미 창이 열린 상태이므로 quick_reply 사용
+                List<Map<String, String>> quickReplies = List.of(
+                        Map.of("title", buttonText, "payload", "OPENING_DM_CLICKED")
+                );
                 instagramApiService.sendQuickReplyMessage(botIgId, recipientId, message, quickReplies, accessToken);
             } else {
                 instagramApiService.sendTextMessage(botIgId, recipientId, message, accessToken);
             }
-            log.info("오프닝 DM 발송 완료 (regular DM): recipient={}, privateReplyFallback={}",
-                    recipientId, privateReplyTried && !privateReplyOk);
+            log.info("오프닝 DM 발송 완료: recipient={}, privateReply={}, hasButton={}",
+                    recipientId, hasComment, hasButton);
             return true;
         } catch (Exception e) {
-            log.error("오프닝 DM 발송 실패: recipient={}, privateReplyTried={}, error={}",
-                    recipientId, privateReplyTried, e.getMessage());
+            log.error("오프닝 DM 발송 실패: recipient={}, privateReply={}, hasButton={}, error={}",
+                    recipientId, hasComment, hasButton, e.getMessage());
             return false;
         }
     }

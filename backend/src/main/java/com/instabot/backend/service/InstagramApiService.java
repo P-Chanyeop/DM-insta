@@ -315,6 +315,49 @@ public class InstagramApiService {
     }
 
     /**
+     * Private Reply + 포스트백 버튼 (Generic Template) — 1회 호출로 텍스트 + 클릭 버튼을 함께 전송.
+     * <p>
+     * 왜 이게 필요한가: Private Reply 는 bot→user 1회 발신만 허용하고 24시간 창을 열진 않음.
+     * 창을 실제로 열려면 사용자가 응답(답장/버튼 클릭)해야 함. 따라서 오프닝 DM 에 버튼을
+     * 같이 넣어 "버튼을 눌러 진행" 플로우로 만들어야 후속 DM 이 막히지 않음.
+     * <p>
+     * Instagram Private Reply 는 quick_reply 를 지원하지 않지만 generic_template(카드+버튼) 은 지원함.
+     *
+     * @param title         카드 제목 (= 오프닝 DM 본문. 80자 제한)
+     * @param buttonTitle   버튼 라벨 (예: "가격표 보기")
+     * @param buttonPayload 버튼 클릭 시 webhook 으로 들어올 포스트백 payload (예: "OPENING_DM_CLICKED")
+     */
+    public JsonNode sendPrivateReplyWithPostbackButton(String igUserId, String commentId,
+                                                        String title, String buttonTitle,
+                                                        String buttonPayload, String accessToken) {
+        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messages";
+
+        Map<String, Object> body = Map.of(
+                "recipient", Map.of("comment_id", commentId),
+                "message", Map.of(
+                        "attachment", Map.of(
+                                "type", "template",
+                                "payload", Map.of(
+                                        "template_type", "generic",
+                                        "elements", List.of(Map.of(
+                                                "title", title,
+                                                "buttons", List.of(Map.of(
+                                                        "type", "postback",
+                                                        "title", buttonTitle,
+                                                        "payload", buttonPayload
+                                                ))
+                                        ))
+                                )
+                        )
+                )
+        );
+
+        log.info("Private reply (with button) 발송: igUserId={}, commentId={}, button={}",
+                igUserId, commentId, buttonTitle);
+        return postToInstagram(url, body, accessToken);
+    }
+
+    /**
      * Quick Reply (버튼) DM 발송
      */
     public JsonNode sendQuickReplyMessage(String igUserId, String recipientId, String text,
