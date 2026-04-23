@@ -9,6 +9,14 @@ public interface AutomationRepository extends JpaRepository<Automation, Long> {
     List<Automation> findByUserIdOrderByCreatedAtDesc(Long userId);
     List<Automation> findByUserIdAndType(Long userId, Automation.AutomationType type);
     long countByUserId(Long userId);
+    /**
+     * 활성 자동화를 생성 순으로 반환 (오래된 것 먼저) — 동일 메시지에 복수 매칭 시 "oldest wins" 정책.
+     * 매니챗의 트리거 디스패치와 동일한 의미론.
+     */
+    List<Automation> findByUserIdAndActiveTrueOrderByCreatedAtAsc(Long userId);
+
+    /** @deprecated 순서 비보장. {@link #findByUserIdAndActiveTrueOrderByCreatedAtAsc} 사용. */
+    @Deprecated
     List<Automation> findByUserIdAndActiveTrue(Long userId);
 
     // upsert 용 — 키워드 기반 타입(DM_KEYWORD, COMMENT_TRIGGER)은 (user, type, keyword)로 유일 식별

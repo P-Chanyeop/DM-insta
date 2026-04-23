@@ -7,6 +7,7 @@ import com.instabot.backend.dto.flow.NodeExecResult;
 import com.instabot.backend.entity.PendingFlowAction.PendingStep;
 import com.instabot.backend.service.InstagramApiService;
 import com.instabot.backend.service.flow.NodeExecutor;
+import com.instabot.backend.service.flow.PostbackPayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -41,8 +42,10 @@ public class OpeningDmNodeExecutor implements NodeExecutor {
 
         try {
             if (!buttonText.isBlank()) {
+                String payload = PostbackPayload.encode(
+                        ctx.getFlow().getId(), node.getId(), PostbackPayload.Action.OPENING);
                 List<Map<String, String>> quickReplies = List.of(
-                        Map.of("title", buttonText, "payload", "OPENING_DM_CLICKED")
+                        Map.of("title", buttonText, "payload", payload)
                 );
                 instagramApiService.sendQuickReplyMessage(
                         ctx.getBotIgId(), ctx.getSenderIgId(), message, quickReplies, ctx.getAccessToken());

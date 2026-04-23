@@ -8,6 +8,7 @@ import com.instabot.backend.entity.PendingFlowAction.PendingStep;
 import com.instabot.backend.service.ConversationService;
 import com.instabot.backend.service.InstagramApiService;
 import com.instabot.backend.service.flow.NodeExecutor;
+import com.instabot.backend.service.flow.PostbackPayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -48,8 +49,10 @@ public class FollowCheckNodeExecutor implements NodeExecutor {
                 data != null ? data.path("message").asText("링크를 받으시려면 먼저 팔로우를 해주세요!") : "링크를 받으시려면 먼저 팔로우를 해주세요!",
                 ctx);
         try {
+            String payload = PostbackPayload.encode(
+                    ctx.getFlow().getId(), node.getId(), PostbackPayload.Action.FOLLOW);
             List<Map<String, String>> quickReplies = List.of(
-                    Map.of("title", "✅ 팔로우 했어요", "payload", "FOLLOW_CHECK")
+                    Map.of("title", "✅ 팔로우 했어요", "payload", payload)
             );
             instagramApiService.sendQuickReplyMessage(
                     ctx.getBotIgId(), ctx.getSenderIgId(), followMsg, quickReplies, ctx.getAccessToken());

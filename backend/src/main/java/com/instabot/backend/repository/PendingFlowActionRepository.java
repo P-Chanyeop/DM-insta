@@ -27,6 +27,27 @@ public interface PendingFlowActionRepository extends JpaRepository<PendingFlowAc
     Optional<PendingFlowAction> findActiveBySenderIgId(String senderIgId, LocalDateTime now);
 
     /**
+     * 특정 단계의 활성 PendingFlowAction 조회 — 이메일 캡처 등 단계별 조회용
+     */
+    @Query("SELECT p FROM PendingFlowAction p WHERE p.senderIgId = :senderIgId " +
+            "AND p.pendingStep = :step AND p.expiresAt > :now " +
+            "ORDER BY p.createdAt DESC")
+    Optional<PendingFlowAction> findActiveBySenderIgIdAndStep(
+            String senderIgId, PendingStep step, LocalDateTime now);
+
+    /**
+     * flowId + senderIgId + step 으로 활성 PendingFlowAction 조회 — 병렬 플로우 라우팅용.
+     * nodeId 까지 지정하면 해당 노드의 대기만 매칭, null 이면 플로우 내 임의.
+     */
+    @Query("SELECT p FROM PendingFlowAction p " +
+            "WHERE p.flow.id = :flowId AND p.senderIgId = :senderIgId " +
+            "AND p.pendingStep = :step AND p.expiresAt > :now " +
+            "AND (:nodeId IS NULL OR p.currentNodeId = :nodeId) " +
+            "ORDER BY p.createdAt DESC")
+    Optional<PendingFlowAction> findActiveByFlowAndSenderAndStep(
+            Long flowId, String senderIgId, PendingStep step, String nodeId, LocalDateTime now);
+
+    /**
      * 재개 시각이 도래한 AWAITING_DELAY 액션 조회
      */
     @Query("SELECT p FROM PendingFlowAction p WHERE p.pendingStep = 'AWAITING_DELAY' " +

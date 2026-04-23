@@ -8,6 +8,7 @@ import com.instabot.backend.entity.PendingFlowAction.PendingStep;
 import com.instabot.backend.service.ConversationService;
 import com.instabot.backend.service.InstagramApiService;
 import com.instabot.backend.service.flow.NodeExecutor;
+import com.instabot.backend.service.flow.PostbackPayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -43,7 +44,7 @@ public class MessageNodeExecutor implements NodeExecutor {
         String role = data.path("role").asText("");
 
         return switch (role) {
-            case "opening" -> executeOpeningDm(ctx, data);
+            case "opening" -> executeOpeningDm(ctx, node, data);
             case "main" -> executeMainDm(ctx, data);
             case "followup" -> executeFollowupDm(ctx, data);
             default -> executeMainDm(ctx, data); // fallback
@@ -53,18 +54,21 @@ public class MessageNodeExecutor implements NodeExecutor {
     /**
      * 오프닝 DM — 버튼이 있으면 QuickReply + postback 대기
      */
-    private NodeExecResult executeOpeningDm(FlowContext ctx, JsonNode data) {
+    private NodeExecResult executeOpeningDm(FlowContext ctx, FlowNode node, JsonNode data) {
         String message = utils.replaceVariables(data.path("message").asText(""), ctx);
         String buttonText = data.path("buttonText").asText("");
         if (message.isBlank()) return NodeExecResult.ok();
 
         try {
             if (!buttonText.isBlank()) {
+                // 병렬 플로우 라우팅을 위해 flowId + nodeId 를 payload 에 인코딩.
+                String payload = PostbackPayload.encode(
+                        ctx.getFlow().getId(), node.getId(), PostbackPayload.Action.OPENING);
                 // Generic Template(카드 안 postback 버튼) 로 발송 — 댓글 트리거 경로와 UI 통일,
                 // 클릭 시 postback 이벤트로 깔끔히 들어옴.
                 instagramApiService.sendGenericTemplateWithPostback(
                         ctx.getBotIgId(), ctx.getSenderIgId(), message,
-                        buttonText, "OPENING_DM_CLICKED", ctx.getAccessToken());
+                        buttonText, payload, ctx.getAccessToken());
                 conversationService.saveOutboundMessage(
                         ctx.getIgAccount().getUser(), ctx.getSenderIgId(), message, true, ctx.getFlow().getName());
                 // 버튼이 있으면 postback 대기

@@ -10,6 +10,7 @@ import com.instabot.backend.repository.*;
 import com.instabot.backend.service.flow.FlowGraphParser;
 import com.instabot.backend.service.flow.NodeExecutor;
 import com.instabot.backend.service.flow.NodeExecutorRegistry;
+import com.instabot.backend.service.flow.PostbackPayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
@@ -118,7 +119,7 @@ public class FlowExecutionService {
             boolean hasOpeningDm = false;
             if (flowData.has("openingDm")) {
                 trackNode(flow.getId(), "openingDm", NodeExecution.Action.ENTERED, contactId);
-                hasOpeningDm = executeOpeningDm(flowData.get("openingDm"), botIgId, senderIgId, accessToken, contact, triggerText, commentId);
+                hasOpeningDm = executeOpeningDm(flowData.get("openingDm"), botIgId, senderIgId, accessToken, contact, triggerText, commentId, flow.getId());
                 if (hasOpeningDm) {
                     trackNode(flow.getId(), "openingDm", NodeExecution.Action.COMPLETED, contactId);
                     // 라이브 채팅에 노출되도록 발신 메시지 저장
@@ -178,27 +179,57 @@ public class FlowExecutionService {
     // ═══════════════════════════════════════════════════════════
 
     /**
-     * 사용자가 버튼을 클릭했을 때 호출 (WebhookEventService에서 호출)
-     * - OPENING_DM_CLICKED: 오프닝DM 버튼 → requirements 시작
-     * - FOLLOW_CHECK: 팔로우 재확인 버튼 → 팔로우 확인 후 진행
+     * 사용자가 버튼을 클릭했을 때 호출 (WebhookEventService에서 호출).
+     *
+     * payload 포맷:
+     *   - fa:{flowId}:{nodeId}:opening — 병렬 플로우 라우팅 (새 포맷)
+     *   - fa:{flowId}:{nodeId}:follow
+     *   - fa:{flowId}::opening          — v1 레거시(nodeId 없음)
+     *   - OPENING_DM_CLICKED / FOLLOW_CHECK — 과거 배포 호환
      */
     @Async
     @Transactional
     public void handlePostback(String senderIgId, String payload) {
-
-        if ("OPENING_DM_CLICKED".equals(payload)) {
-            handleOpeningDmPostback(senderIgId);
-        } else if ("FOLLOW_CHECK".equals(payload)) {
-            handleFollowCheckPostback(senderIgId);
-        } else {
+        PostbackPayload parsed = PostbackPayload.parse(payload);
+        if (parsed == null) {
             log.debug("알 수 없는 postback payload: {}", payload);
+            return;
+        }
+
+        switch (parsed.getAction()) {
+            case OPENING -> handleOpeningDmPostback(senderIgId, parsed);
+            case FOLLOW  -> handleFollowCheckPostback(senderIgId, parsed);
+            default -> log.debug("처리하지 않는 postback action: {}", parsed.getAction());
         }
     }
 
-    private void handleOpeningDmPostback(String senderIgId) {
-        PendingFlowAction pending = pendingFlowActionRepository
-                .findFirstBySenderIgIdAndPendingStepOrderByCreatedAtDesc(senderIgId, PendingStep.AWAITING_POSTBACK)
-                .orElse(null);
+    /**
+     * 레거시(OPENING_DM_CLICKED) / 신규(fa:...) payload 모두 처리.
+     * 신규 포맷은 flowId 로 정확한 pending 매칭, 레거시는 최근 AWAITING_POSTBACK fallback.
+     */
+    private void handleOpeningDmPostback(String senderIgId, PostbackPayload parsed) {
+        PendingFlowAction pending;
+        if (parsed.getFlowId() != null) {
+            pending = pendingFlowActionRepository
+                    .findActiveByFlowAndSenderAndStep(
+                            parsed.getFlowId(), senderIgId, PendingStep.AWAITING_POSTBACK,
+                            parsed.getNodeId(), LocalDateTime.now())
+                    .orElse(null);
+            if (pending == null) {
+                log.info("flowId 로 AWAITING_POSTBACK 매칭 실패 — legacy fallback 시도: flowId={}, sender={}",
+                        parsed.getFlowId(), senderIgId);
+            }
+        } else {
+            pending = null;
+        }
+
+        // 레거시 또는 신규 매칭 실패 시 — 가장 최근 AWAITING_POSTBACK
+        if (pending == null) {
+            pending = pendingFlowActionRepository
+                    .findFirstBySenderIgIdAndPendingStepOrderByCreatedAtDesc(
+                            senderIgId, PendingStep.AWAITING_POSTBACK)
+                    .orElse(null);
+        }
 
         if (pending == null || pending.isExpired()) {
             log.debug("유효한 AWAITING_POSTBACK 없음: sender={}", senderIgId);
@@ -236,10 +267,22 @@ public class FlowExecutionService {
      * - 팔로우 확인됨 → 다음 단계 (이메일 수집 or 메인DM)
      * - 팔로우 안 됨 → "팔로우가 확인되지 않았어요!" + 재확인 버튼 다시 발송
      */
-    private void handleFollowCheckPostback(String senderIgId) {
-        PendingFlowAction pending = pendingFlowActionRepository
-                .findFirstBySenderIgIdAndPendingStepOrderByCreatedAtDesc(senderIgId, PendingStep.AWAITING_FOLLOW)
-                .orElse(null);
+    private void handleFollowCheckPostback(String senderIgId, PostbackPayload parsed) {
+        PendingFlowAction pending = null;
+        if (parsed.getFlowId() != null) {
+            pending = pendingFlowActionRepository
+                    .findActiveByFlowAndSenderAndStep(
+                            parsed.getFlowId(), senderIgId, PendingStep.AWAITING_FOLLOW,
+                            parsed.getNodeId(), LocalDateTime.now())
+                    .orElse(null);
+        }
+        // 레거시 / 매칭 실패 fallback
+        if (pending == null) {
+            pending = pendingFlowActionRepository
+                    .findFirstBySenderIgIdAndPendingStepOrderByCreatedAtDesc(
+                            senderIgId, PendingStep.AWAITING_FOLLOW)
+                    .orElse(null);
+        }
 
         if (pending == null || pending.isExpired()) {
             log.debug("유효한 AWAITING_FOLLOW 없음: sender={}", senderIgId);
@@ -628,7 +671,7 @@ public class FlowExecutionService {
      */
     private boolean executeOpeningDm(JsonNode openingDmNode, String botIgId, String recipientId,
                                       String accessToken, Contact contact, String triggerKeyword,
-                                      String commentId) {
+                                      String commentId, Long flowId) {
         if (!openingDmNode.path("enabled").asBoolean(false)) return false;
 
         String message = replaceVariables(openingDmNode.path("message").asText(""), contact, triggerKeyword);
@@ -639,6 +682,9 @@ public class FlowExecutionService {
         boolean hasComment = commentId != null && !commentId.isBlank();
         boolean hasButton = !buttonText.isBlank();
 
+        // v1 경로 — nodeId 없이 flowId 만 인코딩. 버튼 클릭 시 핸들러가 flowId + sender 조합으로 pending 조회.
+        String openingPayload = PostbackPayload.encode(flowId, null, PostbackPayload.Action.OPENING);
+
         // 댓글 트리거: Private Reply 로 1번에 텍스트+버튼 발송 — Instagram 24h 창은 실제로
         // "사용자가 응답/버튼 클릭"해야만 열리므로, 후속 DM(메인/팔로업)이 막히지 않으려면
         // 오프닝 DM 에 반드시 버튼을 포함해 사용자 상호작용을 유도해야 함.
@@ -646,7 +692,7 @@ public class FlowExecutionService {
         try {
             if (hasComment && hasButton) {
                 instagramApiService.sendPrivateReplyWithPostbackButton(
-                        botIgId, commentId, message, buttonText, "OPENING_DM_CLICKED", accessToken);
+                        botIgId, commentId, message, buttonText, openingPayload, accessToken);
             } else if (hasComment) {
                 // 버튼 없는 경우 — 단순 텍스트 Private Reply. 사용자 응답 없으면 창 안 열림.
                 instagramApiService.sendPrivateReplyToComment(botIgId, commentId, message, accessToken);
@@ -654,7 +700,7 @@ public class FlowExecutionService {
                 // 비-댓글(DM keyword 등) 트리거 — 창이 이미 열린 상태라도 UI 일관성(카드 안 버튼) +
                 // postback 이벤트로 깔끔히 수신되도록 generic_template 사용.
                 instagramApiService.sendGenericTemplateWithPostback(
-                        botIgId, recipientId, message, buttonText, "OPENING_DM_CLICKED", accessToken);
+                        botIgId, recipientId, message, buttonText, openingPayload, accessToken);
             } else {
                 instagramApiService.sendTextMessage(botIgId, recipientId, message, accessToken);
             }
@@ -905,11 +951,11 @@ public class FlowExecutionService {
                 .triggerKeyword(triggerKeyword)
                 .currentNodeId(currentNodeId)
                 .pendingStep(step)
-                // 2시간 만료 — 24시간은 사용자가 포기한 이후에도 계속 active 취급돼
-                // 새 DM 트리거를 차단하는 부작용이 있었음. 2시간이면 사용자 세션 관점에서
-                // 충분하고, 새 키워드 DM 온 경우엔 WebhookEventService 가 즉시 폐기하므로
-                // 만료 자체가 문제 되는 경우는 드뭄.
-                .expiresAt(LocalDateTime.now().plusHours(2))
+                // Instagram 메시징 윈도우(24h)와 동일. 병렬 플로우 모델에서는 각 pending 이
+                // 새 DM 트리거를 차단하지 않으므로 짧게 당길 이유가 없음. 또한 AWAITING_DELAY
+                // 노드는 scheduledResumeAt 이 24h 를 넘어갈 수 있어 그 경우는 아래에서
+                // 추가로 연장한다.
+                .expiresAt(LocalDateTime.now().plusHours(24))
                 .build();
         pendingFlowActionRepository.save(action);
     }
@@ -1000,7 +1046,14 @@ public class FlowExecutionService {
                                     ctx.getSenderIgId(), PendingStep.AWAITING_DELAY)
                             .orElse(null);
                     if (lastPending != null) {
-                        lastPending.setScheduledResumeAt(LocalDateTime.now().plusMinutes(minutes));
+                        LocalDateTime resumeAt = LocalDateTime.now().plusMinutes(minutes);
+                        lastPending.setScheduledResumeAt(resumeAt);
+                        // 딜레이가 기본 expiresAt(24h) 을 넘어가면 expiresAt 도 함께 연장.
+                        // 그러지 않으면 스케줄러의 findDelayActionsReadyToResume 에서 제외돼 재개 불가.
+                        LocalDateTime neededExpiry = resumeAt.plusHours(1);
+                        if (lastPending.getExpiresAt().isBefore(neededExpiry)) {
+                            lastPending.setExpiresAt(neededExpiry);
+                        }
                         pendingFlowActionRepository.save(lastPending);
                     }
                     log.info("딜레이 대기 저장: nodeId={}, resumeAt={}분 후", currentId, delayMin);

@@ -41,6 +41,7 @@ public class WebhookEventService {
     private final IntegrationService integrationService;
     private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
+    private final AutomationCooldownService automationCooldownService;
 
     // 중복 실행 방지: senderIgId + flowId → 마지막 실행 시간
     private final Map<String, Long> executionCache = Collections.synchronizedMap(
@@ -158,60 +159,48 @@ public class WebhookEventService {
             integrationService.forwardWebhookEvent(user.getId(), "dm_received",
                     Map.of("senderIgId", senderId, "text", text));
 
-            // 이메일 추출 시도 + AWAITING_EMAIL 상태 처리
-            flowExecutionService.extractEmail(text).ifPresent(email -> {
-                // Contact에 이메일 저장
-                contactRepository.findByUserIdAndIgUserId(user.getId(), senderId)
-                        .ifPresent(contact -> {
-                            String fields = contact.getCustomFields();
-                            contact.setCustomFields(
-                                    (fields != null ? fields + "," : "") + "\"email\":\"" + email + "\"");
-                            contactRepository.save(contact);
-                            log.info("이메일 수집: contact={}, email={}", contact.getId(), email);
-                        });
+            // ─────────────────────────────────────────────────────
+            // 플로우 충돌 정책 (매니챗 스타일 — 전역 락 없이 병렬 실행)
+            // ─────────────────────────────────────────────────────
+            //   1. AWAITING_EMAIL 대기 중 → 이 스텝에서만 로컬 락:
+            //      - 이메일 형식이면 이메일로 캡처 + 플로우 재개, 키워드 트리거 스킵
+            //      - 이메일 형식 아니면 해당 pending 을 COMPLETED(취소) 후 일반 키워드 경로로 폴스루
+            //   2. 그 외 pending (AWAITING_POSTBACK/FOLLOW/DELAY) 은 키워드 트리거를 막지 않음.
+            //      새 DM 키워드 와 병렬로 진행 — 버튼/팔로우/딜레이는 각자 독립적으로 resolve.
+            var emailPending = pendingFlowActionRepository
+                    .findActiveBySenderIgIdAndStep(senderId, PendingStep.AWAITING_EMAIL, LocalDateTime.now());
 
-                // AWAITING_EMAIL 상태인 PendingFlowAction이 있으면 다음 단계 진행
-                flowExecutionService.handleRequirementFulfilled(senderId, PendingStep.AWAITING_EMAIL);
-            });
-
-            // DM 키워드 트리거 매칭 (이메일이 아닌 일반 메시지에만)
-            if (flowExecutionService.extractEmail(text).isEmpty()) {
-                // 활성 pending action 존재 시 처리 정책:
-                //   (A) 새 DM 키워드가 매칭되면 → 기존 pending 폐기 후 새 플로우 시작
-                //       (사용자가 버튼을 누르지 않고 새 주제로 DM 보냈다 = 이전 플로우 포기 의사)
-                //   (B) 매칭되는 키워드가 없으면 → 기존 플로우(예: 이메일 입력 대기 등) 유지
-                var activePending = pendingFlowActionRepository
-                        .findActiveBySenderIgId(senderId, LocalDateTime.now());
-
-                if (activePending.isEmpty()) {
-                    handleDmKeywordTrigger(igAccount, user, senderId, text);
-                    handleWelcomeTrigger(igAccount, user, senderId, text);
-                } else if (anyDmKeywordMatches(user, text)) {
-                    PendingFlowAction stale = activePending.get();
-                    log.info("새 DM 키워드 매칭 감지 → 기존 pending 폐기: sender={}, pendingId={}, step={}",
-                            senderId, stale.getId(), stale.getPendingStep());
-                    stale.setPendingStep(PendingStep.COMPLETED);
-                    pendingFlowActionRepository.save(stale);
-                    handleDmKeywordTrigger(igAccount, user, senderId, text);
-                    handleWelcomeTrigger(igAccount, user, senderId, text);
+            if (emailPending.isPresent()) {
+                var emailOpt = flowExecutionService.extractEmail(text);
+                if (emailOpt.isPresent()) {
+                    String email = emailOpt.get();
+                    // Contact에 이메일 저장
+                    contactRepository.findByUserIdAndIgUserId(user.getId(), senderId)
+                            .ifPresent(contact -> {
+                                String fields = contact.getCustomFields();
+                                contact.setCustomFields(
+                                        (fields != null ? fields + "," : "") + "\"email\":\"" + email + "\"");
+                                contactRepository.save(contact);
+                                log.info("이메일 수집: contact={}, email={}", contact.getId(), email);
+                            });
+                    // AWAITING_EMAIL 상태인 PendingFlowAction 의 플로우 재개
+                    flowExecutionService.handleRequirementFulfilled(senderId, PendingStep.AWAITING_EMAIL);
+                    return; // 이메일 경로 처리 완료
                 } else {
-                    // 새 키워드 미매칭 — 기존 pending 유지. 단, 과거 버전처럼 사일런트 스킵하면
-                    // 디버깅이 불가하므로 반드시 로그를 남긴다.
-                    log.info("DM 키워드 스킵 (활성 pending 존재, 새 키워드 미매칭): sender={}, pendingId={}, step={}",
-                            senderId, activePending.get().getId(), activePending.get().getPendingStep());
+                    // 이메일 형식 아님 → 이 플로우는 취소하고 일반 DM 경로로 폴스루
+                    PendingFlowAction cancelled = emailPending.get();
+                    log.info("AWAITING_EMAIL 중 비이메일 수신 → 플로우 취소: pendingId={}, sender={}",
+                            cancelled.getId(), senderId);
+                    cancelled.setPendingStep(PendingStep.COMPLETED);
+                    pendingFlowActionRepository.save(cancelled);
+                    // fall through 해서 아래 키워드 트리거로 진행
                 }
             }
-        }
-    }
 
-    /**
-     * 해당 사용자의 활성 DM_KEYWORD 자동화 중 하나라도 매칭되는지 확인.
-     * 새 키워드 발동 시 stale pending 을 폐기할지 판단용.
-     */
-    private boolean anyDmKeywordMatches(User user, String text) {
-        return automationRepository.findByUserIdAndActiveTrue(user.getId()).stream()
-                .filter(a -> a.getType() == Automation.AutomationType.DM_KEYWORD)
-                .anyMatch(a -> matchesAutomationKeyword(a, text));
+            // 일반 DM 키워드 트리거 — 다른 pending(POSTBACK/FOLLOW/DELAY) 과 무관하게 자유 실행
+            handleDmKeywordTrigger(igAccount, user, senderId, text);
+            handleWelcomeTrigger(igAccount, user, senderId, text);
+        }
     }
 
     // ─── Comment / Story 이벤트 ───
@@ -238,7 +227,7 @@ public class WebhookEventService {
     // ─── 트리거별 핸들러 ───
 
     private void handleDmKeywordTrigger(InstagramAccount igAccount, User user, String senderId, String text) {
-        List<Automation> automations = automationRepository.findByUserIdAndActiveTrue(user.getId()).stream()
+        List<Automation> automations = automationRepository.findByUserIdAndActiveTrueOrderByCreatedAtAsc(user.getId()).stream()
                 .filter(a -> a.getType() == Automation.AutomationType.DM_KEYWORD)
                 .toList();
 
@@ -262,7 +251,7 @@ public class WebhookEventService {
         integrationService.forwardWebhookEvent(user.getId(), "comment_received",
                 Map.of("commentId", commentId, "senderIgId", senderId, "text", text, "mediaId", mediaId));
 
-        List<Automation> automations = automationRepository.findByUserIdAndActiveTrue(user.getId()).stream()
+        List<Automation> automations = automationRepository.findByUserIdAndActiveTrueOrderByCreatedAtAsc(user.getId()).stream()
                 .filter(a -> a.getType() == Automation.AutomationType.COMMENT_TRIGGER)
                 .toList();
 
@@ -288,7 +277,7 @@ public class WebhookEventService {
         integrationService.forwardWebhookEvent(user.getId(), "story_mention",
                 Map.of("senderIgId", senderId));
 
-        List<Automation> automations = automationRepository.findByUserIdAndActiveTrue(user.getId()).stream()
+        List<Automation> automations = automationRepository.findByUserIdAndActiveTrueOrderByCreatedAtAsc(user.getId()).stream()
                 .filter(a -> a.getType() == Automation.AutomationType.STORY_MENTION)
                 .toList();
 
@@ -307,7 +296,7 @@ public class WebhookEventService {
         integrationService.forwardWebhookEvent(user.getId(), "story_reply",
                 Map.of("senderIgId", senderId, "text", text));
 
-        List<Automation> automations = automationRepository.findByUserIdAndActiveTrue(user.getId()).stream()
+        List<Automation> automations = automationRepository.findByUserIdAndActiveTrueOrderByCreatedAtAsc(user.getId()).stream()
                 .filter(a -> a.getType() == Automation.AutomationType.STORY_REPLY)
                 .toList();
 
@@ -321,7 +310,7 @@ public class WebhookEventService {
         // 첫 DM인지 확인 (해당 사용자와의 Contact가 방금 생성됨 = messageCount <= 1)
         contactRepository.findByUserIdAndIgUserId(user.getId(), senderId).ifPresent(contact -> {
             if (contact.getMessageCount() <= 1) {
-                List<Automation> automations = automationRepository.findByUserIdAndActiveTrue(user.getId()).stream()
+                List<Automation> automations = automationRepository.findByUserIdAndActiveTrueOrderByCreatedAtAsc(user.getId()).stream()
                         .filter(a -> a.getType() == Automation.AutomationType.WELCOME_MESSAGE)
                         .toList();
 
@@ -359,7 +348,13 @@ public class WebhookEventService {
 
     private void executeAutomationFlow(Automation automation, InstagramAccount igAccount,
                                         String senderId, String text, String commentId) {
-        // 중복 실행 방지
+        // 쿨다운 — 동일 (자동화, 발신자) 쌍의 반복 트리거 억제 (스팸/인스타 정책 보호).
+        // 예: "가격 가격 가격" 연타 → 첫 매칭만 실행. 기본 30초.
+        if (!automationCooldownService.tryTrigger(automation.getId(), senderId)) {
+            return;
+        }
+
+        // 중복 실행 방지 (쿨다운보다 관대한 1분 창 — in-flight 웹훅 재전송 dedupe 용)
         String cacheKey = senderId + ":" + automation.getId();
         Long lastExec = executionCache.get(cacheKey);
         if (lastExec != null && System.currentTimeMillis() - lastExec < DUPLICATE_WINDOW_MS) {
