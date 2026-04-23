@@ -130,6 +130,20 @@ public class WebhookEventService {
             JsonNode message = event.get("message");
             String text = message.path("text").asText("");
 
+            // Quick Reply 클릭은 postback 이 아닌 message 이벤트로 들어오지만 quick_reply.payload 가 동봉됨.
+            // postback 과 동일하게 처리해 플로우가 재개되지 않는 버그를 방지한다.
+            String qrPayload = message.path("quick_reply").path("payload").asText("");
+            if (!qrPayload.isBlank()) {
+                log.info("Quick reply 수신(postback 으로 처리): sender={}, payload={}, title={}",
+                        senderId, qrPayload, text);
+                String displayText = !text.isBlank() ? text : "[버튼 클릭] " + qrPayload;
+                conversationService.handleInboundMessage(user, senderId, null, displayText, Message.MessageType.TEXT);
+                integrationService.forwardWebhookEvent(user.getId(), "postback",
+                        Map.of("senderIgId", senderId, "payload", qrPayload, "title", text));
+                flowExecutionService.handlePostback(senderId, qrPayload);
+                return;
+            }
+
             // 수신 메시지 저장
             conversationService.handleInboundMessage(user, senderId, null, text, Message.MessageType.TEXT);
 

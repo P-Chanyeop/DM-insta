@@ -651,11 +651,10 @@ public class FlowExecutionService {
                 // 버튼 없는 경우 — 단순 텍스트 Private Reply. 사용자 응답 없으면 창 안 열림.
                 instagramApiService.sendPrivateReplyToComment(botIgId, commentId, message, accessToken);
             } else if (hasButton) {
-                // 비-댓글(DM keyword 등) 트리거 — 이미 창이 열린 상태이므로 quick_reply 사용
-                List<Map<String, String>> quickReplies = List.of(
-                        Map.of("title", buttonText, "payload", "OPENING_DM_CLICKED")
-                );
-                instagramApiService.sendQuickReplyMessage(botIgId, recipientId, message, quickReplies, accessToken);
+                // 비-댓글(DM keyword 등) 트리거 — 창이 이미 열린 상태라도 UI 일관성(카드 안 버튼) +
+                // postback 이벤트로 깔끔히 수신되도록 generic_template 사용.
+                instagramApiService.sendGenericTemplateWithPostback(
+                        botIgId, recipientId, message, buttonText, "OPENING_DM_CLICKED", accessToken);
             } else {
                 instagramApiService.sendTextMessage(botIgId, recipientId, message, accessToken);
             }

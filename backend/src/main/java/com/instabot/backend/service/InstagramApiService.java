@@ -382,6 +382,44 @@ public class InstagramApiService {
     }
 
     /**
+     * Generic Template (postback 버튼 포함) DM 발송 — 24h 창이 열린 상태에서 사용.
+     * <p>
+     * Quick Reply 는 칩/토스트 형태로 말풍선 밖에 표시되고 Instagram 이 message 이벤트로
+     * 전달하기 때문에 postback 핸들러를 태우려면 별도 처리가 필요함. 반면 generic_template +
+     * postback 버튼은 카드 안에 버튼이 박혀 UI 가 일관되고 클릭 시 postback 이벤트로 깔끔히
+     * 들어옴. 오프닝 DM UX 를 댓글 트리거 경로와 통일하려고 추가.
+     */
+    public JsonNode sendGenericTemplateWithPostback(String igUserId, String recipientId, String title,
+                                                     String buttonTitle, String buttonPayload,
+                                                     String accessToken) {
+        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messages";
+
+        Map<String, Object> body = Map.of(
+                "recipient", Map.of("id", recipientId),
+                "message", Map.of(
+                        "attachment", Map.of(
+                                "type", "template",
+                                "payload", Map.of(
+                                        "template_type", "generic",
+                                        "elements", List.of(Map.of(
+                                                "title", title,
+                                                "buttons", List.of(Map.of(
+                                                        "type", "postback",
+                                                        "title", buttonTitle,
+                                                        "payload", buttonPayload
+                                                ))
+                                        ))
+                                )
+                        )
+                )
+        );
+
+        log.info("Generic template (postback) 발송: igUserId={}, recipient={}, button={}",
+                igUserId, recipientId, buttonTitle);
+        return postToInstagram(url, body, accessToken);
+    }
+
+    /**
      * Generic Template (링크 버튼 포함) DM 발송
      */
     public JsonNode sendGenericTemplate(String igUserId, String recipientId, String title,

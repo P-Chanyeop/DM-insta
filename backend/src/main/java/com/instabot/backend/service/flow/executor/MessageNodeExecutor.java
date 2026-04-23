@@ -60,11 +60,13 @@ public class MessageNodeExecutor implements NodeExecutor {
 
         try {
             if (!buttonText.isBlank()) {
-                List<Map<String, String>> quickReplies = List.of(
-                        Map.of("title", buttonText, "payload", "OPENING_DM_CLICKED")
-                );
-                instagramApiService.sendQuickReplyMessage(
-                        ctx.getBotIgId(), ctx.getSenderIgId(), message, quickReplies, ctx.getAccessToken());
+                // Generic Template(카드 안 postback 버튼) 로 발송 — 댓글 트리거 경로와 UI 통일,
+                // 클릭 시 postback 이벤트로 깔끔히 들어옴.
+                instagramApiService.sendGenericTemplateWithPostback(
+                        ctx.getBotIgId(), ctx.getSenderIgId(), message,
+                        buttonText, "OPENING_DM_CLICKED", ctx.getAccessToken());
+                conversationService.saveOutboundMessage(
+                        ctx.getIgAccount().getUser(), ctx.getSenderIgId(), message, true, ctx.getFlow().getName());
                 // 버튼이 있으면 postback 대기
                 return NodeExecResult.await(PendingStep.AWAITING_POSTBACK);
             } else {
