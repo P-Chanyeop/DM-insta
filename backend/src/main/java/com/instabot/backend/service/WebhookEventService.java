@@ -296,13 +296,21 @@ public class WebhookEventService {
         if (keyword == null || keyword.isBlank()) return true; // 키워드 미설정 = 모든 매칭
 
         String lowerText = text.toLowerCase();
-        String lowerKeyword = keyword.toLowerCase();
 
-        return switch (automation.getMatchType()) {
-            case EXACT -> lowerText.equals(lowerKeyword);
-            case CONTAINS -> lowerText.contains(lowerKeyword);
-            case STARTS_WITH -> lowerText.startsWith(lowerKeyword);
-        };
+        // 콤마로 구분된 다중 키워드 지원 — 템플릿(예: "가격,얼마,구매") 시나리오에서 쓰임.
+        // 하나라도 매칭되면 성공.
+        String[] keywords = keyword.split(",");
+        for (String raw : keywords) {
+            String kw = raw.trim().toLowerCase();
+            if (kw.isEmpty()) continue;
+            boolean hit = switch (automation.getMatchType()) {
+                case EXACT -> lowerText.equals(kw);
+                case CONTAINS -> lowerText.contains(kw);
+                case STARTS_WITH -> lowerText.startsWith(kw);
+            };
+            if (hit) return true;
+        }
+        return false;
     }
 
     private void executeAutomationFlow(Automation automation, InstagramAccount igAccount,
