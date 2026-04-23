@@ -1004,6 +1004,84 @@
 .fb-live-toggle input:checked + .fb-toggle-slider::before { transform: translateX(20px); }
 .fb-live-toggle.small input:checked + .fb-toggle-slider::before { transform: translateX(18px); }
 
+/* ===== Wizard-style Builder Layout (Sequence / Broadcast) ===== */
+/* FlowBuilder 와 달리 React Flow 를 쓰지 않고 좌(설정) / 중(편집) / 우(미리보기)
+   3-column flex 레이아웃을 쓰는 빌더 공용 스타일.
+   .fb-body 가 없으면 자식 wizard 가 세로로 쌓여 UI 가 무너진다(과거 사고 이력). */
+.fb-body {
+  flex: 1; display: flex; overflow: hidden; min-height: 0;
+  background: #F1F5F9;
+}
+
+.fb-wizard {
+  flex: 1; display: flex; flex-direction: column;
+  overflow-y: auto; background: white;
+  border-right: 1px solid var(--gray-100, #F3F4F6);
+  min-width: 0;
+}
+.fb-wizard:last-child { border-right: none; }
+
+.fb-section { border-bottom: 1px solid var(--gray-100, #F3F4F6); }
+.fb-section:last-child { border-bottom: none; }
+
+.fb-section-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px; transition: background 0.15s;
+}
+.fb-section-header[role="button"],
+.fb-section-header:not([style*="default"]) { cursor: pointer; }
+.fb-section-header:hover { background: var(--gray-50, #F9FAFB); }
+
+.fb-section-num {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  background: var(--gray-100, #F3F4F6); color: var(--gray-700, #374151);
+  flex-shrink: 0;
+}
+
+.fb-section-info { flex: 1; min-width: 0; }
+.fb-section-info h3 {
+  margin: 0; font-size: 14px; font-weight: 700;
+  color: var(--gray-900, #111827);
+  display: flex; align-items: center; gap: 6px;
+}
+.fb-section-info p {
+  margin: 2px 0 0; font-size: 12px; color: var(--gray-500, #6B7280);
+}
+
+.fb-section-body { padding: 0 20px 20px 20px; }
+
+.fb-field { margin-bottom: 14px; }
+.fb-field:last-child { margin-bottom: 0; }
+.fb-field > label {
+  display: block; font-size: 12px; font-weight: 600;
+  color: var(--gray-700, #374151); margin-bottom: 6px;
+}
+
+.fb-input,
+.fb-textarea,
+.fb-select {
+  width: 100%; box-sizing: border-box;
+  padding: 9px 12px; font-size: 13px;
+  border: 1px solid var(--gray-200, #E5E7EB); border-radius: 8px;
+  background: white; color: var(--gray-900, #111827);
+  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+}
+.fb-input:focus,
+.fb-textarea:focus,
+.fb-select:focus {
+  border-color: var(--primary, #3B82F6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+.fb-textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+
+.fb-field-hint {
+  display: flex; align-items: center; gap: 4px;
+  margin-top: 6px; font-size: 11px; color: var(--gray-500, #6B7280);
+}
+
 /* ===== React Flow Canvas Layout ===== */
 .fb-canvas-layout {
   flex: 1; display: flex; overflow: hidden; position: relative;
