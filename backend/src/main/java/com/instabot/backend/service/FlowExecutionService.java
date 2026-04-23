@@ -110,11 +110,11 @@ public class FlowExecutionService {
                 trackNode(flow.getId(), "commentReply", NodeExecution.Action.COMPLETED, contactId);
             }
 
-            // 2. 오프닝 DM 발송
+            // 2. 오프닝 DM 발송 — 댓글 트리거면 commentId 전달해서 Private Reply 로 24시간 창 염.
             boolean hasOpeningDm = false;
             if (flowData.has("openingDm")) {
                 trackNode(flow.getId(), "openingDm", NodeExecution.Action.ENTERED, contactId);
-                hasOpeningDm = executeOpeningDm(flowData.get("openingDm"), botIgId, senderIgId, accessToken, contact, triggerText);
+                hasOpeningDm = executeOpeningDm(flowData.get("openingDm"), botIgId, senderIgId, accessToken, contact, triggerText, commentId);
                 if (hasOpeningDm) {
                     trackNode(flow.getId(), "openingDm", NodeExecution.Action.COMPLETED, contactId);
                 }
@@ -614,7 +614,8 @@ public class FlowExecutionService {
      * @return 오프닝DM이 실제로 발송되었으면 true
      */
     private boolean executeOpeningDm(JsonNode openingDmNode, String botIgId, String recipientId,
-                                      String accessToken, Contact contact, String triggerKeyword) {
+                                      String accessToken, Contact contact, String triggerKeyword,
+                                      String commentId) {
         if (!openingDmNode.path("enabled").asBoolean(false)) return false;
 
         String message = replaceVariables(openingDmNode.path("message").asText(""), contact, triggerKeyword);
@@ -623,7 +624,20 @@ public class FlowExecutionService {
         if (message.isBlank()) return false;
 
         try {
-            if (!buttonText.isBlank()) {
+            // 댓글 트리거 → Private Reply 로 첫 DM 전송 (24시간 창 오픈).
+            // Private Reply 는 quick_reply 를 지원하지 않으므로 텍스트로만 보냄 — 버튼이 필요하면
+            // 바로 뒤에 일반 quick_reply 메시지를 한 번 더 보내서 창이 열린 직후 버튼을 붙인다.
+            if (commentId != null && !commentId.isBlank()) {
+                instagramApiService.sendPrivateReplyToComment(botIgId, commentId, message, accessToken);
+
+                if (!buttonText.isBlank()) {
+                    List<Map<String, String>> quickReplies = List.of(
+                            Map.of("title", buttonText, "payload", "OPENING_DM_CLICKED")
+                    );
+                    // 창이 막 열렸으므로 일반 DM 으로 버튼 메시지 추가 발송
+                    instagramApiService.sendQuickReplyMessage(botIgId, recipientId, buttonText, quickReplies, accessToken);
+                }
+            } else if (!buttonText.isBlank()) {
                 List<Map<String, String>> quickReplies = List.of(
                         Map.of("title", buttonText, "payload", "OPENING_DM_CLICKED")
                 );
@@ -631,7 +645,8 @@ public class FlowExecutionService {
             } else {
                 instagramApiService.sendTextMessage(botIgId, recipientId, message, accessToken);
             }
-            log.debug("오프닝 DM 발송 완료: recipient={}", recipientId);
+            log.info("오프닝 DM 발송 완료: recipient={}, privateReply={}",
+                    recipientId, commentId != null && !commentId.isBlank());
             return true;
         } catch (Exception e) {
             log.error("오프닝 DM 발송 실패: {}", e.getMessage());

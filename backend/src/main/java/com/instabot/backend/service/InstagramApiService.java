@@ -291,6 +291,30 @@ public class InstagramApiService {
     }
 
     /**
+     * Private Reply — 댓글에 대한 DM 응답.
+     * 사용자가 먼저 DM 을 보내지 않았어도 댓글 ID 를 통해 DM 을 보낼 수 있게 해줌.
+     * (Instagram 의 "24시간 메시징 창" 제한 우회 — 이 호출로 창이 열림)
+     * <p>
+     * 한 댓글당 1회만 허용. 이후 같은 사용자에겐 일반 sendTextMessage 로 24시간 내 자유 발신 가능.
+     *
+     * @param igUserId    봇 IG 계정 ID
+     * @param commentId   답장할 댓글 ID (webhook 으로 받은 값)
+     * @param text        보낼 메시지
+     * @param accessToken 페이지 액세스 토큰
+     */
+    public JsonNode sendPrivateReplyToComment(String igUserId, String commentId, String text, String accessToken) {
+        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messages";
+
+        Map<String, Object> body = Map.of(
+                "recipient", Map.of("comment_id", commentId),
+                "message", Map.of("text", text)
+        );
+
+        log.info("Private reply 발송: igUserId={}, commentId={}", igUserId, commentId);
+        return postToInstagram(url, body, accessToken);
+    }
+
+    /**
      * Quick Reply (버튼) DM 발송
      */
     public JsonNode sendQuickReplyMessage(String igUserId, String recipientId, String text,
