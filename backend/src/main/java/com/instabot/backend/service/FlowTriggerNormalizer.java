@@ -35,8 +35,19 @@ public class FlowTriggerNormalizer {
     private final InstagramAccountRepository instagramAccountRepository;
 
     /**
-     * flowData JSON 을 받아 정규화된 JSON 을 반환. 손댈 게 없으면 원본 그대로 반환.
-     * null/빈 값/v1 구조는 통과.
+     * flowData JSON 을 받아 정규화된 JSON 을 반환.
+     * <p>
+     * v2 구조의 type==trigger 노드를 훑어 COMMENT + postTarget=="specific" + specificPostUrl 이
+     * 모두 설정된 경우 Graph API 로 URL 을 숫자 media id 로 해석해 {@code data.postId} 에 기록.
+     * postTarget 이 "any" 로 돌아가면 이전 postId 흔적 제거. 손댈 게 없으면 원본 문자열 그대로 반환.
+     * <p>
+     * null / 빈 문자열 / v1 구조는 정규화 없이 통과 (v1 은 legacy, 이미 사용되지 않음).
+     *
+     * @param flowDataJson React-Flow 가 직렬화한 노드/엣지 JSON. null/blank 허용.
+     * @param userId       저장 주체 — 활성 Instagram 계정 조회에 사용 (로그인된 유저 id).
+     * @return 정규화된 JSON 문자열. mutate 가 없거나 v1/null 인 경우 입력 그대로 반환 (non-null 입력 → non-null 반환).
+     * @throws BadRequestException postTarget=="specific" 인데 URL 이 비었거나,
+     *                             활성 Instagram 계정이 없거나, URL 이 연결 계정의 게시물과 매칭되지 않을 때.
      */
     public String normalize(String flowDataJson, Long userId) {
         if (flowDataJson == null || flowDataJson.isBlank()) return flowDataJson;
