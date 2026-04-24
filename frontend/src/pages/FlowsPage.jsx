@@ -135,7 +135,10 @@ export default function FlowsPage() {
     return result
   }, [flows, activeTab, search, triggerFilter, sortBy])
 
-  const canDragReorder = sortBy === '우선순위'
+  // 드래그 리오더는 어떤 정렬 모드에서도 허용.
+  // 단, 정렬이 '우선순위' 가 아니면 리오더 직후 '우선순위' 로 자동 전환해
+  // 사용자가 바꾼 순서가 즉시 눈에 보이게 함 (시간/이름 정렬은 priority 를 무시하므로).
+  const canDragReorder = true
 
   const handleCreate = () => {
     if (isAtLimit('flows')) {
@@ -278,6 +281,8 @@ export default function FlowsPage() {
       return idx >= 0 ? { ...f, priority: idx } : f
     }))
     setDragId(null)
+    // 시간/이름 정렬 중이면 바뀐 순서가 안 보이므로 '우선순위' 로 전환
+    if (sortBy !== '우선순위') setSortBy('우선순위')
 
     try {
       await flowService.reorder(next.map(f => f.id))
