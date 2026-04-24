@@ -55,7 +55,8 @@ function mapConversation(conv) {
     bg: conv.avatarGradient || 'linear-gradient(135deg, #667eea, #764ba2)',
     initial: (displayName || '?').charAt(0),
     badge: conv.automationType === 'auto' ? 'auto' : null,
-    status: conv.status || 'open',
+    // 백엔드 ConversationStatus enum 은 대문자(OPEN/CLOSED/SNOOZED) — 프론트도 대문자로 통일.
+    status: (conv.status || 'OPEN').toString().toUpperCase(),
     unread: conv.unreadCount || 0,
     tags: conv.tags || [],
     memo: conv.memo || '',
@@ -740,14 +741,15 @@ export default function LiveChatPage() {
 
   const handleStatusToggle = async () => {
     if (!selectedChat) return
-    const newStatus = selectedChat.status === 'open' ? 'done' : 'open'
+    // 백엔드 enum 에 맞춰 대문자 OPEN/CLOSED 사용.
+    const newStatus = selectedChat.status === 'OPEN' ? 'CLOSED' : 'OPEN'
     updateChat(selectedId, (c) => ({ ...c, status: newStatus }))
 
     try {
       await conversationService.update(selectedId, { status: newStatus })
     } catch (err) {
       console.error('상태 변경 실패:', err)
-      updateChat(selectedId, (c) => ({ ...c, status: c.status === 'open' ? 'done' : 'open' }))
+      updateChat(selectedId, (c) => ({ ...c, status: c.status === 'OPEN' ? 'CLOSED' : 'OPEN' }))
     }
   }
 
@@ -768,12 +770,12 @@ export default function LiveChatPage() {
       || (c.username && c.username.toLowerCase().includes(q))
     const matchesFilter =
       activeFilter === '전체' ||
-      (activeFilter === '열림' && c.status === 'open') ||
-      (activeFilter === '완료' && c.status === 'done')
+      (activeFilter === '열림' && c.status === 'OPEN') ||
+      (activeFilter === '완료' && c.status === 'CLOSED')
     return matchesSearch && matchesFilter
   })
 
-  const openCount = chats.filter((c) => c.status === 'open').length
+  const openCount = chats.filter((c) => c.status === 'OPEN').length
 
   // Tag suggestions (excluding already assigned tags)
   const tagSuggestions = PRESET_TAGS.filter(
@@ -867,13 +869,22 @@ export default function LiveChatPage() {
                 </div>
                 <p>{
                   // SYSTEM 메시지(배정/자동화 알림)는 프리뷰에서 제외 — 마지막 실제 대화를 보여줘야 함.
-                  // 로컬 messages 에 비-SYSTEM 이 있으면 그걸, 없으면 서버가 DB 에 유지해둔 c.lastMessage 사용.
+                  // 이미지 메시지는 URL 이 그대로 노출되지 않도록 "[이미지 전송]" 라벨로 치환.
+                  // 과거 DB 에 저장된 raw URL(http..) 도 동일 규칙으로 감춤.
                   (() => {
+                    const asImageOrText = (m) => {
+                      if (m.isImage || m.mediaUrl) return '[이미지 전송]'
+                      const t = (m.text || '').trim()
+                      if (/^https?:\/\//i.test(t)) return '[이미지 전송]'
+                      return t
+                    }
                     for (let i = c.messages.length - 1; i >= 0; i--) {
                       const m = c.messages[i]
-                      if (m && m.type !== 'system') return m.text || ''
+                      if (m && m.type !== 'system') return asImageOrText(m)
                     }
-                    return c.lastMessage || ''
+                    const lm = (c.lastMessage || '').trim()
+                    if (/^https?:\/\//i.test(lm)) return '[이미지 전송]'
+                    return lm
                   })()
                 }</p>
               </div>
@@ -1223,11 +1234,12 @@ export default function LiveChatPage() {
               <div className="info-row">
                 <label>상태</label>
                 <span
-                  className={`status-badge ${selectedChat.status === 'open' ? 'active' : ''}`}
+                  className={`status-badge ${selectedChat.status === 'OPEN' ? 'active' : ''}`}
                   style={{ cursor: 'pointer' }}
                   onClick={handleStatusToggle}
+                  title="클릭해서 열림↔완료 전환"
                 >
-                  {selectedChat.status === 'open' ? '열림' : '완료'}
+                  {selectedChat.status === 'OPEN' ? '열림 (클릭: 완료)' : '완료 (클릭: 열림)'}
                 </span>
               </div>
             </div>
