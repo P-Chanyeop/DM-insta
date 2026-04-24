@@ -206,4 +206,6 @@ export const conversationService = {
       cardButtonText: buttonText, cardButtonUrl: buttonUrl,
     }),
   update: (id, data) => api.patch(`/conversations/${id}`, data),
+  // 대화 내 수신(INBOUND) 메시지 일괄 읽음 처리 — 사이드바 뱃지/unread 카운트를 DB에 반영.
+  markAsRead: (id) => api.post(`/conversations/${id}/read`),
 }

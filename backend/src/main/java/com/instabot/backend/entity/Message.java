@@ -56,6 +56,6 @@ public class Message {
     @Builder.Default
     private LocalDateTime sentAt = LocalDateTime.now();
 
-    public enum Direction { INBOUND, OUTBOUND }
-    public enum MessageType { TEXT, IMAGE, CARD, BUTTON, QUICK_REPLY }
+    public enum Direction { INBOUND, OUTBOUND, SYSTEM }
+    public enum MessageType { TEXT, IMAGE, CARD, BUTTON, QUICK_REPLY, SYSTEM }
 }

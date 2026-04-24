@@ -69,8 +69,9 @@ function mapConversation(conv) {
 // Map backend message object to the shape used by the UI
 function mapMessage(msg) {
   const msgType = (msg.type || '').toUpperCase()
-  // 백엔드 direction은 대문자 enum (INBOUND/OUTBOUND) — 소문자 비교 시 안 매칭됨
+  // 백엔드 direction은 대문자 enum (INBOUND/OUTBOUND/SYSTEM) — 소문자 비교 시 안 매칭됨
   const dir = (msg.direction || '').toUpperCase()
+  const isSystem = dir === 'SYSTEM' || msgType === 'SYSTEM'
   const isSent = dir === 'OUTBOUND'
   const timeStr = msg.sentAt ? formatTime(msg.sentAt) : (msg.time || '')
   // 발신 메시지 + 읽음 = "시간 · 읽음" 표시 (Instagram DM 스타일)
@@ -79,7 +80,7 @@ function mapMessage(msg) {
     : timeStr
   return {
     id: msg.id,
-    type: isSent ? 'sent' : dir === 'INBOUND' ? 'received' : (msg.type || 'received'),
+    type: isSystem ? 'system' : isSent ? 'sent' : dir === 'INBOUND' ? 'received' : (msg.type || 'received'),
     text: msg.content || msg.text || '',
     time: readLabel,
     auto: msg.auto || msg.isAutomated || msg.automated || false,
@@ -262,6 +263,11 @@ export default function LiveChatPage() {
         try {
           const payload = JSON.parse(frame.body)
           const newMsg = mapMessage(payload)
+          // 현재 보고 있는 대화에 INBOUND 가 도착하면 즉시 서버에 읽음 처리 요청
+          // — 새로고침 후에도 unread 카운트가 튀지 않도록 DB 상태 반영.
+          if (newMsg.type === 'received') {
+            conversationService.markAsRead(selectedId).catch(() => {})
+          }
           setChats((prev) =>
             prev.map((c) => {
               if (c.id !== selectedId) return c
@@ -678,11 +684,8 @@ export default function LiveChatPage() {
     const prevAssignee = selectedChat?.assignee
     updateChat(selectedId, { assignee: member.name })
     setShowAssignDropdown(false)
-    addMessage(selectedId, {
-      type: 'system',
-      text: `대화가 ${member.name} (${member.role})에게 배정되었습니다.`,
-      time: now(),
-    })
+    // 시스템 메시지는 서버가 저장 후 WebSocket(/topic/messages/{id})으로 푸시함.
+    // 로컬에서 addMessage 하면 WS 수신 시 중복이 생기므로 여기서는 찍지 않는다.
 
     try {
       await conversationService.update(selectedId, { assignedTo: member.name })
@@ -696,14 +699,10 @@ export default function LiveChatPage() {
     const prevAssignee = selectedChat?.assignee
     updateChat(selectedId, { assignee: null })
     setShowAssignDropdown(false)
-    addMessage(selectedId, {
-      type: 'system',
-      text: '대화 배정이 해제되었습니다.',
-      time: now(),
-    })
 
     try {
-      await conversationService.update(selectedId, { assignedTo: null })
+      // 서버는 null 을 "필드 변경 없음" 으로 해석하므로 "" 로 보내 해제를 의도적으로 지시.
+      await conversationService.update(selectedId, { assignedTo: '' })
     } catch (err) {
       console.error('배정 해제 실패:', err)
       updateChat(selectedId, { assignee: prevAssignee })

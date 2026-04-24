@@ -12,6 +12,7 @@ import com.instabot.backend.service.InstagramApiService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,6 +30,7 @@ public class ConversationController {
     private final ConversationService conversationService;
     private final InstagramApiService instagramApiService;
     private final com.instabot.backend.service.BillingService billingService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
      * 대화 목록 조회 (선택적 status 필터)
@@ -162,15 +164,66 @@ public class ConversationController {
         if (request.getStatus() != null) {
             conversation.setStatus(request.getStatus());
         }
+        // 배정 변경 감지 — 이전 값과 달라졌을 때만 SYSTEM 메시지를 남긴다.
+        // `getAssignedTo()` 필드가 request 에 포함됐는지 판별하기 위해
+        //   ・null 이면 "해제 요청" (빈 문자열도 해제로 간주)
+        //   ・빈 문자열이 아니면 "배정 요청"
+        // UpdateRequest 에 null 이면 "필드 변경 없음"으로 해석하고 싶지만
+        // 현재 DTO가 null 과 "해제" 를 구분하지 못하므로, assignedTo 필드가 요청 body 에
+        // 명시적으로 들어있는지 알 수 없다 → 기존 코드와 동일하게 null == 변경없음 으로 둔다.
         if (request.getAssignedTo() != null) {
-            conversation.setAssignedTo(request.getAssignedTo());
+            String newAssignee = request.getAssignedTo().isBlank() ? null : request.getAssignedTo();
+            String oldAssignee = conversation.getAssignedTo();
+            boolean changed = !java.util.Objects.equals(oldAssignee, newAssignee);
+            conversation.setAssignedTo(newAssignee);
+            if (changed) {
+                String systemText = (newAssignee == null || newAssignee.isBlank())
+                        ? "대화 배정이 해제되었습니다."
+                        : "대화가 " + newAssignee + "에게 배정되었습니다.";
+                saveSystemMessage(conversation, systemText);
+            }
         }
         if (request.getAutomationPaused() != null) {
-            conversation.setAutomationPaused(request.getAutomationPaused());
+            boolean oldPaused = conversation.isAutomationPaused();
+            boolean newPaused = request.getAutomationPaused();
+            conversation.setAutomationPaused(newPaused);
+            if (oldPaused != newPaused) {
+                saveSystemMessage(conversation, newPaused
+                        ? "자동화가 일시정지되었습니다."
+                        : "자동화가 재개되었습니다.");
+            }
         }
 
         conversationRepository.save(conversation);
         return ResponseEntity.ok(toResponse(conversation));
+    }
+
+    /**
+     * SYSTEM 메시지 저장 + WebSocket 푸시 — 배정/해제, 자동화 on/off 등 대화 히스토리에 남길 이벤트용.
+     * direction=SYSTEM, type=SYSTEM 으로 저장해서 프론트는 별도 스타일(가운데 정렬)로 렌더.
+     */
+    private void saveSystemMessage(Conversation conversation, String text) {
+        Message saved = messageRepository.save(Message.builder()
+                .conversation(conversation)
+                .direction(Message.Direction.SYSTEM)
+                .type(Message.MessageType.SYSTEM)
+                .content(text)
+                .build());
+        try {
+            messagingTemplate.convertAndSend(
+                    "/topic/messages/" + conversation.getId(),
+                    Map.of(
+                            "id", saved.getId(),
+                            "direction", saved.getDirection().name(),
+                            "type", saved.getType().name(),
+                            "content", saved.getContent() != null ? saved.getContent() : "",
+                            "automated", false,
+                            "sentAt", saved.getSentAt().toString()
+                    )
+            );
+        } catch (Exception ignore) {
+            // WebSocket 실패는 치명적이지 않음 — DB 에는 이미 남아있으므로 새로고침 시 복원됨
+        }
     }
 
     /**
