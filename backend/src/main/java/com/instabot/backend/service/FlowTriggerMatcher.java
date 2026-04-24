@@ -50,8 +50,12 @@ public class FlowTriggerMatcher {
             String targetPostId = triggerData.path("postId").asText("");
             if (!"any".equalsIgnoreCase(postTarget) && !targetPostId.isBlank()
                     && !targetPostId.equals(postId)) {
+                log.info("COMMENT post 필터 불일치 — flowId={}, flow.postId={}, webhook.mediaId={}",
+                        flow.getId(), targetPostId, postId);
                 return false;
             }
+            log.info("COMMENT post 필터 매칭 — flowId={}, postTarget={}, targetPostId={}, webhook.mediaId={}",
+                    flow.getId(), postTarget, targetPostId, postId);
         }
 
         String matchMode = triggerData.path("keywordMatch").asText("CONTAINS").toUpperCase();

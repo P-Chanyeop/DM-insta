@@ -241,6 +241,9 @@ public class WebhookEventService {
 
         if (senderId.equals(igAccount.getIgUserId())) return; // 자기 댓글 무시
 
+        log.info("댓글 웹훅 수신 — commentId={}, senderId={}, mediaId={}, text={}",
+                commentId, senderId, mediaId, text);
+
         integrationService.forwardWebhookEvent(user.getId(), "comment_received",
                 Map.of("commentId", commentId, "senderIgId", senderId, "text", text, "mediaId", mediaId));
 
