@@ -33,6 +33,14 @@ public class Flow {
     @Builder.Default
     private boolean active = false;
 
+    /**
+     * 같은 triggerType 내 실행 우선순위. 낮을수록 먼저 매칭 (ASC).
+     * shadowing(더 구체적인 플로우가 일반 플로우에 가려짐) 을 유저가 수동 해결하도록 노출.
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer priority = 0;
+
     private Long sentCount;
     private Double openRate;
 

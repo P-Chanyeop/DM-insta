@@ -39,6 +39,9 @@ export const flowService = {
   update: (id, data) => api.put(`/flows/${id}`, data),
   toggle: (id) => api.patch(`/flows/${id}/toggle`),
   delete: (id) => api.delete(`/flows/${id}`),
+  conflicts: (id) => api.get(`/flows/${id}/conflicts`),
+  allConflicts: () => api.get('/flows/conflicts'),
+  reorder: (orderedIds) => api.patch('/flows/reorder', { orderedIds }),
 }
 
 export const automationService = {

@@ -30,6 +30,7 @@ import {
 } from '../components/flow-builder/flowSerializer'
 import { interpolateVariables, hasVariables } from '../components/flow-builder/VariableInserter'
 import OnboardingTour from '../components/OnboardingTour'
+import { useConfirm } from '../components/ConfirmDialog'
 
 /* ──────────────────────────────────────────────────────
  *  ManyChat-style 비주얼 플로우 빌더
@@ -44,6 +45,7 @@ export default function FlowBuilderPage() {
   const location = useLocation()
   const { id: urlFlowId } = useParams()
   const { activeAccount } = useAccount()
+  const confirmDialog = useConfirm()
   const reactFlowWrapper = useRef(null)
   const tourRef = useRef(null)
   const [reactFlowInstance, setReactFlowInstance] = useState(null)
@@ -199,29 +201,89 @@ export default function FlowBuilderPage() {
       }
 
       const flowData = graphToFlowData(nodes, edges)
-      const payload = {
+      // 1단계: 항상 비활성 상태로 먼저 저장 — 저장된 flowData 기준으로 충돌을 정확히 검사하기 위함.
+      // 활성화는 저장 후 프리플라이트 통과 시점에 별도로 toggle 한다.
+      const basePayload = {
         name: flowName,
         triggerType: extractTriggerType(flowData),
         flowData: JSON.stringify(flowData),
-        active: isLive,
+        active: false,
         status: isLive ? 'PUBLISHED' : 'DRAFT',
       }
 
-      if (currentFlowId) {
-        await flowService.update(currentFlowId, payload)
+      let flowId = currentFlowId
+      if (flowId) {
+        await flowService.update(flowId, basePayload)
       } else {
-        const created = await flowService.create(payload)
+        const created = await flowService.create(basePayload)
         refreshNavCount('flows', +1)
         if (created?.id) {
+          flowId = created.id
           setCurrentFlowId(created.id)
           navigate(`/app/flows/builder/${created.id}`, { replace: true })
         }
       }
+
+      // 2단계: 유저가 활성 전환을 요청했으면 충돌 프리플라이트 후 toggle
+      if (isLive && flowId) {
+        const activated = await activateWithConflictCheck(flowId)
+        if (!activated) {
+          setIsLive(false) // 활성화 실패/취소 — 토글 UI 상태도 OFF 로 되돌림
+        }
+      }
+
       setSavedAt(new Date())
     } catch (err) {
       setError(err.message || '저장 실패')
     } finally {
       setSaving(false)
+    }
+  }
+
+  /**
+   * 저장 직후 활성화 시도. HARD_BLOCK 은 차단, WARN 은 확인 모달.
+   * @returns {Promise<boolean>} 실제로 활성화 됐는지
+   */
+  const activateWithConflictCheck = async (flowId) => {
+    let conflicts = []
+    try {
+      conflicts = await flowService.conflicts(flowId)
+    } catch {
+      // 네트워크 실패 — 그냥 백엔드 가드를 신뢰하고 toggle 진행
+    }
+
+    const hard = (conflicts || []).filter((c) => c.severity === 'HARD_BLOCK')
+    if (hard.length > 0) {
+      await confirmDialog({
+        title: '활성화할 수 없습니다',
+        message: hard.map((c) => c.reason).join('\n'),
+        confirmText: '확인',
+        cancelText: null,
+        variant: 'danger',
+        icon: 'ri-forbid-line',
+      })
+      return false
+    }
+
+    const warns = (conflicts || []).filter((c) => c.severity === 'WARN')
+    if (warns.length > 0) {
+      const proceed = await confirmDialog({
+        title: '충돌 가능한 플로우가 있습니다',
+        message: warns.map((c) => c.reason).join('\n') + '\n\n계속 활성화하시겠습니까?',
+        confirmText: '계속 활성화',
+        cancelText: '취소',
+        variant: 'warning',
+        icon: 'ri-alert-line',
+      })
+      if (!proceed) return false
+    }
+
+    try {
+      await flowService.toggle(flowId)
+      return true
+    } catch (err) {
+      setError(err.message || '활성화 실패')
+      return false
     }
   }
 

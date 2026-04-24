@@ -471,7 +471,7 @@ public class WebhookEventService {
                                      Flow.TriggerType triggerType, Set<Long> skipFlowIds,
                                      String postId) {
         List<Flow> flows = flowRepository
-                .findByUserIdAndActiveTrueAndTriggerTypeOrderByCreatedAtAsc(user.getId(), triggerType);
+                .findByUserIdAndActiveTrueAndTriggerTypeOrderByPriorityAscCreatedAtAsc(user.getId(), triggerType);
 
         for (Flow flow : flows) {
             if (skipFlowIds.contains(flow.getId())) continue; // Automation 경로에서 처리됨

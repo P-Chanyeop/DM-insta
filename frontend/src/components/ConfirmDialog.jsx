@@ -27,8 +27,9 @@ export function ConfirmProvider({ children }) {
         title: options.title || '확인',
         message: options.message || '계속 진행하시겠습니까?',
         confirmText: options.confirmText || '확인',
-        cancelText: options.cancelText || '취소',
-        variant: options.variant || 'default', // 'default' | 'danger'
+        // null 이면 취소 버튼 숨김 — "확인만 누를 수 있는" 알림형 모달에 사용 (e.g. HARD_BLOCK).
+        cancelText: options.cancelText === null ? null : (options.cancelText || '취소'),
+        variant: options.variant || 'default', // 'default' | 'danger' | 'warning'
         icon: options.icon || null,
       })
     })
@@ -68,7 +69,9 @@ export function ConfirmProvider({ children }) {
             <h3 className="confirm-title">{dialog.title}</h3>
             <p className="confirm-message">{dialog.message}</p>
             <div className="confirm-actions">
-              <button className="btn-secondary" onClick={handleCancel}>{dialog.cancelText}</button>
+              {dialog.cancelText && (
+                <button className="btn-secondary" onClick={handleCancel}>{dialog.cancelText}</button>
+              )}
               <button
                 className={dialog.variant === 'danger' ? 'btn-danger' : 'btn-primary'}
                 onClick={handleConfirm}
