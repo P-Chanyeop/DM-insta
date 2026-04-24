@@ -48,7 +48,7 @@ function mapConversation(conv) {
     name: displayName,
     username,
     profilePictureUrl: profilePic,
-    time: conv.lastMessageTime || conv.lastMessageAt || '',
+    time: formatListTime(conv.lastMessageTime || conv.lastMessageAt),
     // 서버가 DB에 유지하는 마지막 실제 메시지 프리뷰 — 대화를 선택하지 않아도 목록에 표시할 수 있게 매핑.
     // SYSTEM 메시지는 서버가 lastMessage 에 반영하지 않으므로 "초기화" 현상도 함께 해결됨.
     lastMessage: conv.lastMessage || '',
@@ -99,6 +99,25 @@ function formatTime(isoString) {
   const h = d.getHours()
   const m = String(d.getMinutes()).padStart(2, '0')
   return `${h >= 12 ? '오후' : '오전'} ${h > 12 ? h - 12 : h}:${m}`
+}
+
+// 대화 목록 사이드바용 짧은 시간 — 오늘이면 "오후 3:12", 어제면 "어제", 이번주면 "3일 전", 그 외 "4/23".
+// 백엔드 LocalDateTime 은 ISO 문자열(`2026-04-23T23:02:21`)로 오므로 반드시 포맷 후 표시.
+function formatListTime(value) {
+  if (!value) return ''
+  // 이미 "방금"/"오후 3:12" 같이 포맷된 문자열은 그대로 통과
+  if (typeof value === 'string' && !value.includes('T')) return value
+  try {
+    const d = new Date(value)
+    if (isNaN(d.getTime())) return ''
+    const now = new Date()
+    const sameDay = d.toDateString() === now.toDateString()
+    if (sameDay) return formatTime(value)
+    const diffDays = Math.floor((now.setHours(0,0,0,0) - new Date(d).setHours(0,0,0,0)) / (1000 * 60 * 60 * 24))
+    if (diffDays === 1) return '어제'
+    if (diffDays > 1 && diffDays < 7) return `${diffDays}일 전`
+    return `${d.getMonth() + 1}/${d.getDate()}`
+  } catch { return '' }
 }
 
 export default function LiveChatPage() {
@@ -913,7 +932,10 @@ export default function LiveChatPage() {
             <button
               className={`btn-secondary small${selectedChat?.automationPaused ? ' paused' : ''}`}
               onClick={handleToggleAutomation}
-              style={selectedChat?.automationPaused ? { background: '#fff3cd', borderColor: '#ffc107', color: '#856404' } : {}}
+              title={selectedChat?.automationPaused ? '자동화를 다시 켜면 이 대화에 자동 DM 응답이 재개됩니다' : '이 대화의 자동 DM 응답을 24시간 일시정지합니다'}
+              style={selectedChat?.automationPaused
+                ? { background: '#fee2e2', borderColor: '#dc2626', color: '#991b1b', fontWeight: 600 }
+                : {}}
             >
               <i className={selectedChat?.automationPaused ? 'ri-play-circle-line' : 'ri-robot-2-line'} />
               {selectedChat?.automationPaused
@@ -1088,7 +1110,7 @@ export default function LiveChatPage() {
               <i className="ri-image-line" />
             </button>
             <button className="icon-btn" title="카드" onClick={handleSendCard}>
-              <i className="ri-layout-cards-line" />
+              <i className="ri-article-line" />
             </button>
             <button
               className={`icon-btn${showQuickReplies ? ' active' : ''}`}
@@ -1271,7 +1293,7 @@ export default function LiveChatPage() {
 
       {/* 자동화 일시정지 안내 모달 — 세션당 1회 */}
       {showAutomationNotice && (
-        <div className="modal-overlay" onClick={handleCloseAutomationNotice}>
+        <div className="modal-overlay active" onClick={handleCloseAutomationNotice}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
             <div className="modal-header">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#dc2626' }}>
@@ -1306,7 +1328,7 @@ export default function LiveChatPage() {
 
       {/* 카드 전송 모달 */}
       {showCardModal && (
-        <div className="modal-overlay" onClick={() => setShowCardModal(false)}>
+        <div className="modal-overlay active" onClick={() => setShowCardModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
             <div className="modal-header">
               <h3>카드 메시지 전송</h3>

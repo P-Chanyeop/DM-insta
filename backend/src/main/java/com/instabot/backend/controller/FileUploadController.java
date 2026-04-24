@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -32,9 +33,6 @@ public class FileUploadController {
     @Value("${app.upload-dir:uploads}")
     private String uploadDir;
 
-    @Value("${app.base-url:}")
-    private String baseUrl;
-
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
         Long userId = SecurityUtils.currentUserId();
@@ -48,12 +46,12 @@ public class FileUploadController {
         }
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_TYPES.contains(contentType)) {
-            return ResponseEntity.badRequest().body(Map.of("error", "JPG, PNG, GIF, WebP 이미지만 업로드 가능합니다."));
+            return ResponseEntity.badRequest().body(Map.of("error", "JPG, PNG, GIF, WebP 이미지만 업로드 가능합니다. (전달 타입: " + contentType + ")"));
         }
 
         try {
-            // 저장 디렉토리 생성
-            Path uploadPath = Paths.get(uploadDir);
+            // 저장 디렉토리 생성 — 절대경로로 해석해 CWD 이슈를 줄임.
+            Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
             if (!Files.exists(uploadPath)) {
                 Files.createDirectories(uploadPath);
             }
@@ -65,10 +63,16 @@ public class FileUploadController {
 
             // 저장
             file.transferTo(filePath.toFile());
-            log.info("파일 업로드 완료: userId={}, file={}, size={}KB", userId, filename, file.getSize() / 1024);
+            log.info("파일 업로드 완료: userId={}, file={}, size={}KB, path={}",
+                    userId, filename, file.getSize() / 1024, filePath);
 
-            // 공개 URL 반환
-            String url = (baseUrl.isBlank() ? "" : baseUrl) + "/uploads/" + filename;
+            // 공개 URL — 현재 요청 호스트(백엔드:8080)를 기반으로 URL 생성.
+            // application.yml 의 app.base-url 은 프론트 주소(:5173) 이므로 여기서 쓰면 안 됨 —
+            // 업로드 파일은 WebMvcConfig 의 /uploads/** 핸들러(백엔드가 직접 서빙)를 통해 내려감.
+            String url = ServletUriComponentsBuilder.fromCurrentContextPath()
+                    .path("/uploads/")
+                    .path(filename)
+                    .toUriString();
 
             return ResponseEntity.ok(Map.of(
                     "url", url,
@@ -76,8 +80,14 @@ public class FileUploadController {
                     "size", file.getSize()
             ));
         } catch (IOException e) {
-            log.error("파일 업로드 실패: {}", e.getMessage());
-            return ResponseEntity.internalServerError().body(Map.of("error", "파일 업로드에 실패했습니다."));
+            // 실제 원인을 프론트에도 전달 — "권한 없음 / 디스크 풀 / 잘못된 경로" 등 구분 가능.
+            log.error("파일 업로드 실패: userId={}, msg={}", userId, e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "파일 업로드에 실패했습니다: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("파일 업로드 예외: userId={}, msg={}", userId, e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "파일 업로드 중 예외가 발생했습니다: " + e.getMessage()));
         }
     }
 

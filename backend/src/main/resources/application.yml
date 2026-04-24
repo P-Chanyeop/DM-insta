@@ -8,6 +8,11 @@ spring:
   flyway:
     enabled: false
 
+  # 모든 LocalDateTime/Instant 직렬화 타임존을 KST 로 고정 —
+  # 프론트 new Date(isoString) 파싱 결과가 서버·사용자 시간대와 일치하도록.
+  jackson:
+    time-zone: Asia/Seoul
+
   # Email (Gmail SMTP)
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}

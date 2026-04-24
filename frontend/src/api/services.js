@@ -61,6 +61,8 @@ export const contactService = {
   update: (id, data) => api.patch(`/contacts/${id}`, data),
   deleteBulk: (ids) => api.post('/contacts/bulk-delete', ids),
   import: (contacts) => api.post('/contacts/import', contacts),
+  // Instagram Graph API 로 이름·프로필 사진 재조회 — LiveChatPage 의 새로고침 아이콘 버튼에서 호출.
+  refreshProfile: (id) => api.post(`/contacts/${id}/refresh-profile`),
 }
 
 export const broadcastService = {

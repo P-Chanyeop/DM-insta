@@ -334,7 +334,7 @@ function FlowDetailModal({ flow, onClose }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay active" onClick={onClose}>
       <div className="modal flow-detail-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h3><i className="ri-flow-chart" /> 플로우 상세</h3>

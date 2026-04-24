@@ -107,8 +107,10 @@ export async function uploadFile(file) {
     body: formData,
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: '업로드 실패' }))
-    throw new Error(err.error || '파일 업로드에 실패했습니다.')
+    // 서버가 {error}, {message} 어떤 키로 실패 이유를 내려도 같이 보여줌 — 디버깅 용.
+    const err = await res.json().catch(() => ({}))
+    const reason = err.error || err.message || `HTTP ${res.status}`
+    throw new Error(`파일 업로드에 실패했습니다. (${reason})`)
   }
   return res.json()
 }
