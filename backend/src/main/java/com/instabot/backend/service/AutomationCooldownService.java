@@ -1,6 +1,7 @@
 package com.instabot.backend.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -16,13 +17,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * 기본 30초. 인스턴스 메모리에만 저장되므로 서버 재시작 시 초기화됨(큰 문제는 아님 — 쿨다운 목적상).
  * 멀티 인스턴스 환경이라면 추후 Redis 로 이전.
  *
- * 만료된 엔트리는 tryTrigger 호출 시 자연스럽게 청소됨 (lazy eviction).
+ * 맵 메모리 관리:
+ *  - tryTrigger 가 통과할 때 해당 키는 자연스럽게 새 시각으로 갱신됨 (lazy update).
+ *  - 하지만 더 이상 트리거되지 않는 옛 키(예: 비활성화된 자동화, 떠난 유저)는 남음.
+ *  - cleanupStaleEntries 가 주기적으로 cutoff 보다 오래된 키를 제거해 장기 메모리 누수 방지.
  */
 @Slf4j
 @Service
 public class AutomationCooldownService {
 
     private static final Duration DEFAULT_COOLDOWN = Duration.ofSeconds(30);
+    /** 청소 기준 — 이보다 오래 된 엔트리는 제거 (기본 쿨다운의 120배 마진). */
+    private static final Duration CLEANUP_CUTOFF = Duration.ofHours(1);
 
     // key: "{automationId}:{senderIgId}", value: 마지막 발동 시각
     private final ConcurrentHashMap<String, Instant> lastTriggered = new ConcurrentHashMap<>();
@@ -58,5 +64,21 @@ public class AutomationCooldownService {
                     Duration.between(previousHolder[0], now).toSeconds());
         }
         return passed;
+    }
+
+    /**
+     * 주기적으로 장기 미사용 엔트리 제거.
+     * 기본 쿨다운(30초) 보다 훨씬 긴 1시간 마진 — cooldown 창보다 오래된 엔트리는
+     * 어차피 항상 통과시키므로 제거해도 동작에 영향이 없고 메모리만 확보된다.
+     */
+    @Scheduled(fixedRate = 3_600_000) // 1시간마다
+    public void cleanupStaleEntries() {
+        Instant cutoff = Instant.now().minus(CLEANUP_CUTOFF);
+        int before = lastTriggered.size();
+        lastTriggered.entrySet().removeIf(e -> e.getValue().isBefore(cutoff));
+        int removed = before - lastTriggered.size();
+        if (removed > 0) {
+            log.info("쿨다운 맵 청소: {}건 제거 (잔여 {}건)", removed, lastTriggered.size());
+        }
     }
 }

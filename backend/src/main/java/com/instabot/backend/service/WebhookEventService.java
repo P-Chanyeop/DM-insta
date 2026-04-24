@@ -348,22 +348,13 @@ public class WebhookEventService {
 
     private void executeAutomationFlow(Automation automation, InstagramAccount igAccount,
                                         String senderId, String text, String commentId) {
-        // 쿨다운 — 동일 (자동화, 발신자) 쌍의 반복 트리거 억제 (스팸/인스타 정책 보호).
-        // 예: "가격 가격 가격" 연타 → 첫 매칭만 실행. 기본 30초.
-        if (!automationCooldownService.tryTrigger(automation.getId(), senderId)) {
-            return;
-        }
+        // ── 순서 주의 ──
+        // 1) 먼저 "실제 실행 가능한지" 확인 (플로우 존재/활성 체크).
+        // 2) 그 다음 중복 webhook dedupe (1분 캐시).
+        // 3) 마지막으로 쿨다운 (30초) — 여기서 찍으면 실제 실행됨이 확정된 이후라
+        //    비활성 플로우/중복 이벤트로 쿨다운이 헛 소모되는 문제가 없다.
 
-        // 중복 실행 방지 (쿨다운보다 관대한 1분 창 — in-flight 웹훅 재전송 dedupe 용)
-        String cacheKey = senderId + ":" + automation.getId();
-        Long lastExec = executionCache.get(cacheKey);
-        if (lastExec != null && System.currentTimeMillis() - lastExec < DUPLICATE_WINDOW_MS) {
-            log.debug("중복 실행 방지: automation={}, sender={}", automation.getId(), senderId);
-            return;
-        }
-        executionCache.put(cacheKey, System.currentTimeMillis());
-
-        // 연결된 Flow 재조회 — LazyInitializationException 방지 (webhook 요청은 트랜잭션 밖에서 들어옴).
+        // (1) 연결된 Flow 재조회 — LazyInitializationException 방지 (webhook 요청은 트랜잭션 밖에서 들어옴).
         // automation.getFlow() 는 프록시이므로 Hibernate 세션 없이 건드리면 터진다.
         // 또한 @Async 인 executeFlow 로 넘기기 전에 실체를 확보해야 다른 스레드에서 lazy 로딩 사고가 안 남.
         Flow flowProxy = automation.getFlow();
@@ -376,11 +367,27 @@ public class WebhookEventService {
             log.warn("연결된 플로우가 삭제됨: automationId={}, flowId={}", automation.getId(), flowProxy.getId());
             return;
         }
-
         if (!flow.isActive()) {
             log.debug("비활성 플로우: flowId={}", flow.getId());
             return;
         }
+
+        // (2) 중복 실행 방지 — 웹훅 재전송 dedupe (1분 창). 쿨다운보다 관대.
+        String cacheKey = senderId + ":" + automation.getId();
+        Long lastExec = executionCache.get(cacheKey);
+        if (lastExec != null && System.currentTimeMillis() - lastExec < DUPLICATE_WINDOW_MS) {
+            log.debug("중복 실행 방지: automation={}, sender={}", automation.getId(), senderId);
+            return;
+        }
+
+        // (3) 쿨다운 — 동일 (자동화, 발신자) 쌍의 반복 트리거 억제 (스팸/인스타 정책 보호).
+        // 예: "가격 가격 가격" 연타 → 첫 매칭만 실행. 기본 30초.
+        if (!automationCooldownService.tryTrigger(automation.getId(), senderId)) {
+            return;
+        }
+
+        // 여기까지 왔으면 실행 확정 — executionCache 에 기록 (쿨다운은 tryTrigger 안에서 기록됨)
+        executionCache.put(cacheKey, System.currentTimeMillis());
 
         // 트리거 카운트 증가
         automation.setTriggeredCount(

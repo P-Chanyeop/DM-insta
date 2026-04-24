@@ -240,13 +240,19 @@ public class FlowExecutionService {
         InstagramAccount igAccount = pending.getInstagramAccount();
 
         try {
+            // 원자적 전이 — 두 이벤트가 동시에 같은 pending 을 잡았을 때 한 쪽만 승자
+            int updated = pendingFlowActionRepository.completeIfStill(
+                    pending.getId(), PendingStep.AWAITING_POSTBACK);
+            if (updated == 0) {
+                log.info("오프닝DM postback 이미 처리됨 (중복 이벤트) — 스킵: pendingId={}", pending.getId());
+                return;
+            }
+
             JsonNode flowData = objectMapper.readTree(flow.getFlowData());
             log.info("오프닝DM 버튼 클릭 → requirements 진행: flowId={}, sender={}", flow.getId(), senderIgId);
 
             String triggerKeyword = pending.getTriggerKeyword();
             String currentNodeId = pending.getCurrentNodeId();
-            pending.setPendingStep(PendingStep.COMPLETED);
-            pendingFlowActionRepository.save(pending);
 
             // v2 그래프: currentNodeId가 있으면 그래프 순회 재개
             if (currentNodeId != null) {
@@ -300,11 +306,16 @@ public class FlowExecutionService {
 
             if (isFollower) {
                 // ✅ 팔로우 확인됨 → 다음 단계 진행
+                // 원자적 전이 — 중복 이벤트 방지
+                int updated = pendingFlowActionRepository.completeIfStill(
+                        pending.getId(), PendingStep.AWAITING_FOLLOW);
+                if (updated == 0) {
+                    log.info("팔로우 확인 postback 이미 처리됨 (중복) — 스킵: pendingId={}", pending.getId());
+                    return;
+                }
                 log.info("팔로우 확인 완료: flowId={}, sender={}", flow.getId(), senderIgId);
                 String triggerKeyword = pending.getTriggerKeyword();
                 String currentNodeId = pending.getCurrentNodeId();
-                pending.setPendingStep(PendingStep.COMPLETED);
-                pendingFlowActionRepository.save(pending);
 
                 // v2 그래프: currentNodeId가 있으면 그래프 순회 재개 ("pass" 분기)
                 if (currentNodeId != null) {
@@ -324,10 +335,15 @@ public class FlowExecutionService {
                     FlowGraph graph = FlowGraphParser.parse(flowData.toString());
                     String failTarget = graph.chooseNext(currentNodeId, "fail");
                     if (failTarget != null) {
+                        // 원자적 전이 — 중복 이벤트 방지
+                        int updated = pendingFlowActionRepository.completeIfStill(
+                                pending.getId(), PendingStep.AWAITING_FOLLOW);
+                        if (updated == 0) {
+                            log.info("팔로우 fail postback 이미 처리됨 (중복) — 스킵: pendingId={}", pending.getId());
+                            return;
+                        }
                         log.info("팔로우 미확인 → fail 분기 진행: flowId={}, sender={}", flow.getId(), senderIgId);
                         String triggerKeyword = pending.getTriggerKeyword();
-                        pending.setPendingStep(PendingStep.COMPLETED);
-                        pendingFlowActionRepository.save(pending);
                         resumeFlowGraph(flow, igAccount, senderIgId, triggerKeyword,
                                 currentNodeId, pending.getCommentId(), "fail");
                         return;
@@ -423,14 +439,21 @@ public class FlowExecutionService {
         InstagramAccount igAccount = pending.getInstagramAccount();
 
         try {
+            // 원자적 전이 — 중복 이벤트 방지
+            int updated = pendingFlowActionRepository.completeIfStill(
+                    pending.getId(), fulfilledStep);
+            if (updated == 0) {
+                log.info("requirement 충족 이벤트 이미 처리됨 (중복) — 스킵: pendingId={}, step={}",
+                        pending.getId(), fulfilledStep);
+                return;
+            }
+
             JsonNode flowData = objectMapper.readTree(flow.getFlowData());
             String triggerKeyword = pending.getTriggerKeyword();
             log.info("requirement 충족 → 다음 단계 진행: flowId={}, step={}", flow.getId(), fulfilledStep);
 
             // 현재 pending 완료 처리
             String currentNodeId = pending.getCurrentNodeId();
-            pending.setPendingStep(PendingStep.COMPLETED);
-            pendingFlowActionRepository.save(pending);
 
             // v2 그래프: currentNodeId가 있으면 그래프 순회 재개
             if (currentNodeId != null) {
@@ -871,7 +894,10 @@ public class FlowExecutionService {
     // ═══════════════════════════════════════════════════════════
 
     /**
-     * 첫 팔로우 요청: 안내 메시지 + "✅ 팔로우 했어요" 버튼
+     * 첫 팔로우 요청: 안내 메시지 + "✅ 팔로우 했어요" 버튼.
+     * payload 에 flowId 를 인코딩 — 동일 유저가 여러 플로우에서 팔로우 대기 중일 때
+     * 정확한 플로우로 라우팅되도록 한다 (레거시 "FOLLOW_CHECK" 문자열은 flowId 가 없어
+     * 최신 AWAITING_FOLLOW 로 무조건 떨어져 엉뚱한 플로우를 재개할 위험이 있었음).
      */
     private void sendFollowRequestMessage(JsonNode followCheck, String botIgId, String senderIgId,
                                             String accessToken, InstagramAccount igAccount, Flow flow,
@@ -879,8 +905,10 @@ public class FlowExecutionService {
         String followMsg = replaceVariables(
                 followCheck.path("message").asText("링크를 받으시려면 먼저 팔로우를 해주세요!"), contact, null);
         try {
+            // v1 경로 — nodeId 없이 flowId 만 인코딩 (fa:{flowId}::follow)
+            String payload = PostbackPayload.encode(flow.getId(), null, PostbackPayload.Action.FOLLOW);
             List<Map<String, String>> quickReplies = List.of(
-                    Map.of("title", "✅ 팔로우 했어요", "payload", "FOLLOW_CHECK")
+                    Map.of("title", "✅ 팔로우 했어요", "payload", payload)
             );
             instagramApiService.sendQuickReplyMessage(botIgId, senderIgId, followMsg, quickReplies, accessToken);
             conversationService.saveOutboundMessage(
@@ -891,14 +919,16 @@ public class FlowExecutionService {
     }
 
     /**
-     * 팔로우 재확인 실패: "확인되지 않았어요" 메시지 + "✅ 팔로우 했어요" 재시도 버튼
+     * 팔로우 재확인 실패: "확인되지 않았어요" 메시지 + "✅ 팔로우 했어요" 재시도 버튼.
+     * payload 에 flowId 를 인코딩 (위와 동일 이유).
      */
     private void sendFollowRetryMessage(String botIgId, String senderIgId,
                                           String accessToken, InstagramAccount igAccount, Flow flow) {
         String retryMsg = "팔로우가 확인되지 않았어요! 😅\n팔로우 후 아래 버튼을 다시 눌러주세요.";
         try {
+            String payload = PostbackPayload.encode(flow.getId(), null, PostbackPayload.Action.FOLLOW);
             List<Map<String, String>> quickReplies = List.of(
-                    Map.of("title", "✅ 팔로우 했어요", "payload", "FOLLOW_CHECK")
+                    Map.of("title", "✅ 팔로우 했어요", "payload", payload)
             );
             instagramApiService.sendQuickReplyMessage(botIgId, senderIgId, retryMsg, quickReplies, accessToken);
             conversationService.saveOutboundMessage(
@@ -926,21 +956,25 @@ public class FlowExecutionService {
                 .orElse(false);
     }
 
-    @Transactional
-    private void savePendingAction(Flow flow, InstagramAccount igAccount,
+    // ── savePendingAction ──
+    // @Transactional 은 private 메서드에 달아도 Spring AOP 가 타지 않아 무효다.
+    // 여기선 repository.save() 한 번만 호출하므로 호출자의 트랜잭션(있으면)에 자연스레 편승하고,
+    // 없으면 JpaRepository 의 기본 트랜잭션으로 커밋된다. 명시적 @Transactional 은 떼서
+    // 오해 소지를 제거한다.
+    //
+    // 엔티티 리턴 — 저장 직후 scheduledResumeAt 등 추가 필드를 세팅할 때 재조회 없이 사용.
+    private PendingFlowAction savePendingAction(Flow flow, InstagramAccount igAccount,
                                     String senderIgId, String commentId, PendingStep step) {
-        savePendingAction(flow, igAccount, senderIgId, commentId, step, null);
+        return savePendingAction(flow, igAccount, senderIgId, commentId, step, null);
     }
 
-    @Transactional
-    private void savePendingAction(Flow flow, InstagramAccount igAccount,
+    private PendingFlowAction savePendingAction(Flow flow, InstagramAccount igAccount,
                                     String senderIgId, String commentId, PendingStep step,
                                     String triggerKeyword) {
-        savePendingAction(flow, igAccount, senderIgId, commentId, step, triggerKeyword, null);
+        return savePendingAction(flow, igAccount, senderIgId, commentId, step, triggerKeyword, null);
     }
 
-    @Transactional
-    private void savePendingAction(Flow flow, InstagramAccount igAccount,
+    private PendingFlowAction savePendingAction(Flow flow, InstagramAccount igAccount,
                                     String senderIgId, String commentId, PendingStep step,
                                     String triggerKeyword, String currentNodeId) {
         PendingFlowAction action = PendingFlowAction.builder()
@@ -957,7 +991,7 @@ public class FlowExecutionService {
                 // 추가로 연장한다.
                 .expiresAt(LocalDateTime.now().plusHours(24))
                 .build();
-        pendingFlowActionRepository.save(action);
+        return pendingFlowActionRepository.save(action);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -1033,29 +1067,25 @@ public class FlowExecutionService {
             }
 
             if (result.isAwaitUser()) {
-                // 사용자 응답 대기 → PendingFlowAction 저장 후 중단
-                savePendingAction(ctx.getFlow(), ctx.getIgAccount(), ctx.getSenderIgId(),
+                // 사용자 응답 대기 → PendingFlowAction 저장 후 중단.
+                // 저장한 엔티티를 그대로 리턴받아 직접 조작 — 재조회로 인한 레이스 제거.
+                PendingFlowAction saved = savePendingAction(
+                        ctx.getFlow(), ctx.getIgAccount(), ctx.getSenderIgId(),
                         ctx.getCommentId(), result.getAwaitStep(), ctx.getTriggerKeyword(), currentId);
 
                 // AWAITING_DELAY인 경우 scheduledResumeAt 설정
                 if (result.getAwaitStep() == PendingStep.AWAITING_DELAY) {
                     String delayMin = String.valueOf(ctx.getVariables().getOrDefault("delayMinutes", "30"));
                     long minutes = Long.parseLong(delayMin);
-                    PendingFlowAction lastPending = pendingFlowActionRepository
-                            .findFirstBySenderIgIdAndPendingStepOrderByCreatedAtDesc(
-                                    ctx.getSenderIgId(), PendingStep.AWAITING_DELAY)
-                            .orElse(null);
-                    if (lastPending != null) {
-                        LocalDateTime resumeAt = LocalDateTime.now().plusMinutes(minutes);
-                        lastPending.setScheduledResumeAt(resumeAt);
-                        // 딜레이가 기본 expiresAt(24h) 을 넘어가면 expiresAt 도 함께 연장.
-                        // 그러지 않으면 스케줄러의 findDelayActionsReadyToResume 에서 제외돼 재개 불가.
-                        LocalDateTime neededExpiry = resumeAt.plusHours(1);
-                        if (lastPending.getExpiresAt().isBefore(neededExpiry)) {
-                            lastPending.setExpiresAt(neededExpiry);
-                        }
-                        pendingFlowActionRepository.save(lastPending);
+                    LocalDateTime resumeAt = LocalDateTime.now().plusMinutes(minutes);
+                    saved.setScheduledResumeAt(resumeAt);
+                    // 딜레이가 기본 expiresAt(24h) 을 넘어가면 expiresAt 도 함께 연장.
+                    // 그러지 않으면 스케줄러의 findDelayActionsReadyToResume 에서 제외돼 재개 불가.
+                    LocalDateTime neededExpiry = resumeAt.plusHours(1);
+                    if (saved.getExpiresAt().isBefore(neededExpiry)) {
+                        saved.setExpiresAt(neededExpiry);
                     }
+                    pendingFlowActionRepository.save(saved);
                     log.info("딜레이 대기 저장: nodeId={}, resumeAt={}분 후", currentId, delayMin);
                 } else {
                     log.info("사용자 응답 대기: nodeId={}, step={}", currentId, result.getAwaitStep());

@@ -93,4 +93,16 @@ public interface PendingFlowActionRepository extends JpaRepository<PendingFlowAc
             "  AND p2.pendingStep <> 'COMPLETED'" +
             ")")
     int completeAllByUserId(Long userId);
+
+    /**
+     * 원자적 전이 (compare-and-set): 현재 단계가 expectedStep 일 때만 COMPLETED 로 변경.
+     * 두 스레드가 같은 pending 을 동시에 잡으려 할 때 한 쪽만 rowCount=1 이 나온다.
+     * 중복 postback 이벤트로 메인 DM 이 두 번 발송되는 것을 차단한다.
+     *
+     * @return 변경된 row 수 (1 이면 내가 이김, 0 이면 다른 스레드가 먼저 처리함)
+     */
+    @Modifying
+    @Query("UPDATE PendingFlowAction p SET p.pendingStep = 'COMPLETED' " +
+            "WHERE p.id = :id AND p.pendingStep = :expectedStep")
+    int completeIfStill(Long id, PendingStep expectedStep);
 }
