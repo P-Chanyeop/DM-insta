@@ -360,15 +360,21 @@ export default function LiveChatPage() {
           return c
         })
       )
-      // Update displayed timers
+      // Update displayed timers — 24시간 pause 는 1440분이라 그대로 찍으면 "1438:49" 처럼 이상함.
+      // 시간 단위를 빼서 HH:MM:SS (1h↑) 또는 MM:SS (1h 미만) 로 표시.
       setAutomationTimers((prev) => {
         const next = { ...prev }
         chats.forEach((c) => {
           if (c.automationPaused && c.automationPauseEnd) {
             const remaining = Math.max(0, c.automationPauseEnd - Date.now())
-            const mins = Math.floor(remaining / 60000)
-            const secs = Math.floor((remaining % 60000) / 1000)
-            next[c.id] = `${mins}:${String(secs).padStart(2, '0')}`
+            const totalSec = Math.floor(remaining / 1000)
+            const h = Math.floor(totalSec / 3600)
+            const m = Math.floor((totalSec % 3600) / 60)
+            const s = totalSec % 60
+            const pad = (n) => String(n).padStart(2, '0')
+            next[c.id] = h > 0
+              ? `${h}:${pad(m)}:${pad(s)}`
+              : `${pad(m)}:${pad(s)}`
           } else {
             delete next[c.id]
           }
@@ -389,6 +395,20 @@ export default function LiveChatPage() {
       messages: [...c.messages, { id: Date.now(), ...msg }],
       time: '방금',
     }))
+  }, [updateChat])
+
+  // 수동 메시지 성공 발송 직후 호출 — 백엔드가 24h 자동 pause 를 건 상태이므로
+  // 헤더 버튼 라벨/타이머가 새로고침 없이 즉시 반영되도록 로컬 상태도 갱신.
+  // 이미 paused 였다면 건드리지 않음 (사용자 수동 토글 우선).
+  const markAutoPausedAfterManualSend = useCallback((chatId) => {
+    updateChat(chatId, (c) => {
+      if (c.automationPaused) return c
+      return {
+        ...c,
+        automationPaused: true,
+        automationPauseEnd: Date.now() + 24 * 60 * 60 * 1000,
+      }
+    })
   }, [updateChat])
 
   // ---- Handlers ----
@@ -434,6 +454,7 @@ export default function LiveChatPage() {
           })
         )
       }
+      markAutoPausedAfterManualSend(selectedId)
     } catch (err) {
       console.error('메시지 전송 실패:', err)
       // Mark the message as failed
@@ -497,6 +518,7 @@ export default function LiveChatPage() {
           ),
         }))
       }
+      markAutoPausedAfterManualSend(selectedId)
     } catch (err) {
       // 실패 시 에러 표시
       updateChat(selectedId, (c) => ({
@@ -545,6 +567,7 @@ export default function LiveChatPage() {
           return { ...prev, [selectedId]: msgs }
         })
       }
+      markAutoPausedAfterManualSend(selectedId)
     } catch (err) {
       setChats((prev) => {
         const msgs = [...(prev[selectedId] || [])]
@@ -576,6 +599,7 @@ export default function LiveChatPage() {
           })
         )
       }
+      markAutoPausedAfterManualSend(selectedId)
     } catch (err) {
       console.error('빠른 답장 전송 실패:', err)
     }
@@ -770,7 +794,7 @@ export default function LiveChatPage() {
       || (c.username && c.username.toLowerCase().includes(q))
     const matchesFilter =
       activeFilter === '전체' ||
-      (activeFilter === '열림' && c.status === 'OPEN') ||
+      (activeFilter === '상담중' && c.status === 'OPEN') ||
       (activeFilter === '완료' && c.status === 'CLOSED')
     return matchesSearch && matchesFilter
   })
@@ -789,14 +813,14 @@ export default function LiveChatPage() {
         <div className="chat-sidebar-header">
           <h3>대화 목록</h3>
           <div className="chat-filters">
-            {['전체', '열림', '완료'].map((f) => (
+            {['전체', '상담중', '완료'].map((f) => (
               <button
                 key={f}
                 className={`chat-filter${activeFilter === f ? ' active' : ''}`}
                 onClick={() => setActiveFilter(f)}
               >
                 {f}
-                {f === '열림' && <span className="filter-count">{openCount}</span>}
+                {f === '상담중' && <span className="filter-count">{openCount}</span>}
               </button>
             ))}
           </div>
@@ -1231,16 +1255,34 @@ export default function LiveChatPage() {
                 <label>배정</label>
                 <span>{selectedChat.assignee || '미배정'}</span>
               </div>
-              <div className="info-row">
-                <label>상태</label>
-                <span
-                  className={`status-badge ${selectedChat.status === 'OPEN' ? 'active' : ''}`}
-                  style={{ cursor: 'pointer' }}
-                  onClick={handleStatusToggle}
-                  title="클릭해서 열림↔완료 전환"
+              <div className="info-row info-row--stacked">
+                <label>상태 (탭하여 전환)</label>
+                <div
+                  className="status-toggle-group"
+                  role="group"
+                  aria-label="대화 상태 전환"
                 >
-                  {selectedChat.status === 'OPEN' ? '열림 (클릭: 완료)' : '완료 (클릭: 열림)'}
-                </span>
+                  <button
+                    type="button"
+                    className={`status-toggle-btn open${selectedChat.status === 'OPEN' ? ' active' : ''}`}
+                    onClick={() => { if (selectedChat.status !== 'OPEN') handleStatusToggle() }}
+                    aria-pressed={selectedChat.status === 'OPEN'}
+                    title="상담중으로 표시"
+                  >
+                    <i className="ri-chat-smile-3-line" />
+                    <span>상담중</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`status-toggle-btn closed${selectedChat.status === 'CLOSED' ? ' active' : ''}`}
+                    onClick={() => { if (selectedChat.status !== 'CLOSED') handleStatusToggle() }}
+                    aria-pressed={selectedChat.status === 'CLOSED'}
+                    title="완료로 표시"
+                  >
+                    <i className="ri-check-double-line" />
+                    <span>완료</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div className="info-section">
