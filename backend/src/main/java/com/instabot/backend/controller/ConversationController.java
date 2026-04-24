@@ -148,6 +148,16 @@ public class ConversationController {
                 false, null, msgType,
                 msgType == Message.MessageType.IMAGE ? request.getMediaUrl() : null);
 
+        // 수동 메시지 발송 시 24시간 자동화 일시정지 —
+        // 수동 응답 중인 고객에게 자동 DM 이 중복 발송되지 않도록 보호.
+        // 이미 일시정지 중이면 시간만 갱신하지 않음 (사용자 명시 토글 우선).
+        if (!conversation.isAutomationPaused()) {
+            conversation.setAutomationPaused(true);
+            conversation.setAutomationPauseEnd(java.time.LocalDateTime.now().plusHours(24));
+            conversationRepository.save(conversation);
+            saveSystemMessage(conversation, "수동 메시지 발송으로 자동화가 24시간 일시정지되었습니다.");
+        }
+
         return ResponseEntity.ok(toMessageResponse(message));
     }
 
@@ -178,6 +188,10 @@ public class ConversationController {
             boolean oldPaused = conversation.isAutomationPaused();
             boolean newPaused = request.getAutomationPaused();
             conversation.setAutomationPaused(newPaused);
+            // 재개 시 pauseEnd 제거 / 일시정지 시 24h 세팅 (사용자 토글로 수동 설정하는 케이스)
+            conversation.setAutomationPauseEnd(newPaused
+                    ? java.time.LocalDateTime.now().plusHours(24)
+                    : null);
             if (oldPaused != newPaused) {
                 saveSystemMessage(conversation, newPaused
                         ? "자동화가 일시정지되었습니다."
@@ -268,6 +282,7 @@ public class ConversationController {
                 .status(conversation.getStatus())
                 .lastMessage(conversation.getLastMessage())
                 .automationPaused(conversation.isAutomationPaused())
+                .automationPauseEnd(conversation.getAutomationPauseEnd())
                 .assignedTo(conversation.getAssignedTo())
                 .lastMessageAt(conversation.getLastMessageAt())
                 .createdAt(conversation.getCreatedAt())

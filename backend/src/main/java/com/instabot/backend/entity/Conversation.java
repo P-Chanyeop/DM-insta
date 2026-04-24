@@ -28,6 +28,11 @@ public class Conversation {
     @Builder.Default
     private boolean automationPaused = false;
 
+    /** 자동화 재개 시각 — 수동 메시지 발송 시 now+24h 로 설정.
+     *  null 이면 무기한 일시정지 (사용자가 명시적으로 토글). */
+    @Column(name = "automation_pause_end")
+    private LocalDateTime automationPauseEnd;
+
     private String assignedTo;
 
     @Builder.Default

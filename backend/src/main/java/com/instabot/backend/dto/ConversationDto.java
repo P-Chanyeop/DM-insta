@@ -17,6 +17,7 @@ public class ConversationDto {
         private Conversation.ConversationStatus status;
         private String lastMessage;
         private boolean automationPaused;
+        private LocalDateTime automationPauseEnd;
         private String assignedTo;
         private LocalDateTime lastMessageAt;
         private LocalDateTime createdAt;

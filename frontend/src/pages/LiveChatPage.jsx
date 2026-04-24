@@ -295,11 +295,18 @@ export default function LiveChatPage() {
               if (c.id !== selectedId) return c
               // Avoid duplicate messages
               if (c.messages.some((m) => m.id === newMsg.id)) return c
-              // Outbound일 경우, optimistic temp 메시지(같은 text, 실제 id 없음)와 매칭되면 교체
+              // Outbound일 경우, optimistic temp 메시지(실제 id 없음, id > 1e12) 와 매칭되면 교체.
+              // 이미지는 text 가 "[이미지 전송 중... file.png]" → URL 로 바뀌어 매칭이 안 되므로,
+              // isImage/mediaUrl 존재로도 매칭 허용.
               if (newMsg.type === 'sent') {
-                const tempIdx = c.messages.findIndex(
-                  (m) => m.type === 'sent' && typeof m.id === 'number' && m.id > 1e12 && m.text === newMsg.text
-                )
+                const tempIdx = c.messages.findIndex((m) => {
+                  if (m.type !== 'sent') return false
+                  if (typeof m.id !== 'number' || m.id <= 1e12) return false
+                  // 이미지 optimistic → 실제 이미지 메시지
+                  if ((m.isImage || m.mediaUrl) && (newMsg.isImage || newMsg.mediaUrl)) return true
+                  // 텍스트: 원문 매칭
+                  return m.text === newMsg.text
+                })
                 if (tempIdx !== -1) {
                   const messages = [...c.messages]
                   messages[tempIdx] = newMsg
@@ -1018,18 +1025,24 @@ export default function LiveChatPage() {
                   <div className="msg-auto-badge"><i className="ri-robot-2-line" /> 자동 응답</div>
                 )}
                 {msg.isImage || msg.mediaUrl ? (
-                  <div className="msg-image-wrap">
+                  <div className="msg-image-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {msg.mediaUrl ? (
                       <img
                         src={msg.mediaUrl}
-                        alt="이미지"
-                        style={{ maxWidth: 240, maxHeight: 240, borderRadius: 10, cursor: 'pointer' }}
+                        alt="전송한 이미지"
+                        style={{
+                          width: 128, height: 128, objectFit: 'cover',
+                          borderRadius: 10, cursor: 'pointer',
+                          border: '1px solid rgba(0,0,0,0.06)',
+                        }}
                         onClick={() => window.open(msg.mediaUrl, '_blank')}
-                        onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block' }}
+                        onError={(e) => { e.currentTarget.style.display = 'none' }}
                       />
                     ) : null}
-                    <p style={{ fontStyle: msg.mediaUrl ? 'normal' : 'italic', color: msg.mediaUrl ? '#374151' : '#666', display: msg.mediaUrl ? 'none' : 'block' }}>
-                      <i className="ri-image-line" style={{ marginRight: 4 }} />{msg.text}
+                    {/* 서버 URL(예: http://sendit.io.kr/uploads/..png) 이 말풍선에 그대로 노출되지 않도록 — 항상 "[이미지 전송]" 고정 라벨. */}
+                    <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>
+                      <i className="ri-image-line" style={{ marginRight: 4 }} />
+                      {msg.mediaUrl ? '이미지 전송' : (msg.text || '이미지 전송 중...')}
                     </p>
                   </div>
                 ) : msg.card ? (
@@ -1294,7 +1307,7 @@ export default function LiveChatPage() {
       {/* 자동화 일시정지 안내 모달 — 세션당 1회 */}
       {showAutomationNotice && (
         <div className="modal-overlay active" onClick={handleCloseAutomationNotice}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
             <div className="modal-header">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#dc2626' }}>
                 <i className="ri-alert-fill" style={{ fontSize: 22 }} aria-hidden="true" />
@@ -1329,7 +1342,7 @@ export default function LiveChatPage() {
       {/* 카드 전송 모달 */}
       {showCardModal && (
         <div className="modal-overlay active" onClick={() => setShowCardModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
             <div className="modal-header">
               <h3>카드 메시지 전송</h3>
               <button className="modal-close" onClick={() => setShowCardModal(false)}>
