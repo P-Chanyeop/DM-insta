@@ -82,10 +82,12 @@ public class FlowValidationService {
                 errors.add("트리거 노드에 연결된 다음 노드가 없습니다.");
             }
 
-            // 3. 트리거 키워드 필수
+            // 3. 트리거 키워드 필수 — 단, 매칭 모드가 "ANY" (모든 댓글/메시지) 인 경우 키워드 없이도 유효.
+            //    "CONTAINS" / "EXACT" 는 비교할 대상이 있어야 하므로 여전히 키워드 필수.
             JsonNode triggerData = nodeById.get(triggerId).path("data");
             String keywords = triggerData.path("keywords").asText("");
-            if (keywords.isBlank()) {
+            String keywordMatch = triggerData.path("keywordMatch").asText("CONTAINS");
+            if (!"ANY".equalsIgnoreCase(keywordMatch) && keywords.isBlank()) {
                 errors.add("트리거 키워드가 설정되지 않았습니다.");
             }
 

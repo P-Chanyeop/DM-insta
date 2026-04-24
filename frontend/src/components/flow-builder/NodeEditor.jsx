@@ -109,17 +109,39 @@ function TriggerEditor({ data, update }) {
         </div>
       )}
 
+      {/* "ANY" (모든 댓글) 선택 시 키워드 입력 자체가 의미 없으므로 칸을 비활성화하고 값을 지움.
+          사용자가 포함/정확히 일치 로 돌아가면 다시 활성화되어 새 키워드 입력 가능. */}
       <div className="ne-field">
         <label>키워드</label>
-        <input className="ne-input" placeholder="예: 가격, 예약, 링크 (쉼표로 구분)"
-          value={data.keywords || ''} onChange={e => update({ keywords: e.target.value })} />
-        <div className="ne-hint">비워두면 모든 {data.triggerType === 'comment' ? '댓글' : '메시지'}에 반응</div>
+        <input
+          className="ne-input"
+          placeholder={data.keywordMatch === 'ANY'
+            ? '"모든 댓글" 매칭 시 키워드 입력 불필요'
+            : '예: 가격, 예약, 링크 (쉼표로 구분)'}
+          value={data.keywordMatch === 'ANY' ? '' : (data.keywords || '')}
+          onChange={e => update({ keywords: e.target.value })}
+          disabled={data.keywordMatch === 'ANY'}
+        />
+        <div className="ne-hint">
+          {data.keywordMatch === 'ANY'
+            ? `모든 ${data.triggerType === 'comment' ? '댓글' : '메시지'}에 반응합니다.`
+            : `비워두면 모든 ${data.triggerType === 'comment' ? '댓글' : '메시지'}에 반응`}
+        </div>
       </div>
 
       <div className="ne-field">
         <label>키워드 매칭</label>
-        <select className="ne-select" value={data.keywordMatch || 'CONTAINS'}
-          onChange={e => update({ keywordMatch: e.target.value })}>
+        <select
+          className="ne-select"
+          value={data.keywordMatch || 'CONTAINS'}
+          onChange={e => {
+            // "모든 댓글" 로 바꾸는 순간 기존 키워드 값도 즉시 비워 데이터 일관성 유지.
+            if (e.target.value === 'ANY') {
+              update({ keywordMatch: 'ANY', keywords: '' })
+            } else {
+              update({ keywordMatch: e.target.value })
+            }
+          }}>
           <option value="CONTAINS">포함</option>
           <option value="EXACT">정확히 일치</option>
           <option value="ANY">모든 댓글</option>

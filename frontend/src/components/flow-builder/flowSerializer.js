@@ -475,9 +475,12 @@ export function validateForActivation(nodes, edges) {
   })
 
   // 5. 트리거 키워드 비어있는지
+  // 단, keywordMatch === 'ANY' ("모든 댓글/메시지") 인 경우에는 의도적으로 키워드 없이 전체 매칭하므로
+  // 검증에서 제외. 그 외에는 실제 매칭할 키워드가 있어야 활성화 허용.
   if (triggerNode) {
     const kw = triggerNode.data?.keywords || ''
-    if (!kw.trim()) {
+    const matchMode = triggerNode.data?.keywordMatch || 'CONTAINS'
+    if (matchMode !== 'ANY' && !kw.trim()) {
       errors.push('트리거 키워드가 설정되지 않았습니다.')
     }
   }

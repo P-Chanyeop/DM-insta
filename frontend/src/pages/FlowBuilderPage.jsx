@@ -489,7 +489,7 @@ export default function FlowBuilderPage() {
 
         {/* DM 미리보기 패널 (우측) */}
         {previewOpen && (
-          <PhonePreview nodes={nodes} edges={edges} />
+          <PhonePreview nodes={nodes} edges={edges} activeAccount={activeAccount} />
         )}
 
         {/* A/B 테스트 결과 패널 (우측) */}
@@ -507,7 +507,7 @@ export default function FlowBuilderPage() {
  * 엣지 연결 순서대로 노드를 방문하여 메시지 생성.
  * 연결되지 않은 고아 노드는 회색 '(미연결)' 배지와 함께 하단에 표시.
  */
-function PhonePreview({ nodes, edges }) {
+function PhonePreview({ nodes, edges, activeAccount }) {
   const previewEndRef = useRef(null)
   const [selectedPathIdx, setSelectedPathIdx] = useState(0)
   useEffect(() => {
