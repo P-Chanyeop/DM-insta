@@ -95,7 +95,8 @@ public class FlowTriggerNormalizer {
             }
 
             String resolvedId = instagramApiService.resolveMediaIdFromPermalink(
-                    specificUrl, cachedAccount.getIgUserId(), cachedAccount.getAccessToken());
+                    specificUrl, cachedAccount.getIgUserId(),
+                    instagramApiService.getDecryptedToken(cachedAccount));
 
             if (resolvedId == null || resolvedId.isBlank()) {
                 throw new BadRequestException(
