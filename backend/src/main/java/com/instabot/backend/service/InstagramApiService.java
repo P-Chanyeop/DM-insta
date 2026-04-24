@@ -797,6 +797,87 @@ public class InstagramApiService {
     }
 
     /**
+     * 게시물 permalink URL → 숫자 media ID 해석.
+     * <p>
+     * Flow 저장 시 댓글 트리거가 "특정 게시물" 로 설정되면 유저는 URL 을 입력하지만
+     * webhook 은 numeric media ID (예: "17852345678") 를 보내므로 그대로는 매칭 안 됨.
+     * GET /{ig-user-id}/media?fields=id,permalink 로 페이지네이션 돌면서 permalink 비교.
+     * <p>
+     * shortcode (URL 의 /p/ 또는 /reel/ 뒤 문자열) 만 비교해서 /p/ vs /reel/ 차이 무시.
+     * 찾지 못하면 null 반환 — 호출 측에서 사용자에게 에러 제공.
+     *
+     * @return 매칭되는 media ID, 못 찾으면 null
+     */
+    public String resolveMediaIdFromPermalink(String permalink, String igUserId, String accessToken) {
+        String targetShortcode = extractShortcode(permalink);
+        if (targetShortcode == null) {
+            log.warn("permalink 파싱 실패: {}", permalink);
+            return null;
+        }
+
+        String url = "https://graph.instagram.com/v21.0/" + igUserId
+                + "/media?fields=id,permalink&limit=50&access_token=" + accessToken;
+        int pages = 0;
+        int maxPages = 20; // 최대 1000개 게시물까지 스캔 — 그 이상이면 사용자가 최근 글 올려도 안 나옴. 충분.
+
+        while (url != null && pages < maxPages) {
+            try {
+                JsonNode resp = restTemplate.getForObject(url, JsonNode.class);
+                if (resp == null) break;
+
+                for (JsonNode media : resp.path("data")) {
+                    String mediaPermalink = media.path("permalink").asText("");
+                    String shortcode = extractShortcode(mediaPermalink);
+                    if (targetShortcode.equals(shortcode)) {
+                        String mediaId = media.path("id").asText();
+                        log.info("permalink 해석 성공: {} → mediaId={}", permalink, mediaId);
+                        return mediaId;
+                    }
+                }
+
+                JsonNode nextNode = resp.path("paging").path("next");
+                url = nextNode.isMissingNode() || nextNode.isNull() ? null : nextNode.asText(null);
+                pages++;
+            } catch (Exception e) {
+                log.warn("permalink 해석 중 API 호출 실패: url={}, error={}", url, e.getMessage());
+                return null;
+            }
+        }
+
+        log.warn("permalink 매칭 실패 ({} 페이지 스캔): {}", pages, permalink);
+        return null;
+    }
+
+    /**
+     * Instagram URL 에서 shortcode (permalink 의 고유 식별자) 추출.
+     * <p>
+     * 지원 포맷:
+     *   https://www.instagram.com/p/DNe67IgBqVl/      → DNe67IgBqVl
+     *   https://www.instagram.com/reel/DXglvP5FIFs/   → DXglvP5FIFs
+     *   https://www.instagram.com/reels/DXglvP5FIFs/  → DXglvP5FIFs
+     *   https://instagram.com/p/ABC123?utm=foo        → ABC123
+     * <p>
+     * 쿼리스트링/프래그먼트/트레일링 슬래시 제거 후 /p/|/reel/|/reels/ 뒤 세그먼트 반환.
+     * 유효하지 않은 URL 이면 null.
+     */
+    public String extractShortcode(String permalink) {
+        if (permalink == null || permalink.isBlank()) return null;
+        String cleaned = permalink.trim().split("[?#]")[0];
+        if (cleaned.endsWith("/")) cleaned = cleaned.substring(0, cleaned.length() - 1);
+
+        for (String prefix : new String[]{"/p/", "/reel/", "/reels/", "/tv/"}) {
+            int idx = cleaned.indexOf(prefix);
+            if (idx >= 0) {
+                String tail = cleaned.substring(idx + prefix.length());
+                int slashIdx = tail.indexOf('/');
+                String shortcode = slashIdx < 0 ? tail : tail.substring(0, slashIdx);
+                return shortcode.isBlank() ? null : shortcode;
+            }
+        }
+        return null;
+    }
+
+    /**
      * DM 발신자(IGSID)의 프로필 조회.
      * GET /{igsid}?fields=name,username,profile_pic&access_token=...
      * 페이지 스코프 ID (PSID)라 일반 Instagram user를 조회하는 건 아니고,

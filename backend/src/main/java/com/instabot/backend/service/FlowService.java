@@ -21,6 +21,7 @@ public class FlowService {
 
     private final FlowValidationService flowValidationService;
     private final FlowConflictService flowConflictService;
+    private final FlowTriggerNormalizer flowTriggerNormalizer;
 
     private final FlowRepository flowRepository;
     private final UserRepository userRepository;
@@ -79,11 +80,13 @@ public class FlowService {
         // 플랜별 플로우 할당량 검증
         quotaService.checkFlowQuota(user);
 
+        String normalizedFlowData = flowTriggerNormalizer.normalize(request.getFlowData(), userId);
+
         Flow flow = Flow.builder()
                 .user(user)
                 .name(request.getName())
                 .triggerType(parseTriggerType(request.getTriggerType()))
-                .flowData(request.getFlowData())
+                .flowData(normalizedFlowData)
                 .build();
 
         return toResponse(flowRepository.save(flow));
@@ -98,15 +101,15 @@ public class FlowService {
         }
 
         if (request.getName() != null) flow.setName(request.getName());
-        if (request.getFlowData() != null) flow.setFlowData(request.getFlowData());
+        if (request.getFlowData() != null) {
+            String normalizedFlowData = flowTriggerNormalizer.normalize(request.getFlowData(), userId);
+            flow.setFlowData(normalizedFlowData);
+        }
         if (request.getStatus() != null) flow.setStatus(Flow.FlowStatus.valueOf(request.getStatus()));
         if (request.getPriority() != null) flow.setPriority(request.getPriority());
 
         // active=true 설정 시 구조 검증 + 충돌 검증 (flowData가 같이 업데이트되면 새 데이터 기준)
         if (Boolean.TRUE.equals(request.getActive()) && !flow.isActive()) {
-            if (request.getFlowData() != null) {
-                flow.setFlowData(request.getFlowData());
-            }
             runActivationGuards(flow, userId);
         }
         if (request.getActive() != null) flow.setActive(request.getActive());
