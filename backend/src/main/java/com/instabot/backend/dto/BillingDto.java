@@ -54,7 +54,6 @@ public class BillingDto {
         private boolean cancelAtPeriodEnd;
 
         private Long flowCount;
-        private Long automationCount;
         private Long contactCount;
         private Long monthlyDMCount;
     }

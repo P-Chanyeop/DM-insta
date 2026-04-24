@@ -55,7 +55,6 @@ public class InstagramAccountDto {
         private Long followersCount;
         private long flowCount;
         private long contactCount;
-        private long automationCount;
     }
 
     @Getter @Setter @Builder

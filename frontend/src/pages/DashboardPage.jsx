@@ -1,18 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
-import PageLoader, { SkeletonCard } from '../components/PageLoader'
-import { dashboardService, flowService, automationService } from '../api/services'
+import PageLoader from '../components/PageLoader'
+import { dashboardService, flowService } from '../api/services'
 import { useToast } from '../components/Toast'
-
-const AUTOMATION_TYPE_META = {
-  DM_KEYWORD: { label: 'DM 키워드', icon: 'ri-message-3-line', color: 'blue' },
-  COMMENT_TRIGGER: { label: '댓글 트리거', icon: 'ri-chat-smile-3-line', color: 'orange' },
-  STORY_MENTION: { label: '스토리 멘션', icon: 'ri-at-line', color: 'purple' },
-  STORY_REPLY: { label: '스토리 답장', icon: 'ri-reply-line', color: 'purple' },
-  WELCOME_MESSAGE: { label: '환영 메시지', icon: 'ri-hand-heart-line', color: 'green' },
-  ICEBREAKER: { label: '아이스브레이커', icon: 'ri-ice-cream-line', color: 'orange' },
-}
 
 const RINGS_DEFAULT = [
   { key: 'automation', color: '#3B82F6', label: '자동화율' },
@@ -37,22 +28,19 @@ export default function DashboardPage() {
   const [error, setError] = useState('')
   const [dashboard, setDashboard] = useState(null)
   const [flows, setFlows] = useState([])
-  const [automations, setAutomations] = useState([])
 
   useEffect(() => {
     let mounted = true
     ;(async () => {
       try {
         setLoading(true)
-        const [dash, flowList, autoList] = await Promise.all([
+        const [dash, flowList] = await Promise.all([
           dashboardService.get(),
           flowService.list(),
-          automationService.list(),
         ])
         if (!mounted) return
         setDashboard(dash)
         setFlows(flowList || [])
-        setAutomations(autoList || [])
       } catch (err) {
         if (mounted) setError(err.message || '데이터를 불러올 수 없습니다.')
       } finally {
@@ -64,22 +52,15 @@ export default function DashboardPage() {
 
   const handleToggle = async (item) => {
     try {
-      if (item.__kind === 'flow') {
-        await flowService.toggle(item._rawId)
-        setFlows((prev) => prev.map((f) => f.id === item._rawId ? { ...f, active: !f.active } : f))
-      } else {
-        await automationService.toggle(item._rawId)
-        setAutomations((prev) => prev.map((a) => a.id === item._rawId ? { ...a, active: !a.active } : a))
-      }
+      await flowService.toggle(item._rawId)
+      setFlows((prev) => prev.map((f) => f.id === item._rawId ? { ...f, active: !f.active } : f))
     } catch (err) {
       toast.error(err.message || '상태 변경에 실패했습니다.')
     }
   }
 
   const activeFlowsCount = flows.filter((f) => f.active).length
-  const activeAutomationsCount = automations.filter((a) => a.active).length
-  const totalAutomationCount = (dashboard?.totalFlows || 0) + automations.length
-  const totalActiveAutomationCount = activeFlowsCount + activeAutomationsCount
+  const totalFlowCount = dashboard?.totalFlows || flows.length
 
   const stats = [
     {
@@ -101,9 +82,9 @@ export default function DashboardPage() {
     {
       icon: 'ri-flow-chart',
       color: 'purple',
-      value: `${formatNumber(totalActiveAutomationCount)}/${formatNumber(totalAutomationCount)}`,
-      label: '활성 자동화',
-      trend: `플로우 ${formatNumber(activeFlowsCount)} · 트리거 ${formatNumber(activeAutomationsCount)}`,
+      value: `${formatNumber(activeFlowsCount)}/${formatNumber(totalFlowCount)}`,
+      label: '활성 플로우',
+      trend: `전체 ${formatNumber(totalFlowCount)}개`,
       up: true,
     },
     {
@@ -134,9 +115,9 @@ export default function DashboardPage() {
     return { ...r, percent }
   })
 
-  // 모든 플로우 + 자동화 트리거를 최근 생성순으로 노출
-  const activeItems = [
-    ...flows.map((f) => ({
+  // 최근 생성순 플로우 상위 6개
+  const activeItems = flows
+    .map((f) => ({
       __kind: 'flow',
       id: `flow-${f.id}`,
       _rawId: f.id,
@@ -147,23 +128,7 @@ export default function DashboardPage() {
       icon: 'ri-flow-chart',
       color: f.active ? 'blue' : 'gray',
       createdAt: f.createdAt,
-    })),
-    ...automations.map((a) => {
-      const meta = AUTOMATION_TYPE_META[a.type] || { label: a.type, icon: 'ri-flashlight-line', color: 'purple' }
-      return {
-        __kind: 'automation',
-        id: `auto-${a.id}`,
-        _rawId: a.id,
-        active: a.active,
-        name: a.name,
-        sentCount: a.triggeredCount,
-        meta: `${meta.label}${a.keyword ? ` · "${a.keyword}"` : ''} · ${a.active ? '활성' : '비활성'}`,
-        icon: meta.icon,
-        color: a.active ? meta.color : 'gray',
-        createdAt: a.createdAt,
-      }
-    }),
-  ]
+    }))
     .sort((x, y) => new Date(y.createdAt || 0) - new Date(x.createdAt || 0))
     .slice(0, 6)
 
@@ -227,19 +192,16 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Active Automations (Flows + Triggers) */}
+        {/* Active Flows */}
         <div className="dash-card">
           <div className="dash-card-header">
-            <h3>자동화</h3>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <Link to="/app/flows" className="dash-card-link">플로우</Link>
-              <Link to="/app/automation" className="dash-card-link">트리거</Link>
-            </div>
+            <h3>자동화 플로우</h3>
+            <Link to="/app/flows" className="dash-card-link">전체 보기</Link>
           </div>
           <div className="automation-list">
-            {loading && <PageLoader compact text="자동화를 불러오는 중..." />}
+            {loading && <PageLoader compact text="플로우를 불러오는 중..." />}
             {!loading && activeItems.length === 0 && (
-              <EmptyState compact icon="ri-flow-chart" title="자동화가 없습니다" description="첫 플로우 또는 자동화 트리거를 만들어 보세요" actionLabel="자동화 만들기" onAction={() => window.location.href = '/app/automation'} />
+              <EmptyState compact icon="ri-flow-chart" title="플로우가 없습니다" description="첫 자동화 플로우를 만들어 보세요" actionLabel="플로우 만들기" onAction={() => window.location.href = '/app/flows'} />
             )}
             {activeItems.map((item) => (
               <div className="automation-item" key={item.id}>
@@ -249,7 +211,7 @@ export default function DashboardPage() {
                   <span>{item.meta}</span>
                 </div>
                 <div className="auto-stats">
-                  <span className="auto-stat">{formatNumber(item.sentCount)} {item.__kind === 'flow' ? '발송' : '발동'}</span>
+                  <span className="auto-stat">{formatNumber(item.sentCount)} 발송</span>
                   <div
                     className={`auto-toggle${item.active ? ' active' : ''}`}
                     onClick={(e) => { e.stopPropagation(); handleToggle(item) }}

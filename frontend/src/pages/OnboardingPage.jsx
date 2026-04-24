@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, getStoredUser, setStoredUser } from '../api/client'
-import { automationService, userService } from '../api/services'
+import { userService } from '../api/services'
 
 /** 온보딩 완료 마킹: 백엔드 우선 + localStorage 캐시. 백엔드 실패해도 UX는 진행. */
 async function markOnboardingDone() {
@@ -313,49 +313,21 @@ export default function OnboardingPage() {
     }
   }
 
+  // 온보딩 단계 — 실제 플로우 생성은 /app/flows 에서 수행하도록 안내. 여기선 입력값을 로컬에 유지하고 단계만 진행.
   const handleKeywordSave = async () => {
     if (!keywordForm.keyword.trim()) { toast.info('키워드를 입력해주세요'); return }
-    setLoading(true)
-    try {
-      // upsert: 동일 (user, DM_KEYWORD, keyword)면 업데이트, 없으면 생성 → 중복 방지
-      await automationService.upsert({
-        name: `자동응답: ${keywordForm.keyword}`, type: 'DM_KEYWORD',
-        keyword: keywordForm.keyword, matchType: 'CONTAINS',
-        responseMessage: keywordForm.message || `안녕하세요! "${keywordForm.keyword}" 관련 문의를 주셨군요. 곧 답변드리겠습니다.`,
-        active: true,
-      })
-      toast.info('키워드 자동응답이 저장되었습니다!')
-      setStep(3)
-    } catch { toast.info('자동응답 저장에 실패했습니다. 건너뛸 수 있습니다.') }
-    finally { setLoading(false) }
+    toast.info('입력하신 키워드는 대시보드 진입 후 플로우에서 설정할 수 있습니다.')
+    setStep(3)
   }
 
   const handleWelcomeSave = async () => {
     if (!welcomeMessage.trim()) { toast.info('환영 메시지를 입력해주세요'); return }
-    setLoading(true)
-    try {
-      // upsert: WELCOME_MESSAGE는 사용자당 1개 전제 → (user, type)으로 매칭
-      await automationService.upsert({
-        name: '신규 팔로워 환영 메시지', type: 'WELCOME_MESSAGE',
-        responseMessage: welcomeMessage, active: true,
-      })
-      toast.info('환영 메시지가 저장되었습니다!')
-      setStep(4)
-    } catch { toast.info('환영 메시지 저장에 실패했습니다. 건너뛸 수 있습니다.') }
-    finally { setLoading(false) }
+    toast.info('환영 메시지는 대시보드 진입 후 플로우에서 설정할 수 있습니다.')
+    setStep(4)
   }
 
   const handleGrowthSave = async () => {
-    setLoading(true)
-    try {
-      const promises = []
-      if (growthTools.commentDM) promises.push(automationService.upsert({ name: '댓글 자동 DM', type: 'COMMENT_TRIGGER', keyword: '', matchType: 'CONTAINS', responseMessage: '댓글 감사합니다! DM으로 자세한 정보를 보내드릴게요.', active: true }))
-      if (growthTools.storyMention) promises.push(automationService.upsert({ name: '스토리 멘션 자동응답', type: 'STORY_MENTION', responseMessage: '스토리에 태그해주셔서 감사합니다!', active: true }))
-      if (growthTools.storyReply) promises.push(automationService.upsert({ name: '스토리 답장 자동응답', type: 'STORY_REPLY', responseMessage: '스토리에 반응해주셔서 감사합니다!', active: true }))
-      if (promises.length > 0) await Promise.all(promises)
-      setStep(5)
-    } catch { toast.info('일부 설정에 실패했습니다.'); setStep(5) }
-    finally { setLoading(false) }
+    setStep(5)
   }
 
   const handleFinish = async () => { await markOnboardingDone(); navigate('/app') }

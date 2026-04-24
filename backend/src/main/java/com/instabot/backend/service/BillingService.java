@@ -10,7 +10,6 @@ import com.instabot.backend.entity.Subscription.SubscriptionStatus;
 import com.instabot.backend.entity.User;
 import com.instabot.backend.exception.BadRequestException;
 import com.instabot.backend.exception.ResourceNotFoundException;
-import com.instabot.backend.repository.AutomationRepository;
 import com.instabot.backend.repository.ContactRepository;
 import com.instabot.backend.repository.FlowRepository;
 import com.instabot.backend.repository.MessageRepository;
@@ -48,7 +47,6 @@ public class BillingService {
     private final SubscriptionRepository subscriptionRepository;
     private final UserRepository userRepository;
     private final FlowRepository flowRepository;
-    private final AutomationRepository automationRepository;
     private final ContactRepository contactRepository;
     private final MessageRepository messageRepository;
     private final PaymentEventRepository paymentEventRepository;
@@ -203,7 +201,6 @@ public class BillingService {
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
         long flowCount = flowRepository.countByUserId(userId);
-        long automationCount = automationRepository.countByUserId(userId);
         long contactCount = contactRepository.countByUserId(userId);
         long monthlyDMCount = messageRepository.countOutboundByUserIdAndSince(userId, getMonthStart());
 
@@ -211,7 +208,6 @@ public class BillingService {
         BillingDto.BillingInfoResponse.BillingInfoResponseBuilder b = BillingDto.BillingInfoResponse.builder()
                 .plan(user.getPlan().name())
                 .flowCount(flowCount)
-                .automationCount(automationCount)
                 .contactCount(contactCount)
                 .monthlyDMCount(monthlyDMCount);
         if (subOpt.isPresent()) {

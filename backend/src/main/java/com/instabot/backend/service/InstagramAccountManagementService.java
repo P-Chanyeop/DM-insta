@@ -21,7 +21,6 @@ public class InstagramAccountManagementService {
     private final UserRepository userRepo;
     private final FlowRepository flowRepo;
     private final ContactRepository contactRepo;
-    private final AutomationRepository automationRepo;
     private final InstagramApiService instagramApiService;
 
     private static final int FREE_ACCOUNT_LIMIT = 1;
@@ -203,7 +202,6 @@ public class InstagramAccountManagementService {
         List<InstagramAccount> accounts = accountRepo.findByUserIdOrderByActiveDescConnectedAtDesc(userId);
         long totalFlows = flowRepo.countByUserId(userId);
         long totalContacts = contactRepo.countByUserId(userId);
-        long totalAutomations = automationRepo.countByUserId(userId);
 
         List<AccountSummary> summaries = accounts.stream()
                 .map(a -> AccountSummary.builder()
@@ -217,7 +215,6 @@ public class InstagramAccountManagementService {
                                 .followersCount(a.getFollowersCount() != null ? a.getFollowersCount() : 0)
                                 .flowCount(totalFlows)
                                 .contactCount(totalContacts)
-                                .automationCount(totalAutomations)
                                 .build())
                         .build())
                 .toList();

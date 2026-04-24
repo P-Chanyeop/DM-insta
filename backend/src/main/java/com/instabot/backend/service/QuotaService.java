@@ -14,9 +14,9 @@ import org.springframework.stereotype.Service;
  * 과금 기준: 월 DM 발송 수 (컨택 수 아님)
  *
  * 플랜 제한:
- *   FREE:     월 300 DM, 플로우 3개, 자동화 5개, 팀 1명, IG 1개
- *   STARTER:  월 3,000 DM, 플로우 5개, 자동화 10개, 팀 2명, IG 2개
- *   PRO:      월 30,000 DM, 무제한 플로우/자동화, 팀 5명, IG 5개
+ *   FREE:     월 300 DM, 플로우 3개, 팀 1명, IG 1개
+ *   STARTER:  월 3,000 DM, 플로우 5개, 팀 2명, IG 2개
+ *   PRO:      월 30,000 DM, 무제한 플로우, 팀 5명, IG 5개
  *   BUSINESS: 무제한 DM, 무제한 전부
  */
 @Slf4j
@@ -25,16 +25,13 @@ import org.springframework.stereotype.Service;
 public class QuotaService {
 
     private final FlowRepository flowRepository;
-    private final AutomationRepository automationRepository;
     private final ContactRepository contactRepository;
 
     // ─── 플로우 제한 ───
-    private static final int FREE_MAX_FLOWS = 3;
-    private static final int STARTER_MAX_FLOWS = 5;
-
-    // ─── 자동화 제한 ───
-    private static final int FREE_MAX_AUTOMATIONS = 5;
-    private static final int STARTER_MAX_AUTOMATIONS = 10;
+    // Phase 3 에서 Automation 레이어가 제거되며 Flow 가 트리거·실행을 모두 담당.
+    // 구 "자동화 5개 + 플로우 3개" 합산 한도를 반영해 FREE 한도를 소폭 상향.
+    private static final int FREE_MAX_FLOWS = 5;
+    private static final int STARTER_MAX_FLOWS = 10;
 
     // ─── 월 DM 발송 제한 ───
     private static final int FREE_MONTHLY_DM = 300;
@@ -52,19 +49,6 @@ public class QuotaService {
             long count = flowRepository.countByUserId(user.getId());
             if (count >= limit) {
                 throw new QuotaExceededException("플로우", limit);
-            }
-        }
-    }
-
-    /**
-     * 자동화 생성 가능 여부 검증
-     */
-    public void checkAutomationQuota(User user) {
-        int limit = getAutomationLimit(user.getPlan());
-        if (limit < Integer.MAX_VALUE) {
-            long count = automationRepository.countByUserId(user.getId());
-            if (count >= limit) {
-                throw new QuotaExceededException("자동화", limit);
             }
         }
     }
@@ -123,14 +107,6 @@ public class QuotaService {
         return switch (plan) {
             case FREE -> FREE_MAX_FLOWS;
             case STARTER -> STARTER_MAX_FLOWS;
-            case PRO, BUSINESS -> Integer.MAX_VALUE;
-        };
-    }
-
-    private int getAutomationLimit(PlanType plan) {
-        return switch (plan) {
-            case FREE -> FREE_MAX_AUTOMATIONS;
-            case STARTER -> STARTER_MAX_AUTOMATIONS;
             case PRO, BUSINESS -> Integer.MAX_VALUE;
         };
     }

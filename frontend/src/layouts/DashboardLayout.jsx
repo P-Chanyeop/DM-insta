@@ -5,7 +5,6 @@ import {
   authService,
   notificationService,
   flowService,
-  automationService,
   broadcastService,
   sequenceService,
   groupBuyService,
@@ -25,7 +24,6 @@ const NAV_SECTIONS = [
     items: [
       { to: '/app', icon: 'ri-dashboard-3-line', label: '대시보드', end: true },
       { to: '/app/flows', icon: 'ri-flow-chart', label: '자동화 플로우', countKey: 'flows' },
-      { to: '/app/automation', icon: 'ri-robot-2-line', label: '자동화 트리거', countKey: 'automations' },
     ]
   },
   {
@@ -59,7 +57,6 @@ const NAV_SECTIONS = [
 const PAGE_TITLES = {
   '/app': '대시보드',
   '/app/flows': '자동화 플로우',
-  '/app/automation': '자동화 트리거',
   '/app/livechat': '라이브 채팅',
   '/app/broadcast': '브로드캐스팅',
   '/app/sequences': '시퀀스',
@@ -124,8 +121,7 @@ const KEYBOARD_SHORTCUTS = [
 const SEARCHABLE_ITEMS = [
   // 페이지 네비게이션
   { type: 'page', label: '대시보드', path: '/app', icon: 'ri-dashboard-3-line', keywords: ['대시보드', 'dashboard', '홈'] },
-  { type: 'page', label: '자동화 플로우', path: '/app/flows', icon: 'ri-flow-chart', keywords: ['플로우', 'flow', '자동화', '빌더'] },
-  { type: 'page', label: '자동화 트리거', path: '/app/automation', icon: 'ri-robot-2-line', keywords: ['트리거', 'trigger', '자동', '키워드'] },
+  { type: 'page', label: '자동화 플로우', path: '/app/flows', icon: 'ri-flow-chart', keywords: ['플로우', 'flow', '자동화', '빌더', '트리거'] },
   { type: 'page', label: '라이브 채팅', path: '/app/livechat', icon: 'ri-chat-3-line', keywords: ['채팅', 'chat', '라이브', '메시지', 'DM'] },
   { type: 'page', label: '브로드캐스팅', path: '/app/broadcast', icon: 'ri-broadcast-line', keywords: ['브로드캐스트', 'broadcast', '대량', '발송'] },
   { type: 'page', label: '시퀀스', path: '/app/sequences', icon: 'ri-time-line', keywords: ['시퀀스', 'sequence', '드립', '캠페인'] },
@@ -219,9 +215,8 @@ export default function DashboardLayout() {
       return null
     }
     const fetchCounts = async () => {
-      const [flows, autos, bcs, seqs, gbs, contactsPage, growth, tmpls, convs] = await Promise.all([
+      const [flows, bcs, seqs, gbs, contactsPage, growth, tmpls, convs] = await Promise.all([
         safe(() => flowService.list()),
-        safe(() => automationService.list()),
         safe(() => broadcastService.list()),
         safe(() => sequenceService.list()),
         safe(() => groupBuyService.list()),
@@ -235,7 +230,6 @@ export default function DashboardLayout() {
       const unreadSum = convArr.reduce((acc, c) => acc + (c.unreadCount || 0), 0)
       setNavCounts({
         flows: toCount(flows),
-        automations: toCount(autos),
         broadcasts: toCount(bcs),
         sequences: toCount(seqs),
         groupBuys: toCount(gbs),

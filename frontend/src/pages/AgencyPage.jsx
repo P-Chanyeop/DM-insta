@@ -36,7 +36,7 @@ export default function AgencyPage() {
         totalFlows: 0,
         accounts: accounts.map(a => ({
           ...a,
-          stats: { followersCount: a.followersCount || 0, flowCount: 0, contactCount: 0, automationCount: 0 }
+          stats: { followersCount: a.followersCount || 0, flowCount: 0, contactCount: 0 }
         })),
       })
     } finally {
@@ -97,7 +97,7 @@ export default function AgencyPage() {
   const maxAccounts = getLimit('igAccounts') || overview?.maxAccounts || 3
   const accountList = overview?.accounts || accounts.map(a => ({
     ...a,
-    stats: { followersCount: a.followersCount || 0, flowCount: 0, contactCount: 0, automationCount: 0 }
+    stats: { followersCount: a.followersCount || 0, flowCount: 0, contactCount: 0 }
   }))
 
   return (

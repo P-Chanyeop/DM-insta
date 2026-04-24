@@ -15,6 +15,9 @@ import java.util.*;
 /**
  * Webhook 이벤트 파싱 및 핸들러 분배
  *
+ * Phase 3: Automation 중간 레이어 제거 — 모든 트리거는 Flow 의 flowData 트리거 노드를 직접 매칭.
+ * FlowTriggerMatcher 가 flowData JSON 에서 매칭 조건을 꺼내고, 우선순위 정렬된 Flow 리스트에서 첫 매칭을 실행한다.
+ *
  * Instagram Webhook 이벤트 구조:
  * {
  *   "object": "instagram",
@@ -32,7 +35,6 @@ import java.util.*;
 public class WebhookEventService {
 
     private final InstagramAccountRepository instagramAccountRepository;
-    private final AutomationRepository automationRepository;
     private final FlowRepository flowRepository;
     private final FlowExecutionService flowExecutionService;
     private final ConversationService conversationService;
@@ -41,12 +43,12 @@ public class WebhookEventService {
     private final IntegrationService integrationService;
     private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
-    private final AutomationCooldownService automationCooldownService;
+    private final FlowCooldownService flowCooldownService;
     private final FlowTriggerMatcher flowTriggerMatcher;
 
     // 중복 실행 방지: senderIgId + flowId → 마지막 실행 시간
     private final Map<String, Long> executionCache = Collections.synchronizedMap(
-            new LinkedHashMap<>(100, 0.75f, true) {
+            new LinkedHashMap<String, Long>(100, 0.75f, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<String, Long> eldest) {
                     return size() > 1000;
@@ -198,9 +200,15 @@ public class WebhookEventService {
                 }
             }
 
-            // 일반 DM 키워드 트리거 — 다른 pending(POSTBACK/FOLLOW/DELAY) 과 무관하게 자유 실행
-            handleDmKeywordTrigger(igAccount, user, senderId, text);
-            handleWelcomeTrigger(igAccount, user, senderId, text);
+            // DM 키워드 트리거 → Flow-native dispatch
+            dispatchFlows(user, igAccount, senderId, text, null, Flow.TriggerType.KEYWORD);
+
+            // 첫 DM 이면 WELCOME 플로우도 시도 (키워드 플로우와 별개)
+            contactRepository.findByUserIdAndIgUserId(user.getId(), senderId).ifPresent(contact -> {
+                if (contact.getMessageCount() <= 1) {
+                    dispatchFlows(user, igAccount, senderId, text, null, Flow.TriggerType.WELCOME);
+                }
+            });
         }
     }
 
@@ -225,31 +233,6 @@ public class WebhookEventService {
         }
     }
 
-    // ─── 트리거별 핸들러 ───
-
-    private void handleDmKeywordTrigger(InstagramAccount igAccount, User user, String senderId, String text) {
-        List<Automation> automations = automationRepository.findByUserIdAndActiveTrueOrderByCreatedAtAsc(user.getId()).stream()
-                .filter(a -> a.getType() == Automation.AutomationType.DM_KEYWORD)
-                .toList();
-
-        Set<Long> linkedFlowIds = collectLinkedFlowIds(automations);
-        boolean fired = false;
-
-        for (Automation automation : automations) {
-            if (matchesAutomationKeyword(automation, text)) {
-                executeAutomationFlow(automation, igAccount, senderId, text, null);
-                fired = true;
-                break; // 첫 매칭 자동화만 실행
-            }
-        }
-
-        // Flow-native dispatch: Automation 에 연결되지 않은 순수 Flow 들.
-        // Automation 이 이미 매칭된 경우에는 Flow 까지 찍으면 이중 발사가 되므로 스킵.
-        if (fired) return;
-        dispatchNativeFlows(user, igAccount, senderId, text, null,
-                Flow.TriggerType.KEYWORD, linkedFlowIds);
-    }
-
     private void handleCommentTrigger(InstagramAccount igAccount, User user, JsonNode value) {
         String commentId = value.path("id").asText();
         String text = value.path("text").asText("");
@@ -258,60 +241,20 @@ public class WebhookEventService {
 
         if (senderId.equals(igAccount.getIgUserId())) return; // 자기 댓글 무시
 
-        // 외부 Webhook 전달
         integrationService.forwardWebhookEvent(user.getId(), "comment_received",
                 Map.of("commentId", commentId, "senderIgId", senderId, "text", text, "mediaId", mediaId));
 
-        List<Automation> automations = automationRepository.findByUserIdAndActiveTrueOrderByCreatedAtAsc(user.getId()).stream()
-                .filter(a -> a.getType() == Automation.AutomationType.COMMENT_TRIGGER)
-                .toList();
-
-        Set<Long> linkedFlowIds = collectLinkedFlowIds(automations);
-        boolean fired = false;
-
-        for (Automation automation : automations) {
-            // 게시물 타겟 필터
-            if (automation.getPostId() != null && !automation.getPostId().isBlank()
-                    && !automation.getPostId().equals(mediaId)) {
-                continue;
-            }
-
-            if (matchesAutomationKeyword(automation, text)) {
-                executeAutomationFlow(automation, igAccount, senderId, text, commentId);
-                fired = true;
-                break;
-            }
-        }
-
-        if (fired) return;
-        dispatchNativeFlows(user, igAccount, senderId, text, commentId,
-                Flow.TriggerType.COMMENT, linkedFlowIds, mediaId);
+        dispatchFlows(user, igAccount, senderId, text, commentId, Flow.TriggerType.COMMENT, mediaId);
     }
 
     private void handleStoryMentionTrigger(InstagramAccount igAccount, User user, JsonNode value) {
         String senderId = value.path("sender_id").asText(
                 value.path("from").path("id").asText(""));
 
-        // 외부 Webhook 전달
         integrationService.forwardWebhookEvent(user.getId(), "story_mention",
                 Map.of("senderIgId", senderId));
 
-        List<Automation> automations = automationRepository.findByUserIdAndActiveTrueOrderByCreatedAtAsc(user.getId()).stream()
-                .filter(a -> a.getType() == Automation.AutomationType.STORY_MENTION)
-                .toList();
-
-        Set<Long> linkedFlowIds = collectLinkedFlowIds(automations);
-        boolean fired = false;
-
-        for (Automation automation : automations) {
-            executeAutomationFlow(automation, igAccount, senderId, "스토리 멘션", null);
-            fired = true;
-            break;
-        }
-
-        if (fired) return;
-        dispatchNativeFlows(user, igAccount, senderId, "스토리 멘션", null,
-                Flow.TriggerType.STORY_MENTION, linkedFlowIds);
+        dispatchFlows(user, igAccount, senderId, "스토리 멘션", null, Flow.TriggerType.STORY_MENTION);
     }
 
     private void handleStoryReplyTrigger(InstagramAccount igAccount, User user, JsonNode value) {
@@ -319,189 +262,54 @@ public class WebhookEventService {
                 value.path("from").path("id").asText(""));
         String text = value.path("text").asText("스토리 답장");
 
-        // 외부 Webhook 전달
         integrationService.forwardWebhookEvent(user.getId(), "story_reply",
                 Map.of("senderIgId", senderId, "text", text));
 
-        List<Automation> automations = automationRepository.findByUserIdAndActiveTrueOrderByCreatedAtAsc(user.getId()).stream()
-                .filter(a -> a.getType() == Automation.AutomationType.STORY_REPLY)
-                .toList();
-
-        Set<Long> linkedFlowIds = collectLinkedFlowIds(automations);
-        boolean fired = false;
-
-        for (Automation automation : automations) {
-            executeAutomationFlow(automation, igAccount, senderId, text, null);
-            fired = true;
-            break;
-        }
-
-        if (fired) return;
-        dispatchNativeFlows(user, igAccount, senderId, text, null,
-                Flow.TriggerType.STORY_REPLY, linkedFlowIds);
-    }
-
-    private void handleWelcomeTrigger(InstagramAccount igAccount, User user, String senderId, String text) {
-        // 첫 DM인지 확인 (해당 사용자와의 Contact가 방금 생성됨 = messageCount <= 1)
-        contactRepository.findByUserIdAndIgUserId(user.getId(), senderId).ifPresent(contact -> {
-            if (contact.getMessageCount() <= 1) {
-                List<Automation> automations = automationRepository.findByUserIdAndActiveTrueOrderByCreatedAtAsc(user.getId()).stream()
-                        .filter(a -> a.getType() == Automation.AutomationType.WELCOME_MESSAGE)
-                        .toList();
-
-                Set<Long> linkedFlowIds = collectLinkedFlowIds(automations);
-                boolean fired = false;
-
-                for (Automation automation : automations) {
-                    executeAutomationFlow(automation, igAccount, senderId, text, null);
-                    fired = true;
-                    break;
-                }
-
-                if (!fired) {
-                    dispatchNativeFlows(user, igAccount, senderId, text, null,
-                            Flow.TriggerType.WELCOME, linkedFlowIds);
-                }
-            }
-        });
-    }
-
-    // ─── 공통 ───
-
-    private boolean matchesAutomationKeyword(Automation automation, String text) {
-        String keyword = automation.getKeyword();
-        if (keyword == null || keyword.isBlank()) return true; // 키워드 미설정 = 모든 매칭
-
-        String lowerText = text.toLowerCase();
-
-        // 콤마로 구분된 다중 키워드 지원 — 템플릿(예: "가격,얼마,구매") 시나리오에서 쓰임.
-        // 하나라도 매칭되면 성공.
-        String[] keywords = keyword.split(",");
-        for (String raw : keywords) {
-            String kw = raw.trim().toLowerCase();
-            if (kw.isEmpty()) continue;
-            boolean hit = switch (automation.getMatchType()) {
-                case EXACT -> lowerText.equals(kw);
-                case CONTAINS -> lowerText.contains(kw);
-                case STARTS_WITH -> lowerText.startsWith(kw);
-            };
-            if (hit) return true;
-        }
-        return false;
-    }
-
-    private void executeAutomationFlow(Automation automation, InstagramAccount igAccount,
-                                        String senderId, String text, String commentId) {
-        // ── 순서 주의 ──
-        // 1) 먼저 "실제 실행 가능한지" 확인 (플로우 존재/활성 체크).
-        // 2) 그 다음 중복 webhook dedupe (1분 캐시).
-        // 3) 마지막으로 쿨다운 (30초) — 여기서 찍으면 실제 실행됨이 확정된 이후라
-        //    비활성 플로우/중복 이벤트로 쿨다운이 헛 소모되는 문제가 없다.
-
-        // (1) 연결된 Flow 재조회 — LazyInitializationException 방지 (webhook 요청은 트랜잭션 밖에서 들어옴).
-        // automation.getFlow() 는 프록시이므로 Hibernate 세션 없이 건드리면 터진다.
-        // 또한 @Async 인 executeFlow 로 넘기기 전에 실체를 확보해야 다른 스레드에서 lazy 로딩 사고가 안 남.
-        Flow flowProxy = automation.getFlow();
-        if (flowProxy == null) {
-            log.warn("자동화에 연결된 플로우 없음: automationId={}", automation.getId());
-            return;
-        }
-        Flow flow = flowRepository.findById(flowProxy.getId()).orElse(null);
-        if (flow == null) {
-            log.warn("연결된 플로우가 삭제됨: automationId={}, flowId={}", automation.getId(), flowProxy.getId());
-            return;
-        }
-        if (!flow.isActive()) {
-            log.debug("비활성 플로우: flowId={}", flow.getId());
-            return;
-        }
-
-        // (2) 중복 실행 방지 — 웹훅 재전송 dedupe (1분 창). 쿨다운보다 관대.
-        String cacheKey = senderId + ":" + automation.getId();
-        Long lastExec = executionCache.get(cacheKey);
-        if (lastExec != null && System.currentTimeMillis() - lastExec < DUPLICATE_WINDOW_MS) {
-            log.debug("중복 실행 방지: automation={}, sender={}", automation.getId(), senderId);
-            return;
-        }
-
-        // (3) 쿨다운 — 동일 (자동화, 발신자) 쌍의 반복 트리거 억제 (스팸/인스타 정책 보호).
-        // 예: "가격 가격 가격" 연타 → 첫 매칭만 실행. 기본 30초.
-        if (!automationCooldownService.tryTrigger(automation.getId(), senderId)) {
-            return;
-        }
-
-        // 여기까지 왔으면 실행 확정 — executionCache 에 기록 (쿨다운은 tryTrigger 안에서 기록됨)
-        executionCache.put(cacheKey, System.currentTimeMillis());
-
-        // 트리거 카운트 증가
-        automation.setTriggeredCount(
-                automation.getTriggeredCount() == null ? 1 : automation.getTriggeredCount() + 1);
-
-        // 플로우 실행 (비동기)
-        flowExecutionService.executeFlow(flow, igAccount, senderId, text, commentId);
+        dispatchFlows(user, igAccount, senderId, text, null, Flow.TriggerType.STORY_REPLY);
     }
 
     // ═══════════════════════════════════════════════════════════════
-    //  Flow-native dispatch (Phase 1: Automation 을 거치지 않고 Flow 직접 발동)
-    //  Automation 레코드가 없는 "순수 Flow" 를 Webhook 이벤트에 바인딩.
-    //  Phase 3 에서 Automation 엔티티가 완전히 제거되면 이 경로만 남는다.
+    //  Flow dispatch — 우선순위 정렬된 활성 Flow 중 첫 매칭 실행
     // ═══════════════════════════════════════════════════════════════
 
-    /**
-     * Automation 에 이미 연결된 Flow id 집합. Flow-native 루프에서 제외해
-     * 하나의 Flow 가 Automation 경로 + Flow 경로로 이중 발사되는 걸 방지한다.
-     */
-    private Set<Long> collectLinkedFlowIds(List<Automation> automations) {
-        Set<Long> ids = new HashSet<>();
-        for (Automation a : automations) {
-            Flow f = a.getFlow();
-            if (f != null && f.getId() != null) ids.add(f.getId());
-        }
-        return ids;
+    private void dispatchFlows(User user, InstagramAccount igAccount,
+                               String senderId, String text, String commentId,
+                               Flow.TriggerType triggerType) {
+        dispatchFlows(user, igAccount, senderId, text, commentId, triggerType, null);
     }
 
-    private void dispatchNativeFlows(User user, InstagramAccount igAccount,
-                                     String senderId, String text, String commentId,
-                                     Flow.TriggerType triggerType, Set<Long> skipFlowIds) {
-        dispatchNativeFlows(user, igAccount, senderId, text, commentId, triggerType, skipFlowIds, null);
-    }
-
-    private void dispatchNativeFlows(User user, InstagramAccount igAccount,
-                                     String senderId, String text, String commentId,
-                                     Flow.TriggerType triggerType, Set<Long> skipFlowIds,
-                                     String postId) {
+    private void dispatchFlows(User user, InstagramAccount igAccount,
+                               String senderId, String text, String commentId,
+                               Flow.TriggerType triggerType, String postId) {
         List<Flow> flows = flowRepository
                 .findByUserIdAndActiveTrueAndTriggerTypeOrderByPriorityAscCreatedAtAsc(user.getId(), triggerType);
 
         for (Flow flow : flows) {
-            if (skipFlowIds.contains(flow.getId())) continue; // Automation 경로에서 처리됨
             if (!flowTriggerMatcher.matches(flow, text, postId)) continue;
-
-            executeFlowNative(flow, igAccount, senderId, text, commentId);
-            break; // 첫 매칭 플로우만 실행 (Automation 경로와 동일 정책)
+            executeFlow(flow, igAccount, senderId, text, commentId);
+            break; // 첫 매칭 플로우만 실행 (섀도잉 정책 — priority 로 유저가 순서 제어)
         }
     }
 
     /**
-     * Automation 레퍼런스 없이 Flow 를 직접 실행. executeAutomationFlow 와 동일한
-     * 3-단계 가드(활성 체크 / dedupe / 쿨다운)를 flow 기준으로 적용.
+     * 3-단계 가드: 활성 재확인 / dedupe (1분 창) / 쿨다운 (기본 30초).
      */
-    private void executeFlowNative(Flow flow, InstagramAccount igAccount,
-                                   String senderId, String text, String commentId) {
-        // (1) 활성 체크 — 이미 쿼리에서 active=true 필터했지만 race 방지
+    private void executeFlow(Flow flow, InstagramAccount igAccount,
+                             String senderId, String text, String commentId) {
+        // (1) 활성 체크 — 쿼리에서 이미 필터했지만 race 방지용 재조회
         Flow reloaded = flowRepository.findById(flow.getId()).orElse(null);
         if (reloaded == null || !reloaded.isActive()) return;
 
-        // (2) dedupe — Automation 과 namespace 분리 ("flow:" prefix)
+        // (2) dedupe — 동일 webhook 재전송 방지
         String cacheKey = "flow:" + senderId + ":" + flow.getId();
         Long lastExec = executionCache.get(cacheKey);
         if (lastExec != null && System.currentTimeMillis() - lastExec < DUPLICATE_WINDOW_MS) {
-            log.debug("Flow-native 중복 실행 방지: flowId={}, sender={}", flow.getId(), senderId);
+            log.debug("Flow 중복 실행 방지: flowId={}, sender={}", flow.getId(), senderId);
             return;
         }
 
-        // (3) 쿨다운
-        if (!automationCooldownService.tryTriggerFlow(flow.getId(), senderId)) return;
+        // (3) 쿨다운 — 동일 (flow, sender) 반복 트리거 억제
+        if (!flowCooldownService.tryTrigger(flow.getId(), senderId)) return;
 
         executionCache.put(cacheKey, System.currentTimeMillis());
         flowExecutionService.executeFlow(reloaded, igAccount, senderId, text, commentId);

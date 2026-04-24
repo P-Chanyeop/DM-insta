@@ -44,14 +44,6 @@ export const flowService = {
   reorder: (orderedIds) => api.patch('/flows/reorder', { orderedIds }),
 }
 
-export const automationService = {
-  list: (type) => api.get(`/automations${type ? `?type=${type}` : ''}`),
-  create: (data) => api.post('/automations', data),
-  upsert: (data) => api.post('/automations/upsert', data),
-  toggle: (id) => api.patch(`/automations/${id}/toggle`),
-  delete: (id) => api.delete(`/automations/${id}`),
-}
-
 export const pendingActionService = {
   list: () => api.get('/pending-actions'),
   cleanupAll: () => api.post('/pending-actions/cleanup'),

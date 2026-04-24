@@ -10,8 +10,7 @@ const PLAN_LIMITS = {
     price: 0,
     monthlyDM: 300,
     contacts: 5000,
-    flows: 3,
-    automations: 5,
+    flows: 5,
     broadcast: false,
     sequences: false,
     abTesting: false,
@@ -27,8 +26,7 @@ const PLAN_LIMITS = {
     price: 19900,
     monthlyDM: 3000,
     contacts: 15000,
-    flows: 5,
-    automations: 10,
+    flows: 10,
     broadcast: true,
     sequences: false,
     abTesting: false,
@@ -45,7 +43,6 @@ const PLAN_LIMITS = {
     monthlyDM: 30000,
     contacts: 50000,
     flows: Infinity,
-    automations: Infinity,
     broadcast: true,
     sequences: true,
     abTesting: true,
@@ -62,7 +59,6 @@ const PLAN_LIMITS = {
     monthlyDM: Infinity,
     contacts: Infinity,
     flows: Infinity,
-    automations: Infinity,
     broadcast: true,
     sequences: true,
     abTesting: true,
@@ -78,7 +74,7 @@ const PLAN_LIMITS = {
 export function PlanProvider({ children }) {
   const [plan, setPlan] = useState('FREE')
   const [subscription, setSubscription] = useState(null)
-  const [usage, setUsage] = useState({ contacts: 0, flows: 0, automations: 0, monthlyDM: 0 })
+  const [usage, setUsage] = useState({ contacts: 0, flows: 0, monthlyDM: 0 })
   const [loading, setLoading] = useState(true)
 
   const fetchBilling = useCallback(async () => {
@@ -95,7 +91,6 @@ export function PlanProvider({ children }) {
         setUsage({
           contacts: info.contactCount || 0,
           flows: info.flowCount || 0,
-          automations: info.automationCount || 0,
           monthlyDM: info.monthlyDMCount || 0,
         })
       }

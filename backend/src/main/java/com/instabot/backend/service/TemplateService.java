@@ -2,14 +2,14 @@ package com.instabot.backend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.instabot.backend.dto.FlowDto;
 import com.instabot.backend.dto.TemplateDto;
-import com.instabot.backend.entity.Automation;
 import com.instabot.backend.entity.Flow;
 import com.instabot.backend.entity.Template;
 import com.instabot.backend.entity.User;
 import com.instabot.backend.exception.ResourceNotFoundException;
-import com.instabot.backend.repository.AutomationRepository;
 import com.instabot.backend.repository.FlowRepository;
 import com.instabot.backend.repository.TemplateRepository;
 import com.instabot.backend.repository.UserRepository;
@@ -28,7 +28,6 @@ public class TemplateService {
 
     private final TemplateRepository templateRepository;
     private final FlowRepository flowRepository;
-    private final AutomationRepository automationRepository;
     private final UserRepository userRepository;
     private final QuotaService quotaService;
 
@@ -53,12 +52,10 @@ public class TemplateService {
     }
 
     /**
-     * 템플릿 "사용하기" — 템플릿의 flowData를 복사해서 새 Flow 생성 + 매칭 Automation(트리거) 연결.
+     * 템플릿 "사용하기" — 템플릿의 flowData 를 복사해 새 Flow 생성.
      * <p>
-     * 핵심: 템플릿 flowData 의 {@code trigger.type} / {@code trigger.keywords} / {@code trigger.matchType}
-     * 를 파싱해서 해당 Flow 가 즉시 동작 가능한 상태(트리거까지 연결된 상태)로 만든다.
-     * <p>
-     * 쿼터 검증은 실제 엔티티 생성 전에 한 번에 수행하여 한쪽만 생성되는 상황을 예방한다.
+     * Phase 3: Automation 이 제거되어 트리거 매칭 정보는 flowData 의 v2 트리거 노드에 임베드됨.
+     * 템플릿이 레거시 v1 포맷({@code root.trigger}) 이면 트리거 노드로 승격 후 저장.
      */
     @Transactional
     public FlowDto.Response useTemplate(Long templateId, Long userId) {
@@ -68,44 +65,27 @@ public class TemplateService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
-        // flowData 파싱 — 트리거 타입/키워드/매치타입/대상 게시물 추출
-        ParsedTrigger parsed = parseTrigger(template.getFlowData());
-
-        // 플로우 + 자동화(트리거) 할당량 둘 다 먼저 검증 — 하나만 생성되는 상황 예방
         quotaService.checkFlowQuota(user);
-        quotaService.checkAutomationQuota(user);
 
-        // 1) Flow 생성 (active=true + PUBLISHED 로 즉시 동작 가능하게)
+        ParsedTrigger parsed = parseTrigger(template.getFlowData());
+        String upgradedFlowData = upgradeToV2(template.getFlowData(), parsed);
+
         Flow flow = Flow.builder()
                 .user(user)
                 .name(template.getName() + " (템플릿)")
-                .flowData(template.getFlowData())
+                .flowData(upgradedFlowData)
                 .triggerType(parsed.flowTriggerType)
                 .status(Flow.FlowStatus.PUBLISHED)
                 .active(true)
                 .build();
         flow = flowRepository.save(flow);
 
-        // 2) 매칭 Automation 생성 (Flow 에 연결, 키워드/매치타입/대상 게시물 자동 채움)
-        Automation automation = Automation.builder()
-                .user(user)
-                .flow(flow)
-                .name(template.getName() + " 트리거")
-                .type(parsed.automationType)
-                .keyword(parsed.joinedKeywords)
-                .matchType(parsed.matchType)
-                .postId(parsed.postId)
-                .active(true)
-                .build();
-        automationRepository.save(automation);
-
-        // 3) 템플릿 사용 횟수 증가
         template.setUsageCount(template.getUsageCount() + 1);
         templateRepository.save(template);
 
-        log.info("템플릿 사용 완료 — user={}, template={}, flow={}, automation={}, type={}, keywords={}",
-                userId, template.getName(), flow.getId(), automation.getId(),
-                parsed.automationType, parsed.joinedKeywords);
+        log.info("템플릿 사용 완료 — user={}, template={}, flow={}, type={}, keywords={}",
+                userId, template.getName(), flow.getId(),
+                parsed.flowTriggerType, parsed.joinedKeywords);
 
         return FlowDto.Response.builder()
                 .id(flow.getId())
@@ -121,14 +101,14 @@ public class TemplateService {
     /**
      * 템플릿 flowData JSON 에서 트리거 설정을 추출.
      * <p>
-     * 예시: {@code {"trigger":{"type":"comment","keywords":["가격","얼마"],"matchType":"CONTAINS","postTarget":"any"}}}
+     * 레거시 v1 예시: {@code {"trigger":{"type":"comment","keywords":["가격","얼마"],"matchType":"CONTAINS","postTarget":"any"}}}
      */
     private ParsedTrigger parseTrigger(String flowDataJson) {
         ParsedTrigger result = new ParsedTrigger();
         result.flowTriggerType = Flow.TriggerType.KEYWORD;
-        result.automationType = Automation.AutomationType.DM_KEYWORD;
-        result.matchType = Automation.MatchType.CONTAINS;
-        result.joinedKeywords = null;
+        result.keywordMatch = "CONTAINS";
+        result.joinedKeywords = "";
+        result.postTarget = "any";
         result.postId = null;
 
         if (flowDataJson == null || flowDataJson.isBlank()) return result;
@@ -138,37 +118,18 @@ public class TemplateService {
             JsonNode trigger = root.path("trigger");
             if (trigger.isMissingNode() || !trigger.isObject()) return result;
 
-            // 트리거 타입 매핑 — comment → COMMENT_TRIGGER, dm_keyword(또는 keyword) → DM_KEYWORD
+            // 트리거 타입
             String triggerTypeStr = trigger.path("type").asText("").trim().toLowerCase();
-            switch (triggerTypeStr) {
-                case "comment" -> {
-                    result.flowTriggerType = Flow.TriggerType.COMMENT;
-                    result.automationType = Automation.AutomationType.COMMENT_TRIGGER;
-                }
-                case "story_mention" -> {
-                    result.flowTriggerType = Flow.TriggerType.STORY_MENTION;
-                    result.automationType = Automation.AutomationType.STORY_MENTION;
-                }
-                case "story_reply" -> {
-                    result.flowTriggerType = Flow.TriggerType.STORY_REPLY;
-                    result.automationType = Automation.AutomationType.STORY_REPLY;
-                }
-                case "welcome" -> {
-                    result.flowTriggerType = Flow.TriggerType.WELCOME;
-                    result.automationType = Automation.AutomationType.WELCOME_MESSAGE;
-                }
-                case "icebreaker" -> {
-                    result.flowTriggerType = Flow.TriggerType.ICEBREAKER;
-                    result.automationType = Automation.AutomationType.ICEBREAKER;
-                }
-                default -> {
-                    // "dm_keyword", "keyword", 빈값 → DM_KEYWORD
-                    result.flowTriggerType = Flow.TriggerType.KEYWORD;
-                    result.automationType = Automation.AutomationType.DM_KEYWORD;
-                }
-            }
+            result.flowTriggerType = switch (triggerTypeStr) {
+                case "comment" -> Flow.TriggerType.COMMENT;
+                case "story_mention" -> Flow.TriggerType.STORY_MENTION;
+                case "story_reply" -> Flow.TriggerType.STORY_REPLY;
+                case "welcome" -> Flow.TriggerType.WELCOME;
+                case "icebreaker" -> Flow.TriggerType.ICEBREAKER;
+                default -> Flow.TriggerType.KEYWORD;
+            };
 
-            // 키워드 추출 — array 를 콤마로 join (WebhookEventService.matchesAutomationKeyword 가 콤마 split 처리)
+            // 키워드 — array 를 콤마로 join (FlowTriggerMatcher 가 콤마 split 처리)
             JsonNode keywords = trigger.path("keywords");
             if (keywords.isArray() && keywords.size() > 0) {
                 List<String> list = new ArrayList<>();
@@ -181,34 +142,86 @@ public class TemplateService {
                 }
             }
 
-            // 매치 타입
+            // 매치 모드
             String matchTypeStr = trigger.path("matchType").asText("").trim().toUpperCase();
             if (!matchTypeStr.isBlank()) {
-                try {
-                    result.matchType = Automation.MatchType.valueOf(matchTypeStr);
-                } catch (IllegalArgumentException ignored) {
-                    // CONTAINS 유지
-                }
+                result.keywordMatch = matchTypeStr;
             }
 
-            // 대상 게시물 — "any" 면 null(전체 게시물), 아니면 그대로 postId 로 저장
+            // 대상 게시물
             String postTarget = trigger.path("postTarget").asText("").trim();
             if (!postTarget.isBlank() && !"any".equalsIgnoreCase(postTarget)) {
+                result.postTarget = "specific";
                 result.postId = postTarget;
             }
 
         } catch (Exception e) {
-            log.warn("템플릿 flowData 파싱 실패 — 기본값(DM_KEYWORD/CONTAINS) 사용: {}", e.getMessage());
+            log.warn("템플릿 flowData 파싱 실패 — 기본값 사용: {}", e.getMessage());
         }
 
         return result;
     }
 
+    /**
+     * 템플릿 flowData 를 v2 포맷으로 업그레이드 — FlowTriggerMatcher 가 읽을 수 있도록 트리거 노드 합성.
+     * 이미 v2 트리거 노드가 있으면 그대로 반환.
+     */
+    private String upgradeToV2(String flowDataJson, ParsedTrigger parsed) {
+        try {
+            ObjectNode root;
+            if (flowDataJson == null || flowDataJson.isBlank()) {
+                root = OBJECT_MAPPER.createObjectNode();
+            } else {
+                JsonNode parsedNode = OBJECT_MAPPER.readTree(flowDataJson);
+                if (!(parsedNode instanceof ObjectNode)) {
+                    return flowDataJson;
+                }
+                root = (ObjectNode) parsedNode;
+            }
+
+            ArrayNode nodes = (root.has("nodes") && root.get("nodes").isArray())
+                    ? (ArrayNode) root.get("nodes")
+                    : OBJECT_MAPPER.createArrayNode();
+
+            boolean hasTriggerNode = false;
+            for (JsonNode n : nodes) {
+                if ("trigger".equals(n.path("type").asText())) {
+                    hasTriggerNode = true;
+                    break;
+                }
+            }
+
+            if (!hasTriggerNode) {
+                ObjectNode triggerData = OBJECT_MAPPER.createObjectNode();
+                triggerData.put("keywordMatch", parsed.keywordMatch);
+                triggerData.put("keywords", parsed.joinedKeywords);
+                triggerData.put("postTarget", parsed.postTarget);
+                if (parsed.postId != null) triggerData.put("postId", parsed.postId);
+
+                ObjectNode triggerNode = OBJECT_MAPPER.createObjectNode();
+                triggerNode.put("id", "trigger-template");
+                triggerNode.put("type", "trigger");
+                triggerNode.set("data", triggerData);
+
+                ArrayNode newNodes = OBJECT_MAPPER.createArrayNode();
+                newNodes.add(triggerNode);
+                nodes.forEach(newNodes::add);
+                root.set("nodes", newNodes);
+            }
+
+            root.put("version", 2);
+            return OBJECT_MAPPER.writeValueAsString(root);
+        } catch (Exception e) {
+            log.warn("템플릿 flowData v2 업그레이드 실패 — 원본 유지: {}", e.getMessage());
+            return flowDataJson;
+        }
+    }
+
     private static class ParsedTrigger {
         Flow.TriggerType flowTriggerType;
-        Automation.AutomationType automationType;
-        Automation.MatchType matchType;
-        String joinedKeywords;
+        String keywordMatch;   // "CONTAINS" | "EXACT" | "STARTS_WITH" | "ANY"
+        String joinedKeywords; // 콤마 구분
+        String postTarget;     // "any" | "specific"
         String postId;
     }
 

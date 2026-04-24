@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 자동화 쿨다운 — 동일 (자동화, 발신자) 쌍이 짧은 시간에 반복 발동되는 것 방지.
+ * Flow 쿨다운 — 동일 (flow, 발신자) 쌍이 짧은 시간에 반복 발동되는 것 방지.
  *
  * 예: 유저가 "가격 가격 가격 가격" DM 10초 간격 연타 → 첫 매칭만 플로우 실행, 나머지 무시.
  * Instagram 스팸 신고를 최소화하고 동일 메시지 반복 발송을 억제한다.
@@ -19,64 +19,47 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * 맵 메모리 관리:
  *  - tryTrigger 가 통과할 때 해당 키는 자연스럽게 새 시각으로 갱신됨 (lazy update).
- *  - 하지만 더 이상 트리거되지 않는 옛 키(예: 비활성화된 자동화, 떠난 유저)는 남음.
+ *  - 하지만 더 이상 트리거되지 않는 옛 키(예: 비활성화된 플로우, 떠난 유저)는 남음.
  *  - cleanupStaleEntries 가 주기적으로 cutoff 보다 오래된 키를 제거해 장기 메모리 누수 방지.
  */
 @Slf4j
 @Service
-public class AutomationCooldownService {
+public class FlowCooldownService {
 
     private static final Duration DEFAULT_COOLDOWN = Duration.ofSeconds(30);
     /** 청소 기준 — 이보다 오래 된 엔트리는 제거 (기본 쿨다운의 120배 마진). */
     private static final Duration CLEANUP_CUTOFF = Duration.ofHours(1);
 
-    // key: "{automationId}:{senderIgId}", value: 마지막 발동 시각
+    // key: "flow:{flowId}:{senderIgId}", value: 마지막 발동 시각
     private final ConcurrentHashMap<String, Instant> lastTriggered = new ConcurrentHashMap<>();
 
     /**
      * 트리거 가능한지 확인하고 가능하면 기록 (원자적).
      * @return true 면 플로우 실행 진행, false 면 쿨다운 중이라 스킵
      */
-    public boolean tryTrigger(Long automationId, String senderIgId) {
-        return tryTrigger(automationId, senderIgId, DEFAULT_COOLDOWN);
+    public boolean tryTrigger(Long flowId, String senderIgId) {
+        return tryTrigger(flowId, senderIgId, DEFAULT_COOLDOWN);
     }
 
-    public boolean tryTrigger(Long automationId, String senderIgId, Duration cooldown) {
-        if (automationId == null || senderIgId == null || senderIgId.isBlank()) return true;
-        return tryTriggerByKey("auto:" + automationId + ":" + senderIgId, cooldown, "automation", automationId, senderIgId);
-    }
-
-    /**
-     * Flow-native dispatch 전용 쿨다운. Automation 키와 namespace 분리 — flow.id 와 automation.id 가
-     * 우연히 겹쳐도 서로 간섭하지 않도록 "flow:" prefix 사용.
-     */
-    public boolean tryTriggerFlow(Long flowId, String senderIgId) {
-        return tryTriggerFlow(flowId, senderIgId, DEFAULT_COOLDOWN);
-    }
-
-    public boolean tryTriggerFlow(Long flowId, String senderIgId, Duration cooldown) {
+    public boolean tryTrigger(Long flowId, String senderIgId, Duration cooldown) {
         if (flowId == null || senderIgId == null || senderIgId.isBlank()) return true;
-        return tryTriggerByKey("flow:" + flowId + ":" + senderIgId, cooldown, "flow", flowId, senderIgId);
-    }
-
-    private boolean tryTriggerByKey(String key, Duration cooldown, String scope, Long scopeId, String senderIgId) {
+        String key = "flow:" + flowId + ":" + senderIgId;
         Instant now = Instant.now();
         Instant cutoff = now.minus(cooldown);
 
-        // compute 로 원자적 체크 + 업데이트
         Instant[] previousHolder = new Instant[1];
         lastTriggered.compute(key, (k, previous) -> {
             previousHolder[0] = previous;
             if (previous == null || previous.isBefore(cutoff)) {
-                return now; // 통과 — 새 시각 기록
+                return now;
             }
-            return previous; // 쿨다운 중 — 기존 시각 유지
+            return previous;
         });
 
         boolean passed = previousHolder[0] == null || previousHolder[0].isBefore(cutoff);
         if (!passed) {
-            log.info("쿨다운 — {} 스킵: id={}, sender={}, last={}s 전",
-                    scope, scopeId, senderIgId,
+            log.info("쿨다운 — flow 스킵: id={}, sender={}, last={}s 전",
+                    flowId, senderIgId,
                     Duration.between(previousHolder[0], now).toSeconds());
         }
         return passed;

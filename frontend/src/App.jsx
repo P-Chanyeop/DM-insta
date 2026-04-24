@@ -14,7 +14,6 @@ import NotFoundPage from './pages/NotFoundPage'
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 const FlowsPage = lazy(() => import('./pages/FlowsPage'))
 const FlowBuilderPage = lazy(() => import('./pages/FlowBuilderPage'))
-const AutomationPage = lazy(() => import('./pages/AutomationPage'))
 const LiveChatPage = lazy(() => import('./pages/LiveChatPage'))
 const BroadcastPage = lazy(() => import('./pages/BroadcastPage'))
 const BroadcastBuilderPage = lazy(() => import('./pages/BroadcastBuilderPage'))
@@ -60,7 +59,6 @@ export default function App() {
         <Route path="flows" element={<Suspense fallback={<PageLoader />}><FlowsPage /></Suspense>} />
         <Route path="flows/builder" element={<Suspense fallback={<PageLoader />}><FlowBuilderPage /></Suspense>} />
         <Route path="flows/builder/:id" element={<Suspense fallback={<PageLoader />}><FlowBuilderPage /></Suspense>} />
-        <Route path="automation" element={<Suspense fallback={<PageLoader />}><AutomationPage /></Suspense>} />
         <Route path="livechat" element={<Suspense fallback={<PageLoader />}><LiveChatPage /></Suspense>} />
         <Route path="broadcast" element={<Suspense fallback={<PageLoader />}><BroadcastPage /></Suspense>} />
         <Route path="broadcast/builder" element={<Suspense fallback={<PageLoader />}><BroadcastBuilderPage /></Suspense>} />
