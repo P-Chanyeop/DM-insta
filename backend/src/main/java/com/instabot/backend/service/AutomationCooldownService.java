@@ -43,7 +43,23 @@ public class AutomationCooldownService {
 
     public boolean tryTrigger(Long automationId, String senderIgId, Duration cooldown) {
         if (automationId == null || senderIgId == null || senderIgId.isBlank()) return true;
-        String key = automationId + ":" + senderIgId;
+        return tryTriggerByKey("auto:" + automationId + ":" + senderIgId, cooldown, "automation", automationId, senderIgId);
+    }
+
+    /**
+     * Flow-native dispatch 전용 쿨다운. Automation 키와 namespace 분리 — flow.id 와 automation.id 가
+     * 우연히 겹쳐도 서로 간섭하지 않도록 "flow:" prefix 사용.
+     */
+    public boolean tryTriggerFlow(Long flowId, String senderIgId) {
+        return tryTriggerFlow(flowId, senderIgId, DEFAULT_COOLDOWN);
+    }
+
+    public boolean tryTriggerFlow(Long flowId, String senderIgId, Duration cooldown) {
+        if (flowId == null || senderIgId == null || senderIgId.isBlank()) return true;
+        return tryTriggerByKey("flow:" + flowId + ":" + senderIgId, cooldown, "flow", flowId, senderIgId);
+    }
+
+    private boolean tryTriggerByKey(String key, Duration cooldown, String scope, Long scopeId, String senderIgId) {
         Instant now = Instant.now();
         Instant cutoff = now.minus(cooldown);
 
@@ -59,8 +75,8 @@ public class AutomationCooldownService {
 
         boolean passed = previousHolder[0] == null || previousHolder[0].isBefore(cutoff);
         if (!passed) {
-            log.info("쿨다운 — 자동화 스킵: automationId={}, sender={}, last={}s 전",
-                    automationId, senderIgId,
+            log.info("쿨다운 — {} 스킵: id={}, sender={}, last={}s 전",
+                    scope, scopeId, senderIgId,
                     Duration.between(previousHolder[0], now).toSeconds());
         }
         return passed;
