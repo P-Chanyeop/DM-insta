@@ -63,8 +63,6 @@ function mapConversation(conv) {
     assignee: conv.assignedTo || null,
     automationPaused: conv.automationPaused || false,
     automationPauseEnd: conv.automationPauseEnd ? new Date(conv.automationPauseEnd).getTime() : null,
-    // 팔로워 수 — Graph API insights 권한이 있어야 채워짐. null 이면 "—" 표시.
-    followers: typeof conv.followerCount === 'number' ? conv.followerCount : null,
     // 첫 메시지 수신일 — 고객 유입 시점. Contact.firstMessageAt 에서 옴.
     firstMessageAt: conv.firstMessageAt || null,
     // 상대방 마지막 수신 시각 — 24h 창 판정 기준. 내 발송은 반영되지 않음.
@@ -1068,7 +1066,6 @@ export default function LiveChatPage() {
               <strong>{selectedChat?.name || selectedChat?.username || '알 수 없음'}</strong>
               <span>
                 {selectedChat?.username ? `@${selectedChat.username}` : '@알 수 없음'}
-                {selectedChat?.followers > 0 && ` · 팔로워 ${selectedChat.followers.toLocaleString()}`}
               </span>
             </div>
           </div>
@@ -1382,15 +1379,15 @@ export default function LiveChatPage() {
             </div>
             <div className="info-section">
               <h5>기본 정보</h5>
-              <div className="info-row">
-                <label>팔로워</label>
-                <span title={selectedChat.followers == null ? 'Instagram Graph API insights 권한 승인 후 표시됩니다' : ''}>
-                  {selectedChat.followers != null ? selectedChat.followers.toLocaleString() : '—'}
-                </span>
-              </div>
+              {/* 팔로워 수: Instagram Graph API 의 `followers_count` 는 /me(자기 계정) 에서만 반환되고
+                  상대방(DM 연락처) 의 팔로워 수는 business_discovery 스코프로도 비공개 계정은 조회 불가.
+                  App Review 로 insights 권한을 받아도 "내 팔로워 수" 만 알 수 있으므로
+                  연락처별 팔로워는 구조적으로 표기 불가 → UI 에서 제거. */}
               <div className="info-row">
                 <label>첫 메시지</label>
-                <span>{formatDateOrDash(selectedChat.firstMessageAt)}</span>
+                <span title="이 연락처가 처음 DM 을 보낸 날짜">
+                  {formatDateOrDash(selectedChat.firstMessageAt)}
+                </span>
               </div>
               <div className="info-row">
                 <label>마지막 활동</label>

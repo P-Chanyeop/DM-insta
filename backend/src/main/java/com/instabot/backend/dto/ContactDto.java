@@ -1,5 +1,6 @@
 package com.instabot.backend.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -18,8 +19,12 @@ public class ContactDto {
         private boolean active;
         private Set<String> tags;
         private String memo;
+        private String email;
+        private String phone;
+        private Integer followerCount;
         private LocalDateTime subscribedAt;
         private LocalDateTime lastActiveAt;
+        private LocalDateTime firstMessageAt;
     }
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor
@@ -28,6 +33,13 @@ public class ContactDto {
         private Set<String> tags;
         private String memo;
         private String customFields;
+
+        @Email(message = "올바른 이메일 형식이 아닙니다")
+        @Size(max = 320, message = "이메일은 320자 이하로 입력하세요")
+        private String email;
+
+        @Size(max = 50, message = "전화번호는 50자 이하로 입력하세요")
+        private String phone;
     }
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor

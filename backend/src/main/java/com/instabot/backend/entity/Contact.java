@@ -41,6 +41,14 @@ public class Contact {
 
     private String memo;
 
+    /** 고객 추후 관리용 이메일 — Instagram DM API 는 제공하지 않으므로 사용자 수동 입력 필드. */
+    @Column(length = 320)
+    private String email;
+
+    /** 고객 추후 관리용 전화번호 — Instagram DM API 는 제공하지 않으므로 사용자 수동 입력 필드. */
+    @Column(length = 50)
+    private String phone;
+
     @Builder.Default
     private LocalDateTime subscribedAt = LocalDateTime.now();
 

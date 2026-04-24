@@ -55,6 +55,10 @@ export default function ContactsPage() {
 
   // Detail modal
   const [detailContact, setDetailContact] = useState(null)
+  // 이메일/전화번호/메모 인라인 편집 — 저장 전까지 서버에 보내지 않고 로컬만 변경.
+  const [editField, setEditField] = useState(null) // 'email' | 'phone' | 'memo' | null
+  const [editValue, setEditValue] = useState('')
+  const [savingField, setSavingField] = useState(false)
 
   // Import UI
   const [showImport, setShowImport] = useState(false)
@@ -208,11 +212,44 @@ export default function ContactsPage() {
 
   // --- View detail ---
   const handleView = async (contact) => {
+    setEditField(null)
+    setEditValue('')
     try {
       const full = await contactService.get(contact.id)
       setDetailContact(full || contact)
     } catch {
       setDetailContact(contact)
+    }
+  }
+
+  // --- Start inline edit on detail modal ---
+  const beginEdit = (field, currentValue) => {
+    setEditField(field)
+    setEditValue(currentValue || '')
+  }
+
+  const cancelEdit = () => {
+    setEditField(null)
+    setEditValue('')
+  }
+
+  const saveFieldEdit = async () => {
+    if (!detailContact || !editField) return
+    setSavingField(true)
+    try {
+      const updated = await contactService.update(detailContact.id, { [editField]: editValue })
+      // 서버가 돌려준 Response 로 detailContact 갱신하고 목록도 동기화.
+      setDetailContact(updated)
+      setPageData((prev) => prev
+        ? { ...prev, content: prev.content.map((c) => c.id === updated.id ? { ...c, ...updated } : c) }
+        : prev)
+      setEditField(null)
+      setEditValue('')
+      toast.success('저장되었습니다.')
+    } catch (err) {
+      toast.error(err.message || '저장에 실패했습니다.')
+    } finally {
+      setSavingField(false)
     }
   }
 
@@ -548,73 +585,170 @@ export default function ContactsPage() {
       {/* Detail Modal */}
       {detailContact && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          className="contact-detail-overlay"
           onClick={() => setDetailContact(null)}
         >
           <div
-            style={{ background: 'var(--card)', borderRadius: '1rem', padding: '2rem', width: '480px', maxWidth: '500px', maxHeight: '80vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
+            className="contact-detail-modal"
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ margin: 0 }}>연락처 상세</h3>
-              <button className="icon-btn" onClick={() => setDetailContact(null)} style={{ borderRadius: '8px' }}>
+            <div className="contact-detail-header">
+              <h3>연락처 상세</h3>
+              <button className="contact-detail-close" onClick={() => setDetailContact(null)} aria-label="닫기">
                 <i className="ri-close-line" />
               </button>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-              <div className="contact-avatar" style={{ background: gradientFor(0), width: '56px', height: '56px', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', color: '#fff', fontWeight: 700 }}>
+
+            <div className="contact-detail-identity">
+              <div className="contact-detail-avatar" style={{ background: gradientFor(0) }}>
                 {(detailContact.name || detailContact.username || '?').charAt(0)}
               </div>
-              <div>
-                <h4 style={{ margin: 0 }}>{detailContact.name || detailContact.username}</h4>
-                <span style={{ color: 'var(--muted)' }}>@{detailContact.username}</span>
+              <div className="contact-detail-identity-text">
+                <h4>{detailContact.name || detailContact.username}</h4>
+                <span>@{detailContact.username}</span>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>이메일</div>
-                <div>{detailContact.email || '-'}</div>
+
+            <div className="contact-detail-grid">
+              {/* 이메일: 편집 가능 */}
+              <div className="contact-detail-field">
+                <div className="contact-detail-label">
+                  이메일
+                  {editField !== 'email' && (
+                    <button className="contact-detail-edit-btn" onClick={() => beginEdit('email', detailContact.email)} title="이메일 수정">
+                      <i className="ri-pencil-line" />
+                    </button>
+                  )}
+                </div>
+                {editField === 'email' ? (
+                  <div className="contact-detail-edit-row">
+                    <input
+                      type="email"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      placeholder="name@example.com"
+                      autoFocus
+                    />
+                    <button className="btn-primary btn-sm" onClick={saveFieldEdit} disabled={savingField}>
+                      저장
+                    </button>
+                    <button className="btn-secondary btn-sm" onClick={cancelEdit} disabled={savingField}>
+                      취소
+                    </button>
+                  </div>
+                ) : (
+                  <div className="contact-detail-value">{detailContact.email || '—'}</div>
+                )}
               </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>전화번호</div>
-                <div>{detailContact.phone || '-'}</div>
+
+              {/* 전화번호: 편집 가능 */}
+              <div className="contact-detail-field">
+                <div className="contact-detail-label">
+                  전화번호
+                  {editField !== 'phone' && (
+                    <button className="contact-detail-edit-btn" onClick={() => beginEdit('phone', detailContact.phone)} title="전화번호 수정">
+                      <i className="ri-pencil-line" />
+                    </button>
+                  )}
+                </div>
+                {editField === 'phone' ? (
+                  <div className="contact-detail-edit-row">
+                    <input
+                      type="tel"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      placeholder="010-0000-0000"
+                      autoFocus
+                    />
+                    <button className="btn-primary btn-sm" onClick={saveFieldEdit} disabled={savingField}>
+                      저장
+                    </button>
+                    <button className="btn-secondary btn-sm" onClick={cancelEdit} disabled={savingField}>
+                      취소
+                    </button>
+                  </div>
+                ) : (
+                  <div className="contact-detail-value">{detailContact.phone || '—'}</div>
+                )}
               </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>구독일</div>
-                <div>{formatDate(detailContact.subscribedAt)}</div>
+
+              <div className="contact-detail-field">
+                <div className="contact-detail-label">구독일</div>
+                <div className="contact-detail-value">{formatDate(detailContact.subscribedAt)}</div>
               </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>마지막 활동</div>
-                <div>{formatRelative(detailContact.lastActiveAt)}</div>
+
+              <div className="contact-detail-field">
+                <div className="contact-detail-label">첫 메시지</div>
+                <div className="contact-detail-value">{formatDate(detailContact.firstMessageAt)}</div>
               </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>메시지 수</div>
-                <div>{detailContact.messageCount ?? 0}</div>
+
+              <div className="contact-detail-field">
+                <div className="contact-detail-label">마지막 활동</div>
+                <div className="contact-detail-value">{formatRelative(detailContact.lastActiveAt)}</div>
               </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>상태</div>
-                <span className={`status-badge ${detailContact.active ? 'active' : 'inactive'}`}>
-                  {detailContact.active ? '활성' : '비활성'}
-                </span>
+
+              <div className="contact-detail-field">
+                <div className="contact-detail-label">메시지 수</div>
+                <div className="contact-detail-value">{detailContact.messageCount ?? 0}</div>
+              </div>
+
+              <div className="contact-detail-field">
+                <div className="contact-detail-label">상태</div>
+                <div className="contact-detail-value">
+                  <span className={`status-badge ${detailContact.active ? 'active' : 'inactive'}`}>
+                    {detailContact.active ? '활성' : '비활성'}
+                  </span>
+                </div>
               </div>
             </div>
+
             {(detailContact.tags || []).length > 0 && (
-              <div style={{ marginTop: '1rem' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.5rem' }}>태그</div>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div className="contact-detail-block">
+                <div className="contact-detail-label">태그</div>
+                <div className="contact-detail-tags">
                   {(detailContact.tags || []).map((t) => (
                     <span className="mini-tag" key={t}>{t}</span>
                   ))}
                 </div>
               </div>
             )}
-            {detailContact.notes && (
-              <div style={{ marginTop: '1rem' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>메모</div>
-                <div>{detailContact.notes}</div>
+
+            {/* 메모: 편집 가능 */}
+            <div className="contact-detail-block">
+              <div className="contact-detail-label">
+                메모
+                {editField !== 'memo' && (
+                  <button className="contact-detail-edit-btn" onClick={() => beginEdit('memo', detailContact.memo)} title="메모 수정">
+                    <i className="ri-pencil-line" />
+                  </button>
+                )}
               </div>
-            )}
-            <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              {editField === 'memo' ? (
+                <div className="contact-detail-edit-row contact-detail-edit-row--stacked">
+                  <textarea
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    rows={3}
+                    placeholder="고객 관리용 메모를 입력하세요"
+                    autoFocus
+                  />
+                  <div className="contact-detail-edit-actions">
+                    <button className="btn-primary btn-sm" onClick={saveFieldEdit} disabled={savingField}>
+                      저장
+                    </button>
+                    <button className="btn-secondary btn-sm" onClick={cancelEdit} disabled={savingField}>
+                      취소
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="contact-detail-memo">
+                  {detailContact.memo || <span className="contact-detail-empty">메모가 없습니다. 수정 버튼을 눌러 추가하세요.</span>}
+                </div>
+              )}
+            </div>
+
+            <div className="contact-detail-footer">
               <button className="btn-primary" onClick={() => { setDetailContact(null); handleMessage(detailContact) }}>
                 <i className="ri-message-3-line" /> 메시지 보내기
               </button>

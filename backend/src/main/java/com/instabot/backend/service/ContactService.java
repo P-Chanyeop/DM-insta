@@ -54,6 +54,13 @@ public class ContactService {
         if (request.getTags() != null) contact.setTags(request.getTags());
         if (request.getMemo() != null) contact.setMemo(request.getMemo());
         if (request.getCustomFields() != null) contact.setCustomFields(request.getCustomFields());
+        // email/phone 은 빈 문자열 입력 시 NULL 로 저장해 UI "—" 처리와 일관성 유지.
+        if (request.getEmail() != null) {
+            contact.setEmail(request.getEmail().isBlank() ? null : request.getEmail().trim());
+        }
+        if (request.getPhone() != null) {
+            contact.setPhone(request.getPhone().isBlank() ? null : request.getPhone().trim());
+        }
 
         return toResponse(contactRepository.save(contact));
     }
@@ -205,8 +212,12 @@ public class ContactService {
                 .active(c.isActive())
                 .tags(tagsCopy)
                 .memo(c.getMemo())
+                .email(c.getEmail())
+                .phone(c.getPhone())
+                .followerCount(c.getFollowerCount())
                 .subscribedAt(c.getSubscribedAt())
                 .lastActiveAt(c.getLastActiveAt())
+                .firstMessageAt(c.getFirstMessageAt())
                 .build();
     }
 }
