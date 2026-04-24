@@ -164,23 +164,14 @@ public class ConversationController {
         if (request.getStatus() != null) {
             conversation.setStatus(request.getStatus());
         }
-        // 배정 변경 감지 — 이전 값과 달라졌을 때만 SYSTEM 메시지를 남긴다.
-        // `getAssignedTo()` 필드가 request 에 포함됐는지 판별하기 위해
-        //   ・null 이면 "해제 요청" (빈 문자열도 해제로 간주)
-        //   ・빈 문자열이 아니면 "배정 요청"
-        // UpdateRequest 에 null 이면 "필드 변경 없음"으로 해석하고 싶지만
-        // 현재 DTO가 null 과 "해제" 를 구분하지 못하므로, assignedTo 필드가 요청 body 에
-        // 명시적으로 들어있는지 알 수 없다 → 기존 코드와 동일하게 null == 변경없음 으로 둔다.
-        if (request.getAssignedTo() != null) {
-            String newAssignee = request.getAssignedTo().isBlank() ? null : request.getAssignedTo();
+        // 배정 (할당) — null 은 "필드 변경 없음" 으로 해석.
+        // 해제는 DELETE /conversations/{id}/assignee 엔드포인트로 분리.
+        if (request.getAssignedTo() != null && !request.getAssignedTo().isBlank()) {
+            String newAssignee = request.getAssignedTo();
             String oldAssignee = conversation.getAssignedTo();
-            boolean changed = !java.util.Objects.equals(oldAssignee, newAssignee);
-            conversation.setAssignedTo(newAssignee);
-            if (changed) {
-                String systemText = (newAssignee == null || newAssignee.isBlank())
-                        ? "대화 배정이 해제되었습니다."
-                        : "대화가 " + newAssignee + "에게 배정되었습니다.";
-                saveSystemMessage(conversation, systemText);
+            if (!java.util.Objects.equals(oldAssignee, newAssignee)) {
+                conversation.setAssignedTo(newAssignee);
+                saveSystemMessage(conversation, "대화가 " + newAssignee + "에게 배정되었습니다.");
             }
         }
         if (request.getAutomationPaused() != null) {
@@ -235,6 +226,24 @@ public class ConversationController {
         findConversationForCurrentUser(id);
         int updated = messageRepository.markAllAsReadByConversationId(id);
         return ResponseEntity.ok(Map.of("updated", updated));
+    }
+
+    /**
+     * 배정 해제 — PATCH + null 혼선을 피하기 위한 전용 엔드포인트.
+     * PATCH body 의 null 은 "필드 변경 없음" 으로 해석되므로,
+     * 명시적 해제 액션은 DELETE 로 구분한다.
+     */
+    @DeleteMapping("/{id}/assignee")
+    @Transactional
+    public ResponseEntity<ConversationDto.Response> unassign(@PathVariable Long id) {
+        Conversation conversation = findConversationForCurrentUser(id);
+        String old = conversation.getAssignedTo();
+        if (old != null) {
+            conversation.setAssignedTo(null);
+            conversationRepository.save(conversation);
+            saveSystemMessage(conversation, "대화 배정이 해제되었습니다.");
+        }
+        return ResponseEntity.ok(toResponse(conversation));
     }
 
     // ─── 내부 유틸 ───

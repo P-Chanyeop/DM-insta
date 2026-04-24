@@ -701,8 +701,8 @@ export default function LiveChatPage() {
     setShowAssignDropdown(false)
 
     try {
-      // 서버는 null 을 "필드 변경 없음" 으로 해석하므로 "" 로 보내 해제를 의도적으로 지시.
-      await conversationService.update(selectedId, { assignedTo: '' })
+      // PATCH body 의 null/빈 문자열은 해석이 모호하므로 전용 DELETE 엔드포인트로 해제.
+      await conversationService.unassign(selectedId)
     } catch (err) {
       console.error('배정 해제 실패:', err)
       updateChat(selectedId, { assignee: prevAssignee })
