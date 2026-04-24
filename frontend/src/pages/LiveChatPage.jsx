@@ -63,9 +63,20 @@ function mapConversation(conv) {
     assignee: conv.assignedTo || null,
     automationPaused: conv.automationPaused || false,
     automationPauseEnd: conv.automationPauseEnd ? new Date(conv.automationPauseEnd).getTime() : null,
-    followers: conv.followerCount || 0,
-    firstMessage: conv.firstMessageDate || '',
-    subscribed: conv.subscribed ?? false,
+    // 팔로워 수 — Graph API insights 권한이 있어야 채워짐. null 이면 "—" 표시.
+    followers: typeof conv.followerCount === 'number' ? conv.followerCount : null,
+    // 첫 메시지 수신일 — 고객 유입 시점. Contact.firstMessageAt 에서 옴.
+    firstMessageAt: conv.firstMessageAt || null,
+    // 상대방 마지막 수신 시각 — 24h 창 판정 기준. 내 발송은 반영되지 않음.
+    lastInboundAt: conv.lastInboundAt ? new Date(conv.lastInboundAt).getTime() : null,
+    // Meta Messaging Policy 3-state (STANDARD / HUMAN_AGENT / OUTSIDE)
+    messagingWindow: conv.messagingWindow || 'OUTSIDE',
+    messagingWindowStandardExpiresAt: conv.messagingWindowStandardExpiresAt
+      ? new Date(conv.messagingWindowStandardExpiresAt).getTime() : null,
+    messagingWindowHumanAgentExpiresAt: conv.messagingWindowHumanAgentExpiresAt
+      ? new Date(conv.messagingWindowHumanAgentExpiresAt).getTime() : null,
+    canAutomatedSend: conv.canAutomatedSend ?? false,
+    canManualSend: conv.canManualSend ?? false,
     messages: [], // messages are loaded separately
   }
 }
@@ -102,6 +113,79 @@ function formatTime(isoString) {
   return `${h >= 12 ? '오후' : '오전'} ${h > 12 ? h - 12 : h}:${m}`
 }
 
+// 날짜만 YYYY-MM-DD 로 (첫 메시지 유입일 등) — null/공백은 "—"
+function formatDateOrDash(value) {
+  if (!value) return '—'
+  try {
+    const d = new Date(value)
+    if (isNaN(d.getTime())) return '—'
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  } catch { return '—' }
+}
+
+// 상대시간 — "방금", "3분 전", "2시간 전", "어제", "3일 전", 그 이상은 날짜.
+// "마지막 활동(= 상대방 마지막 수신)" 표시용.
+function formatRelative(epoch) {
+  if (!epoch) return '기록 없음'
+  const diff = Date.now() - epoch
+  if (diff < 0) return '방금'
+  const sec = Math.floor(diff / 1000)
+  if (sec < 60) return '방금'
+  const min = Math.floor(sec / 60)
+  if (min < 60) return `${min}분 전`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr}시간 전`
+  const day = Math.floor(hr / 24)
+  if (day === 1) return '어제'
+  if (day < 7) return `${day}일 전`
+  return formatDateOrDash(epoch)
+}
+
+// 정책 창 상태 뱃지 컴포넌트 — ManyChat 동등 3-state.
+// props: window = 'STANDARD' | 'HUMAN_AGENT' | 'OUTSIDE', countdown = "23:45:12" 또는 null
+function MessagingWindowBadge({ window, countdown }) {
+  if (window === 'STANDARD') {
+    return (
+      <div className="msg-window-badge standard" role="status">
+        <div className="msg-window-badge-row">
+          <i className="ri-checkbox-circle-fill" />
+          <strong>메시지 전송 가능</strong>
+        </div>
+        <span className="msg-window-badge-sub">
+          {countdown ? `24시간 창 ${countdown} 남음` : '24시간 창 안'} · 자동화 + 수동 모두 가능
+        </span>
+      </div>
+    )
+  }
+  if (window === 'HUMAN_AGENT') {
+    return (
+      <div className="msg-window-badge human-agent" role="status">
+        <div className="msg-window-badge-row">
+          <i className="ri-user-voice-fill" />
+          <strong>수동만 가능 (자동화 중단)</strong>
+        </div>
+        <span className="msg-window-badge-sub">
+          Human Agent 창 (7일 이내) · 자동 DM 은 Meta 정책상 차단
+        </span>
+      </div>
+    )
+  }
+  return (
+    <div className="msg-window-badge outside" role="status">
+      <div className="msg-window-badge-row">
+        <i className="ri-forbid-2-fill" />
+        <strong>메시지 전송 불가</strong>
+      </div>
+      <span className="msg-window-badge-sub">
+        7일 창 종료 · 상대가 먼저 DM 을 보내거나 Recurring Notifications 옵트인 필요
+      </span>
+    </div>
+  )
+}
+
 // 대화 목록 사이드바용 짧은 시간 — 오늘이면 "오후 3:12", 어제면 "어제", 이번주면 "3일 전", 그 외 "4/23".
 // 백엔드 LocalDateTime 은 ISO 문자열(`2026-04-23T23:02:21`)로 오므로 반드시 포맷 후 표시.
 function formatListTime(value) {
@@ -136,6 +220,8 @@ export default function LiveChatPage() {
   const [showTagSuggestions, setShowTagSuggestions] = useState(false)
   const [showAssignDropdown, setShowAssignDropdown] = useState(false)
   const [automationTimers, setAutomationTimers] = useState({})
+  // Meta 정책 24h 창 남은 시간 카운트다운 (선택된 대화 기준) — 1초마다 갱신
+  const [windowCountdown, setWindowCountdown] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showAutomationNotice, setShowAutomationNotice] = useState(() => {
     // 세션당 1회만 안내 — sessionStorage 로 중복 노출 방지
@@ -385,6 +471,29 @@ export default function LiveChatPage() {
     return () => clearInterval(interval)
   }, [chats])
 
+  // Meta 정책 24h 창 카운트다운 — 선택된 대화의 standardExpiresAt 기준
+  useEffect(() => {
+    if (!selectedChat) { setWindowCountdown(null); return }
+    const expiresAt = selectedChat.messagingWindowStandardExpiresAt
+    if (!expiresAt || selectedChat.messagingWindow !== 'STANDARD') {
+      setWindowCountdown(null)
+      return
+    }
+    const tick = () => {
+      const remaining = Math.max(0, expiresAt - Date.now())
+      if (remaining === 0) { setWindowCountdown(null); return }
+      const totalSec = Math.floor(remaining / 1000)
+      const h = Math.floor(totalSec / 3600)
+      const m = Math.floor((totalSec % 3600) / 60)
+      const s = totalSec % 60
+      const pad = (n) => String(n).padStart(2, '0')
+      setWindowCountdown(`${pad(h)}:${pad(m)}:${pad(s)}`)
+    }
+    tick()
+    const iv = setInterval(tick, 1000)
+    return () => clearInterval(iv)
+  }, [selectedChat?.id, selectedChat?.messagingWindow, selectedChat?.messagingWindowStandardExpiresAt])
+
   const updateChat = useCallback((chatId, updater) => {
     setChats((prev) => prev.map((c) => (c.id === chatId ? (typeof updater === 'function' ? updater(c) : { ...c, ...updater }) : c)))
   }, [])
@@ -457,6 +566,9 @@ export default function LiveChatPage() {
       markAutoPausedAfterManualSend(selectedId)
     } catch (err) {
       console.error('메시지 전송 실패:', err)
+      // 백엔드가 400 (정책 위반 등) 을 주면 메시지 본문을 그대로 노출
+      const detail = err?.error || err?.message || '메시지 전송에 실패했습니다.'
+      toast.error(detail)
       // Mark the message as failed
       setChats((prev) =>
         prev.map((c) => {
@@ -1153,17 +1265,40 @@ export default function LiveChatPage() {
               ))}
             </div>
           )}
+          {selectedChat && !selectedChat.canManualSend && (
+            <div className="chat-input-window-lock" role="alert">
+              <i className="ri-forbid-2-fill" aria-hidden="true" />
+              <div>
+                <strong>메시지 전송 불가</strong>
+                <p>
+                  Instagram 정책상 상대방이 7일 이내에 DM 을 보낸 적이 있어야 답장할 수 있습니다.
+                  상대가 먼저 메시지를 보내올 때까지 기다려주세요.
+                </p>
+              </div>
+            </div>
+          )}
           <div className="chat-input-tools">
-            <button className="icon-btn" title="이미지" onClick={handleImageClick}>
+            <button
+              className="icon-btn"
+              title={selectedChat?.canManualSend ? '이미지' : '전송 불가 상태'}
+              onClick={handleImageClick}
+              disabled={!selectedChat?.canManualSend}
+            >
               <i className="ri-image-line" />
             </button>
-            <button className="icon-btn" title="카드" onClick={handleSendCard}>
+            <button
+              className="icon-btn"
+              title={selectedChat?.canManualSend ? '카드' : '전송 불가 상태'}
+              onClick={handleSendCard}
+              disabled={!selectedChat?.canManualSend}
+            >
               <i className="ri-article-line" />
             </button>
             <button
               className={`icon-btn${showQuickReplies ? ' active' : ''}`}
-              title="빠른 답장"
+              title={selectedChat?.canManualSend ? '빠른 답장' : '전송 불가 상태'}
               onClick={handleToggleQuickReplies}
+              disabled={!selectedChat?.canManualSend}
               style={showQuickReplies ? { color: '#7c3aed', background: '#f3f0ff' } : {}}
             >
               <i className="ri-flashlight-line" />
@@ -1175,17 +1310,20 @@ export default function LiveChatPage() {
           <div className="chat-input-box">
             <textarea
               ref={textareaRef}
-              placeholder="메시지를 입력하세요..."
+              placeholder={selectedChat?.canManualSend
+                ? '메시지를 입력하세요...'
+                : '상대방이 7일 이내에 DM 을 보낸 적이 없어 전송할 수 없습니다'}
               rows={1}
               value={inputText}
               onChange={handleTextareaInput}
               onKeyDown={handleKeyDown}
+              disabled={!selectedChat?.canManualSend}
             />
             <button
               className="send-btn"
               onClick={handleSendMessage}
-              disabled={!inputText.trim()}
-              style={{ opacity: inputText.trim() ? 1 : 0.5 }}
+              disabled={!inputText.trim() || !selectedChat?.canManualSend}
+              style={{ opacity: (inputText.trim() && selectedChat?.canManualSend) ? 1 : 0.5 }}
             >
               <i className="ri-send-plane-fill" />
             </button>
@@ -1193,7 +1331,9 @@ export default function LiveChatPage() {
           <div className="chat-input-note">
             <i className="ri-alert-fill" aria-hidden="true" />
             <span>
-              {selectedChat?.automationPaused
+              {selectedChat?.messagingWindow === 'HUMAN_AGENT'
+                ? 'Human Agent 창(7일) 입니다. 수동 발송은 가능하지만 자동화 DM 은 Meta 정책상 보내지 않습니다.'
+                : selectedChat?.automationPaused
                 ? '자동화가 일시정지 상태입니다.'
                 : '수동 메시지를 보내면 이 대화의 자동화가 24시간 일시정지됩니다'}
             </span>
@@ -1242,14 +1382,28 @@ export default function LiveChatPage() {
             </div>
             <div className="info-section">
               <h5>기본 정보</h5>
-              <div className="info-row"><label>팔로워</label><span>{selectedChat.followers?.toLocaleString()}</span></div>
-              <div className="info-row"><label>첫 메시지</label><span>{selectedChat.firstMessage}</span></div>
-              <div className="info-row"><label>마지막 활동</label><span>{selectedChat.time}</span></div>
               <div className="info-row">
-                <label>구독 상태</label>
-                <span className={`status-badge ${selectedChat.subscribed ? 'active' : ''}`}>
-                  {selectedChat.subscribed ? '구독 중' : '미구독'}
+                <label>팔로워</label>
+                <span title={selectedChat.followers == null ? 'Instagram Graph API insights 권한 승인 후 표시됩니다' : ''}>
+                  {selectedChat.followers != null ? selectedChat.followers.toLocaleString() : '—'}
                 </span>
+              </div>
+              <div className="info-row">
+                <label>첫 메시지</label>
+                <span>{formatDateOrDash(selectedChat.firstMessageAt)}</span>
+              </div>
+              <div className="info-row">
+                <label>마지막 활동</label>
+                <span title="상대방이 마지막으로 보낸 시각">
+                  {formatRelative(selectedChat.lastInboundAt)}
+                </span>
+              </div>
+              <div className="info-row info-row--stacked">
+                <label>메시지 전송 상태 (Meta 정책)</label>
+                <MessagingWindowBadge
+                  window={selectedChat.messagingWindow}
+                  countdown={windowCountdown}
+                />
               </div>
               <div className="info-row">
                 <label>배정</label>

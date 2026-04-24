@@ -28,6 +28,7 @@ public class SequenceExecutionService {
     private final ConversationService conversationService;
     private final ContactRepository contactRepository;
     private final SequenceRepository sequenceRepository;
+    private final MessagingWindowService messagingWindowService;
     private final TaskScheduler taskScheduler;
 
     /**
@@ -135,6 +136,13 @@ public class SequenceExecutionService {
                                      InstagramAccount igAccount, User user) {
         String content = step.getMessageContent();
         if (content == null || content.isBlank()) return;
+
+        // Meta Messaging Policy 가드 — 지연 발송 중 24h 창이 닫혔으면 스킵.
+        if (!messagingWindowService.canAutomatedSend(user, contact.getIgUserId())) {
+            log.info("시퀀스 Step 스킵 (24h 창 종료): stepOrder={}, contact={}",
+                    step.getStepOrder(), contact.getId());
+            return;
+        }
 
         // 변수 치환
         content = content.replace("{{username}}", contact.getUsername() != null ? contact.getUsername() : "")

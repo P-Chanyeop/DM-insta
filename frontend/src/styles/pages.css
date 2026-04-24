@@ -661,6 +661,31 @@
   outline: 2px solid var(--primary); outline-offset: 2px;
 }
 
+/* Meta Messaging Policy 3-state 창 뱃지 — 정보 패널에서 "메시지 전송 상태" 표시 */
+.msg-window-badge {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px 12px; border-radius: 8px;
+  font-size: 13px; line-height: 1.4;
+  border: 1px solid transparent;
+}
+.msg-window-badge-row { display: flex; align-items: center; gap: 6px; }
+.msg-window-badge-row i { font-size: 16px; }
+.msg-window-badge-row strong { font-weight: 700; font-size: 13px; }
+.msg-window-badge-sub { font-size: 11px; opacity: 0.85; }
+.msg-window-badge.standard    { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+.msg-window-badge.human-agent { background: #fefce8; border-color: #fde68a; color: #854d0e; }
+.msg-window-badge.outside     { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
+/* 전송 불가(OUTSIDE) 시 입력창 상단에 표시하는 경고 배너 */
+.chat-input-window-lock {
+  display: flex; gap: 10px; padding: 10px 12px; margin-bottom: 8px;
+  background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px;
+  color: #991b1b; font-size: 13px; line-height: 1.4;
+}
+.chat-input-window-lock > i { font-size: 20px; flex-shrink: 0; margin-top: 1px; color: #dc2626; }
+.chat-input-window-lock strong { display: block; margin-bottom: 2px; font-size: 13px; font-weight: 700; }
+.chat-input-window-lock p { margin: 0; font-size: 12px; color: #7f1d1d; }
+
 .info-tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .info-tag { padding: 4px 10px; background: var(--primary-100); color: var(--primary-700); border-radius: 100px; font-size: 12px; font-weight: 600; }
 .add-tag-btn {

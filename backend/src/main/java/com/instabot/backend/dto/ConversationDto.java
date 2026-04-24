@@ -20,9 +20,21 @@ public class ConversationDto {
         private LocalDateTime automationPauseEnd;
         private String assignedTo;
         private LocalDateTime lastMessageAt;
+        /** 상대방(고객)이 마지막으로 DM 보낸 시각 — 정보 패널 "마지막 활동" 표시 + 창 판정 기준 */
+        private LocalDateTime lastInboundAt;
         private LocalDateTime createdAt;
 
         private int unreadCount;
+
+        // Meta Messaging Policy 창 상태 (STANDARD / HUMAN_AGENT / OUTSIDE)
+        private String messagingWindow;
+        /** 자동화 가능 만료 시각 (= lastInboundAt + 24h). 프론트 카운트다운용. */
+        private LocalDateTime messagingWindowStandardExpiresAt;
+        /** 수동 발송 가능 만료 시각 (= lastInboundAt + 7일). */
+        private LocalDateTime messagingWindowHumanAgentExpiresAt;
+        /** 편의 플래그 — 프론트에서 버튼 활성화 판단 시 사용 */
+        private boolean canAutomatedSend;
+        private boolean canManualSend;
 
         // Contact info (flattened)
         private Long contactId;
@@ -31,6 +43,10 @@ public class ConversationDto {
         private String contactProfilePictureUrl;
         private List<String> tags;
         private String memo;
+        /** 이 연락처로부터 첫 DM 을 수신한 시점 (= 고객 유입일) */
+        private LocalDateTime firstMessageAt;
+        /** Instagram 팔로워 수 — Graph API insights 권한 필요. 없으면 null */
+        private Integer followerCount;
     }
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder

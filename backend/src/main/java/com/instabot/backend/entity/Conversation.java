@@ -38,6 +38,12 @@ public class Conversation {
     @Builder.Default
     private LocalDateTime lastMessageAt = LocalDateTime.now();
 
+    /** 상대방(고객)이 마지막으로 나에게 DM 을 보낸 시각.
+     *  Meta Messaging 정책상 24h(표준)/7일(Human Agent) 창 판정의 유일한 기준.
+     *  outbound 는 절대 이 값을 갱신하지 않는다 — 내 발송으로 창이 늘어나면 ManyChat 동등성 깨짐. */
+    @Column(name = "last_inbound_at")
+    private LocalDateTime lastInboundAt;
+
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 

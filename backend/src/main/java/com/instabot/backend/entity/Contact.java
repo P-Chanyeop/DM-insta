@@ -45,4 +45,14 @@ public class Contact {
     private LocalDateTime subscribedAt = LocalDateTime.now();
 
     private LocalDateTime lastActiveAt;
+
+    /** 이 Contact 로부터 첫 DM 을 수신한 시점 — "첫 메시지" UI 및 고객 유입 분석용.
+     *  Contact 최초 생성 시점(첫 인바운드 웹훅 처리) 과 동일하지만 명시적으로 별도 컬럼으로 보존. */
+    @Column(name = "first_message_at")
+    private LocalDateTime firstMessageAt;
+
+    /** Instagram 팔로워 수 — Graph API (`instagram_manage_insights` 권한) 로 주기적 동기화 예정.
+     *  App Review 통과 전에는 null 로 남고 UI 는 "—" 표시. */
+    @Column(name = "follower_count")
+    private Integer followerCount;
 }

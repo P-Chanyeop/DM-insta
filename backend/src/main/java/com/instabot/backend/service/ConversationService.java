@@ -37,24 +37,32 @@ public class ConversationService {
     @Transactional
     public Message handleInboundMessage(User user, String senderIgId, String senderUsername,
                                          String content, Message.MessageType type) {
-        // 1. Contact 조회 또는 생성
+        LocalDateTime nowTs = LocalDateTime.now();
+
+        // 1. Contact 조회 또는 생성 — 첫 생성 시 firstMessageAt 고정 기록 (이후 갱신 안 함)
         Contact contact = contactRepository.findByUserIdAndIgUserId(user.getId(), senderIgId)
                 .orElseGet(() -> contactRepository.save(Contact.builder()
                         .user(user)
                         .igUserId(senderIgId)
                         .username(senderUsername != null ? senderUsername : senderIgId)
                         .name(senderUsername)
+                        .firstMessageAt(nowTs)
                         .build()));
 
-        contact.setLastActiveAt(LocalDateTime.now());
+        // 기존 레코드에 firstMessageAt 이 null 인 케이스 (V22 이전 생성) 도 최초 수신 시 채워줌
+        if (contact.getFirstMessageAt() == null) {
+            contact.setFirstMessageAt(nowTs);
+        }
+        contact.setLastActiveAt(nowTs);
         contact.setMessageCount(contact.getMessageCount() + 1);
         contactRepository.save(contact);
 
-        // 2. Conversation 조회 또는 생성
+        // 2. Conversation 조회 또는 생성 — inbound 경로에서만 lastInboundAt 갱신 (24h 창 기준점)
         Conversation conversation = getOrCreateConversation(user, contact);
         conversation.setLastMessage(content != null && content.length() > 200
                 ? content.substring(0, 200) : content);
-        conversation.setLastMessageAt(LocalDateTime.now());
+        conversation.setLastMessageAt(nowTs);
+        conversation.setLastInboundAt(nowTs);
         conversation.setStatus(Conversation.ConversationStatus.OPEN);
         conversationRepository.save(conversation);
 

@@ -28,6 +28,7 @@ public class BroadcastExecutionService {
     private final ContactRepository contactRepository;
     private final InstagramApiService instagramApiService;
     private final ConversationService conversationService;
+    private final MessagingWindowService messagingWindowService;
     private final NotificationService notificationService;
 
     private static final long RATE_LIMIT_DELAY_MS = 3000; // 3초 간격 (200/hour)
@@ -63,8 +64,16 @@ public class BroadcastExecutionService {
         log.info("브로드캐스트 시작: id={}, segment={}, targets={}", broadcastId, broadcast.getSegment(), targets.size());
 
         long sentCount = 0;
+        long skippedPolicy = 0;
         for (Contact contact : targets) {
             if (contact.getIgUserId() == null) continue;
+
+            // Meta Messaging Policy 가드 — 24h 창 밖 수신자는 자동 발송 대상에서 제외.
+            // 브로드캐스트는 promotional 성격이 강해 7-day Human Agent 창도 사용하면 안 됨.
+            if (!messagingWindowService.canAutomatedSend(user, contact.getIgUserId())) {
+                skippedPolicy++;
+                continue;
+            }
 
             try {
                 instagramApiService.sendTextMessage(
@@ -99,7 +108,8 @@ public class BroadcastExecutionService {
         broadcast.setSentAt(LocalDateTime.now());
         broadcastRepository.save(broadcast);
 
-        log.info("브로드캐스트 완료: id={}, sent={}/{}", broadcastId, sentCount, targets.size());
+        log.info("브로드캐스트 완료: id={}, sent={}/{}, 정책스킵={}",
+                broadcastId, sentCount, targets.size(), skippedPolicy);
     }
 
     /**

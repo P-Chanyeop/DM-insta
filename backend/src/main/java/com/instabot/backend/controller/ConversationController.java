@@ -9,6 +9,7 @@ import com.instabot.backend.repository.MessageRepository;
 import com.instabot.backend.repository.UserRepository;
 import com.instabot.backend.service.ConversationService;
 import com.instabot.backend.service.InstagramApiService;
+import com.instabot.backend.service.MessagingWindowService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +31,7 @@ public class ConversationController {
     private final ConversationService conversationService;
     private final InstagramApiService instagramApiService;
     private final com.instabot.backend.service.BillingService billingService;
+    private final MessagingWindowService messagingWindowService;
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
@@ -100,6 +102,16 @@ public class ConversationController {
         if (!billingService.canSendDM(userId)) {
             throw new com.instabot.backend.exception.BadRequestException(
                     "월간 DM 발송 한도를 초과했습니다. 플랜을 업그레이드해주세요.");
+        }
+
+        // Meta Messaging Policy 창 체크 — OUTSIDE(7일 초과 또는 기록 없음) 에 보내면 API가 거부하고
+        // 정책 위반으로 계정에 경고가 누적될 수 있음. 서버단에서 사전 차단.
+        MessagingWindowService.Window window =
+                messagingWindowService.classify(conversation.getLastInboundAt());
+        if (!messagingWindowService.canManualSend(window)) {
+            throw new com.instabot.backend.exception.BadRequestException(
+                    "상대방이 7일 이내에 메시지를 보낸 적이 없어 Instagram 정책상 DM 을 보낼 수 없습니다. " +
+                    "상대방이 먼저 메시지를 보낼 때까지 기다리거나, Recurring Notifications 옵트인이 필요합니다.");
         }
 
         InstagramAccount igAccount = instagramApiService.getConnectedAccount(userId);
@@ -277,6 +289,11 @@ public class ConversationController {
     private ConversationDto.Response toResponse(Conversation conversation) {
         Contact contact = conversation.getContact();
         long unread = messageRepository.countUnreadByConversationId(conversation.getId());
+
+        // Meta Messaging Policy 창 상태 계산 — lastInboundAt 기준
+        java.time.LocalDateTime lastInbound = conversation.getLastInboundAt();
+        MessagingWindowService.Window window = messagingWindowService.classify(lastInbound);
+
         return ConversationDto.Response.builder()
                 .id(conversation.getId())
                 .status(conversation.getStatus())
@@ -285,14 +302,22 @@ public class ConversationController {
                 .automationPauseEnd(conversation.getAutomationPauseEnd())
                 .assignedTo(conversation.getAssignedTo())
                 .lastMessageAt(conversation.getLastMessageAt())
+                .lastInboundAt(lastInbound)
                 .createdAt(conversation.getCreatedAt())
                 .unreadCount((int) unread)
+                .messagingWindow(window.name())
+                .messagingWindowStandardExpiresAt(messagingWindowService.standardExpiresAt(lastInbound))
+                .messagingWindowHumanAgentExpiresAt(messagingWindowService.humanAgentExpiresAt(lastInbound))
+                .canAutomatedSend(messagingWindowService.canAutomatedSend(window))
+                .canManualSend(messagingWindowService.canManualSend(window))
                 .contactId(contact.getId())
                 .contactName(contact.getName())
                 .contactUsername(contact.getUsername())
                 .contactProfilePictureUrl(contact.getProfilePictureUrl())
                 .tags(contact.getTags() != null ? new java.util.ArrayList<>(contact.getTags()) : java.util.List.of())
                 .memo(contact.getMemo())
+                .firstMessageAt(contact.getFirstMessageAt())
+                .followerCount(contact.getFollowerCount())
                 .build();
     }
 

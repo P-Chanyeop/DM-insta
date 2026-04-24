@@ -35,6 +35,7 @@ public class FollowUpSchedulerService {
     private final PendingFlowActionRepository pendingFlowActionRepository;
     private final InstagramApiService instagramApiService;
     private final ContactRepository contactRepository;
+    private final MessagingWindowService messagingWindowService;
     private final ObjectMapper objectMapper;
     @org.springframework.context.annotation.Lazy
     private final FlowExecutionService flowExecutionService;
@@ -62,6 +63,16 @@ public class FollowUpSchedulerService {
                 InstagramAccount igAccount = followUp.getInstagramAccount();
                 String accessToken = instagramApiService.getDecryptedToken(igAccount);
                 String botIgId = igAccount.getIgUserId();
+
+                // Meta Messaging Policy 가드 — 스케줄된 시점에 24h 창이 닫혀있으면 정책상 자동화 발송 불가.
+                // 스킵으로 처리해 계정이 정책 위반 경고를 받지 않도록 보호.
+                if (!messagingWindowService.canAutomatedSend(igAccount.getUser(), followUp.getRecipientIgId())) {
+                    followUp.setStatus(ScheduledFollowUp.Status.FAILED);
+                    scheduledFollowUpRepository.save(followUp);
+                    log.info("팔로업 스킵 (24h 창 종료): id={}, recipient={}",
+                            followUp.getId(), followUp.getRecipientIgId());
+                    continue;
+                }
 
                 // 발송 시점에 변수 치환
                 Contact contact = contactRepository
