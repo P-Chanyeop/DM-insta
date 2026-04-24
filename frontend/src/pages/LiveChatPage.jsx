@@ -113,6 +113,10 @@ export default function LiveChatPage() {
   const [showAssignDropdown, setShowAssignDropdown] = useState(false)
   const [automationTimers, setAutomationTimers] = useState({})
   const [loading, setLoading] = useState(true)
+  const [showAutomationNotice, setShowAutomationNotice] = useState(() => {
+    // 세션당 1회만 안내 — sessionStorage 로 중복 노출 방지
+    try { return !sessionStorage.getItem('livechatAutomationNoticeShown') } catch { return true }
+  })
   const textareaRef = useRef(null)
   const messagesEndRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -478,6 +482,11 @@ export default function LiveChatPage() {
     setShowCardModal(true)
   }
 
+  const handleCloseAutomationNotice = () => {
+    setShowAutomationNotice(false)
+    try { sessionStorage.setItem('livechatAutomationNoticeShown', '1') } catch {}
+  }
+
   const handleCardSubmit = async () => {
     if (!cardForm.title.trim()) return
     setShowCardModal(false)
@@ -725,7 +734,10 @@ export default function LiveChatPage() {
   // ---- Filters ----
 
   const filteredChats = chats.filter((c) => {
-    const matchesSearch = !searchQuery || c.name.includes(searchQuery) || c.messages.some((m) => m.text?.includes(searchQuery))
+    const q = searchQuery.trim().toLowerCase()
+    const matchesSearch = !q
+      || (c.name && c.name.toLowerCase().includes(q))
+      || (c.username && c.username.toLowerCase().includes(q))
     const matchesFilter =
       activeFilter === '전체' ||
       (activeFilter === '열림' && c.status === 'open') ||
@@ -763,7 +775,7 @@ export default function LiveChatPage() {
           <i className="ri-search-line" />
           <input
             type="text"
-            placeholder="대화 검색..."
+            placeholder="아이디 또는 이름으로 검색..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -1097,9 +1109,12 @@ export default function LiveChatPage() {
             </button>
           </div>
           <div className="chat-input-note">
-            {selectedChat?.automationPaused
-              ? '자동화가 일시정지 상태입니다.'
-              : '수동 메시지를 보내면 이 대화의 자동화가 24시간 일시정지됩니다'}
+            <i className="ri-alert-fill" aria-hidden="true" />
+            <span>
+              {selectedChat?.automationPaused
+                ? '자동화가 일시정지 상태입니다.'
+                : '수동 메시지를 보내면 이 대화의 자동화가 24시간 일시정지됩니다'}
+            </span>
           </div>
           <input
             ref={fileInputRef}
@@ -1237,6 +1252,41 @@ export default function LiveChatPage() {
                 key={selectedChat.id}
                 onBlur={handleMemoBlur}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 자동화 일시정지 안내 모달 — 세션당 1회 */}
+      {showAutomationNotice && (
+        <div className="modal-overlay" onClick={handleCloseAutomationNotice}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div className="modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#dc2626' }}>
+                <i className="ri-alert-fill" style={{ fontSize: 22 }} aria-hidden="true" />
+                안내
+              </h3>
+              <button className="modal-close" onClick={handleCloseAutomationNotice} aria-label="닫기">
+                <i className="ri-close-line" />
+              </button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{
+                display: 'flex', gap: 10, padding: 12,
+                background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8,
+                color: '#991b1b', fontSize: 14, lineHeight: 1.5,
+              }}>
+                <i className="ri-error-warning-fill" style={{ fontSize: 20, color: '#dc2626', flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
+                <div>
+                  <strong style={{ display: 'block', marginBottom: 4 }}>수동 메시지를 보내면 이 대화의 자동화가 24시간 일시정지됩니다.</strong>
+                  <span style={{ fontSize: 13, color: '#7f1d1d' }}>
+                    수동 응답 중인 고객에게 자동 DM 이 중복 발송되는 것을 막기 위한 안전장치입니다. 대화창 상단의 "자동화 재개" 버튼으로 언제든 해제할 수 있습니다.
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-primary" onClick={handleCloseAutomationNotice}>확인</button>
             </div>
           </div>
         </div>
