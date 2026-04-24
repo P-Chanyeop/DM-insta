@@ -48,7 +48,10 @@ function mapConversation(conv) {
     name: displayName,
     username,
     profilePictureUrl: profilePic,
-    time: conv.lastMessageTime || '',
+    time: conv.lastMessageTime || conv.lastMessageAt || '',
+    // 서버가 DB에 유지하는 마지막 실제 메시지 프리뷰 — 대화를 선택하지 않아도 목록에 표시할 수 있게 매핑.
+    // SYSTEM 메시지는 서버가 lastMessage 에 반영하지 않으므로 "초기화" 현상도 함께 해결됨.
+    lastMessage: conv.lastMessage || '',
     bg: conv.avatarGradient || 'linear-gradient(135deg, #667eea, #764ba2)',
     initial: (displayName || '?').charAt(0),
     badge: conv.automationType === 'auto' ? 'auto' : null,
@@ -836,7 +839,17 @@ export default function LiveChatPage() {
                   </strong>
                   <span>{c.time}</span>
                 </div>
-                <p>{c.messages[c.messages.length - 1]?.text || ''}</p>
+                <p>{
+                  // SYSTEM 메시지(배정/자동화 알림)는 프리뷰에서 제외 — 마지막 실제 대화를 보여줘야 함.
+                  // 로컬 messages 에 비-SYSTEM 이 있으면 그걸, 없으면 서버가 DB 에 유지해둔 c.lastMessage 사용.
+                  (() => {
+                    for (let i = c.messages.length - 1; i >= 0; i--) {
+                      const m = c.messages[i]
+                      if (m && m.type !== 'system') return m.text || ''
+                    }
+                    return c.lastMessage || ''
+                  })()
+                }</p>
               </div>
               {c.badge && <div className="chat-item-badge auto">자동</div>}
               {c.assignee && (
