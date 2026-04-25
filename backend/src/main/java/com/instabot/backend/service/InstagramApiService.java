@@ -249,6 +249,19 @@ public class InstagramApiService {
 
         InstagramAccount saved = instagramAccountRepository.save(account);
         log.info("Instagram 계정 연결 완료: userId={}, igUserId={}, username={}", user.getId(), igUserId, username);
+
+        // Webhook 구독 — OAuth 재발급 시에도 호출되어야 새 fields(comments 등) 가 적용됨.
+        // 이게 없으면 subscribed_fields=[messages] 만 남고, 댓글 답장 API 가 100/33 으로 거부됨.
+        try {
+            boolean subscribed = subscribeAppToIgAccount(igUserId, igAccessToken);
+            if (!subscribed) {
+                log.warn("Webhook 구독 실패 — 댓글 답장이 안 될 수 있음: igUserId={}", igUserId);
+            }
+        } catch (Exception e) {
+            log.error("Webhook 구독 중 예외 (계정 연결은 성공): igUserId={}, error={}",
+                    igUserId, e.getMessage());
+        }
+
         return saved;
     }
 
