@@ -573,7 +573,7 @@ public class InstagramApiService {
             log.error("댓글 답장 실패 — commentId={}, status={}, metaResponse={}",
                     commentId, e.getStatusCode(), responseBody);
 
-            // ─── 진단: 댓글이 토큰 시야에서 보이는지 GET 으로 확인 ───
+            // ─── 진단 1: 댓글이 토큰 시야에서 보이는지 GET 으로 확인 ───
             //  (#100/subcode 33) 메시지는 1)존재안함 2)권한없음 3)지원안함 을 한 번에 던지므로
             //  GET 한 번 더 때려서 어느 케이스인지 좁힌다.
             //   - GET 200 → 댓글은 보임 → POST 만 거절 → 'manage_comments' scope grant 안 됐을 가능성
@@ -581,16 +581,30 @@ public class InstagramApiService {
             //   - GET 200 + parent_id != null → 답글의 답글 → Meta 가 reply-to-reply 거절
             try {
                 String getUrl = apiBaseUrl + "/v21.0/" + commentId
-                        + "?fields=id,text,parent_id,from,user,hidden,timestamp"
+                        + "?fields=id,text,parent_id,from,user,hidden,timestamp,media{id,owner{id,username},media_product_type}"
                         + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8);
                 JsonNode commentInfo = restTemplate.getForObject(getUrl, JsonNode.class);
-                log.error("진단 — 댓글 GET 성공 → 토큰은 댓글을 볼 수 있음. POST 만 거절됨 (scope 또는 reply-to-reply 의심): "
+                log.error("진단 1 — 댓글 GET 성공 → 토큰은 댓글을 볼 수 있음. POST 만 거절됨 (scope 또는 reply-to-reply 의심): "
                         + "commentId={}, commentInfo={}", commentId, commentInfo);
             } catch (org.springframework.web.client.HttpStatusCodeException ge) {
-                log.error("진단 — 댓글 GET 도 실패 → 토큰이 이 댓글을 보지 못함 (다른 계정 미디어 / 삭제된 댓글 / mention 웹훅 가능성): "
+                log.error("진단 1 — 댓글 GET 도 실패 → 토큰이 이 댓글을 보지 못함 (다른 계정 미디어 / 삭제된 댓글 / mention 웹훅 가능성): "
                         + "commentId={}, getStatus={}, getBody={}", commentId, ge.getStatusCode(), ge.getResponseBodyAsString());
             } catch (Exception ge) {
-                log.error("진단 — 댓글 GET 중 예외: commentId={}, error={}", commentId, ge.getMessage());
+                log.error("진단 1 — 댓글 GET 중 예외: commentId={}, error={}", commentId, ge.getMessage());
+            }
+
+            // ─── 진단 2: 토큰의 진짜 owner 확인 (GET /me) ───
+            //  토큰이 우리가 OAuth 받은 IG 계정의 토큰이 맞는지, 다른 계정 토큰이 끼어든 건 아닌지 확인.
+            //  로그의 me.id 가 igAccount.igUserId 와 일치해야 정상.
+            //  불일치하면 토큰 저장/암복호화 또는 OAuth 콜백 라우팅에 버그가 있다는 강력한 신호.
+            try {
+                String meUrl = apiBaseUrl + "/v21.0/me?fields=id,username,account_type"
+                        + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8);
+                JsonNode meInfo = restTemplate.getForObject(meUrl, JsonNode.class);
+                log.error("진단 2 — 토큰 owner: commentId={}, me={}", commentId, meInfo);
+            } catch (Exception me) {
+                log.error("진단 2 — GET /me 실패 (토큰 자체가 무효일 가능성): commentId={}, error={}",
+                        commentId, me.getMessage());
             }
 
             throw new RuntimeException("댓글 답장 실패: " + responseBody, e);
