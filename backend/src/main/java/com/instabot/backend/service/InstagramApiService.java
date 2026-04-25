@@ -540,10 +540,21 @@ public class InstagramApiService {
     // ─── 댓글 답장 ───
 
     /**
-     * 댓글에 자동 답장
+     * 댓글에 공개 답장(public reply) 발송.
+     * <p>
+     * 호스트를 {@code graph.facebook.com} 로 고정한다. {@code graph.instagram.com} 의
+     * 동일 endpoint 는 Instagram Business Login 토큰(IGUAT)으로 호출 시
+     * Meta 가 code 100/subcode 33 ("Object does not exist or missing permissions")
+     * 으로 거절하는 사례가 관측됐고, 같은 토큰의 messages endpoint 는 정상 작동했음.
+     * Meta 공식 문서의 reply 예시도 graph.facebook.com 로만 명시돼 있음.
+     *
+     * @param commentId   답장할 댓글 ID (webhook value.id)
+     * @param message     댓글로 게시할 텍스트
+     * @param accessToken 발신 계정의 Instagram 액세스 토큰
+     * @return Meta 응답 JSON (id 등)
      */
     public JsonNode replyToComment(String commentId, String message, String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + commentId + "/replies";
+        String url = "https://graph.facebook.com/v21.0/" + commentId + "/replies";
 
         Map<String, Object> body = Map.of("message", message);
         return postToInstagram(url, body, accessToken);
