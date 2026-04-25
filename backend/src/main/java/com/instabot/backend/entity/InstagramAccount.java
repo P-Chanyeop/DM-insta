@@ -18,6 +18,13 @@ public class InstagramAccount {
     @Column(nullable = false)
     private String igUserId;
 
+    /**
+     * IG 자산이 연결된 Facebook Page 의 ID.
+     * Facebook Login for Business OAuth 결과에서 받은 Page 의 id.
+     * accessToken 컬럼에 저장된 토큰이 이 Page 의 Page Access Token 임을 의미.
+     */
+    private String fbPageId;
+
     private String username;
 
     @Column(length = 1024)

@@ -51,13 +51,24 @@ jwt:
   secret: ${JWT_SECRET:instabot-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
   expiration: ${JWT_EXPIRATION:86400000}
 
-# Instagram API (placeholder)
+# Instagram API
+# 인증 방식: Facebook Login for Business (매니챗과 동일 패턴)
+#   - OAuth host: business.facebook.com/dialog/oauth
+#   - 토큰 종류: Facebook User Access Token + Page Access Token (각 IG 연결 Page 별)
+#   - API host: graph.facebook.com (모든 IG API)
+#   - config_id: Meta App Dashboard 의 "Facebook Login for Business" Configuration ID
+#                 권한 (instagram_basic, instagram_manage_comments,
+#                       instagram_manage_messages, business_management,
+#                       pages_show_list, pages_read_engagement) 은 config 에서 정의
 instagram:
   api:
-    base-url: https://graph.instagram.com
+    # graph.facebook.com 사용 — Facebook Login for Business 의 IG API endpoint host
+    base-url: https://graph.facebook.com
     app-id: ${INSTAGRAM_APP_ID:your-app-id}
     app-secret: ${INSTAGRAM_APP_SECRET:your-app-secret}
   oauth:
+    # Facebook Login for Business Configuration ID — Meta App Dashboard 에서 발급
+    config-id: ${META_LOGIN_CONFIG_ID:your-config-id}
     redirect-uri: ${INSTAGRAM_OAUTH_REDIRECT_URI:http://localhost:8080/api/auth/instagram/callback}
   webhook:
     verify-token: ${INSTAGRAM_WEBHOOK_VERIFY_TOKEN:instabot-webhook-verify-token}

@@ -77,15 +77,17 @@ public class InstagramOAuthController {
     @Value("${instagram.api.app-secret}")
     private String appSecret;
 
+    @Value("${instagram.oauth.config-id}")
+    private String configId;
+
     @Value("${instagram.oauth.redirect-uri:http://localhost:8080/api/auth/instagram/callback}")
     private String redirectUri;
 
     @Value("${cors.allowed-origins}")
     private String frontendOrigin;
 
-    // Instagram Business Login 스코프
-    private static final String OAUTH_SCOPE =
-            "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments";
+    // Facebook Login for Business 패턴 — 권한은 Meta App Dashboard 의 Configuration 에서
+    // 정의되며 OAuth URL 에는 scope 를 명시하지 않는다. config_id 가 권한 set 의 ID 역할.
 
     // ─── OAuth URL 생성 ───
 
@@ -102,12 +104,28 @@ public class InstagramOAuthController {
         return ResponseEntity.ok(Map.of("url", buildOAuthUrl("signup")));
     }
 
+    /**
+     * Facebook Login for Business 의 OAuth URL 빌더 — 매니챗과 동일한 패턴.
+     * <p>
+     * 사용자 흐름:
+     *   1. {@code business.facebook.com/dialog/oauth} 로 redirect
+     *   2. Instagram 로그인 (또는 이미 로그인된 IG 계정 선택)
+     *   3. Meta Business Manager 의 권한 grant 화면 — 비즈니스 포트폴리오 + IG 자산 선택
+     *   4. 권한 확인 후 우리 콜백으로 redirect (?code=...)
+     * <p>
+     * scope 파라미터 없음 — 모든 권한은 config_id 의 Configuration 에 정의됨
+     * (Meta App Dashboard → Facebook Login for Business → Configurations).
+     *
+     * @param state OAuth state 파라미터 ("signup" 또는 "connect:{userId}")
+     * @return 사용자가 redirect 받을 OAuth dialog URL
+     */
     private String buildOAuthUrl(String state) {
-        return "https://www.instagram.com/oauth/authorize"
+        return "https://business.facebook.com/dialog/oauth"
                 + "?client_id=" + appId
+                + "&config_id=" + configId
                 + "&redirect_uri=" + urlEncode(redirectUri)
-                + "&scope=" + OAUTH_SCOPE
                 + "&response_type=code"
+                + "&override_default_response_type=true"
                 + "&state=" + state;
     }
 
@@ -388,34 +406,83 @@ public class InstagramOAuthController {
     // ─── 내부 헬퍼 ───
 
     /**
-     * Instagram OAuth 코드 → 단기 액세스 토큰 교환
-     * 응답: { "access_token": "...", "user_id": 12345 }
+     * Facebook Login 코드 → 단기 Facebook User Access Token 교환.
+     * <p>
+     * Meta Login for Business 의 OAuth code grant flow.
+     * 응답: {@code {"access_token": "EAA...", "token_type": "bearer", "expires_in": 3600}}
+     * <p>
+     * 토큰은 Facebook User Token (FB User 의 동의 컨텍스트). 이 토큰으로
+     * {@code GET /me/accounts} 호출하면 사용자가 관리하는 Page list 와 각 Page 의
+     * Page Access Token 을 받을 수 있고, Page 의 {@code instagram_business_account}
+     * 필드로 IG 연결된 계정을 식별한다.
+     *
+     * @param code OAuth 콜백의 ?code= 파라미터
+     * @return token JSON
      */
     private JsonNode exchangeCodeForToken(String code) {
-        String url = "https://api.instagram.com/oauth/access_token";
-
-        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-        params.add("client_id", appId);
-        params.add("client_secret", appSecret);
-        params.add("grant_type", "authorization_code");
-        params.add("redirect_uri", redirectUri);
-        params.add("code", code);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
-        ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, request, JsonNode.class);
-
-        return response.getBody();
+        String url = "https://graph.facebook.com/v25.0/oauth/access_token"
+                + "?client_id=" + urlEncode(appId)
+                + "&client_secret=" + urlEncode(appSecret)
+                + "&redirect_uri=" + urlEncode(redirectUri)
+                + "&code=" + urlEncode(code);
+        return restTemplate.getForObject(url, JsonNode.class);
     }
 
     /**
-     * Instagram Graph API로 프로필 조회
-     * 응답: { "user_id", "username", "name", "profile_picture_url", "followers_count", "account_type" }
+     * 사용자가 관리하는 Page 들 중 Instagram 자산이 연결된 첫 번째 Page 의 정보 조회.
+     * <p>
+     * Facebook Login for Business 의 핵심 단계 — User Token 은 IG API 직접 호출에
+     * 사용 못 하고, IG 자산이 연결된 Page 의 Page Access Token 을 추출해야 graph.facebook.com
+     * 으로 IG comment / messaging API 가 작동한다 (매니챗과 동일 구조).
+     * <p>
+     * 응답에서 IG account 정보 (id, username, name, profile_picture_url) 와 Page Token 을
+     * 함께 추출. 이후 컨트롤러는 Page Token 을 {@code instagramAccount.accessToken} 컬럼에
+     * 저장하고, IG account id 는 {@code igUserId} 컬럼에 저장한다 (기존 schema 재사용).
+     *
+     * @param userToken Facebook User Access Token
+     * @return JSON: {"user_id":"<ig-user-id>","username":"...","name":"...",
+     *               "profile_picture_url":"...","page_id":"<fb-page-id>",
+     *               "page_access_token":"<page-token>"}
+     * @throws IgConnectionException IG 연결된 Page 가 없거나 Meta API 호출 실패 시
      */
-    private JsonNode fetchInstagramProfile(String accessToken) {
-        String url = "https://graph.instagram.com/v25.0/me"
+    private JsonNode fetchInstagramProfile(String userToken) {
+        String url = "https://graph.facebook.com/v25.0/me/accounts"
+                + "?fields=id,name,access_token,instagram_business_account{id,username,name,profile_picture_url,followers_count,account_type}"
+                + "&access_token=" + urlEncode(userToken);
+        JsonNode accounts = restTemplate.getForObject(url, JsonNode.class);
+        if (accounts == null || !accounts.has("data") || accounts.get("data").size() == 0) {
+            throw new IgConnectionException("연결된 Facebook 페이지가 없습니다. 먼저 Instagram 비즈니스 계정과 Facebook 페이지를 연결해주세요.");
+        }
+
+        // IG 자산이 연결된 첫 번째 Page 선택 — OAuth 동의 화면에서 사용자가 선택한 Page 만
+        // 응답에 포함됨 (config_id 의 asset_type=Instagram Business Account 효과).
+        for (JsonNode page : accounts.get("data")) {
+            JsonNode iga = page.get("instagram_business_account");
+            if (iga != null && !iga.isNull() && iga.has("id")) {
+                com.fasterxml.jackson.databind.node.ObjectNode result =
+                        com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+                result.put("user_id", iga.get("id").asText());
+                result.put("username", iga.path("username").asText(""));
+                result.put("name", iga.path("name").asText(iga.path("username").asText("")));
+                result.put("profile_picture_url", iga.path("profile_picture_url").asText(""));
+                if (iga.has("followers_count")) {
+                    result.put("followers_count", iga.get("followers_count").asInt());
+                }
+                if (iga.has("account_type")) {
+                    result.put("account_type", iga.get("account_type").asText());
+                }
+                result.put("page_id", page.get("id").asText());
+                result.put("page_access_token", page.get("access_token").asText());
+                return result;
+            }
+        }
+        throw new IgConnectionException("선택한 Facebook 페이지에 Instagram 비즈니스 계정이 연결돼있지 않습니다.");
+    }
+
+    /** 호환 placeholder — 더 이상 사용 안 함 (graph.instagram.com endpoint). */
+    @SuppressWarnings("unused")
+    private JsonNode fetchInstagramProfileLegacy(String accessToken) {
+        String url = "https://graph.facebook.com/v25.0/me"
                 + "?fields=user_id,username,name,profile_picture_url,followers_count,account_type"
                 + "&access_token=" + accessToken;
         return restTemplate.getForObject(url, JsonNode.class);
