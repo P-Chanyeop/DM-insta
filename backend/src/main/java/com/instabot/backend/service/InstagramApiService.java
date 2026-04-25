@@ -572,6 +572,27 @@ public class InstagramApiService {
             String responseBody = e.getResponseBodyAsString();
             log.error("댓글 답장 실패 — commentId={}, status={}, metaResponse={}",
                     commentId, e.getStatusCode(), responseBody);
+
+            // ─── 진단: 댓글이 토큰 시야에서 보이는지 GET 으로 확인 ───
+            //  (#100/subcode 33) 메시지는 1)존재안함 2)권한없음 3)지원안함 을 한 번에 던지므로
+            //  GET 한 번 더 때려서 어느 케이스인지 좁힌다.
+            //   - GET 200 → 댓글은 보임 → POST 만 거절 → 'manage_comments' scope grant 안 됐을 가능성
+            //   - GET 400 (#100/33) → 토큰이 이 댓글 자체를 못 봄 → 다른 계정 미디어이거나 mention 웹훅
+            //   - GET 200 + parent_id != null → 답글의 답글 → Meta 가 reply-to-reply 거절
+            try {
+                String getUrl = apiBaseUrl + "/v21.0/" + commentId
+                        + "?fields=id,text,parent_id,from,user,hidden,timestamp"
+                        + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8);
+                JsonNode commentInfo = restTemplate.getForObject(getUrl, JsonNode.class);
+                log.error("진단 — 댓글 GET 성공 → 토큰은 댓글을 볼 수 있음. POST 만 거절됨 (scope 또는 reply-to-reply 의심): "
+                        + "commentId={}, commentInfo={}", commentId, commentInfo);
+            } catch (org.springframework.web.client.HttpStatusCodeException ge) {
+                log.error("진단 — 댓글 GET 도 실패 → 토큰이 이 댓글을 보지 못함 (다른 계정 미디어 / 삭제된 댓글 / mention 웹훅 가능성): "
+                        + "commentId={}, getStatus={}, getBody={}", commentId, ge.getStatusCode(), ge.getResponseBodyAsString());
+            } catch (Exception ge) {
+                log.error("진단 — 댓글 GET 중 예외: commentId={}, error={}", commentId, ge.getMessage());
+            }
+
             throw new RuntimeException("댓글 답장 실패: " + responseBody, e);
         } catch (Exception e) {
             log.error("댓글 답장 실패 — commentId={}, error={}", commentId, e.getMessage());
