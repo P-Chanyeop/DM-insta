@@ -458,8 +458,10 @@ public class InstagramOAuthController {
     private JsonNode fetchInstagramProfile(String userToken) {
         // URI.create() 사용 — fields 값에 {} 가 포함돼있어 RestTemplate 의 URI Template
         // 처리가 잘못 해석할 수 있으므로 명시적 URI 객체로 변환.
+        // account_type 필드는 v25.0 에서 instagram_business_account edge 에 더 이상 없음.
+        // 제거 — IG 자산 식별엔 id, username 으로 충분.
         java.net.URI uri = java.net.URI.create("https://graph.facebook.com/v25.0/me/accounts"
-                + "?fields=id,name,access_token,instagram_business_account%7Bid,username,name,profile_picture_url,followers_count,account_type%7D"
+                + "?fields=id,name,access_token,instagram_business_account%7Bid,username,name,profile_picture_url,followers_count%7D"
                 + "&access_token=" + urlEncode(userToken));
         JsonNode accounts = restTemplate.getForObject(uri, JsonNode.class);
         if (accounts == null || !accounts.has("data") || accounts.get("data").size() == 0) {
