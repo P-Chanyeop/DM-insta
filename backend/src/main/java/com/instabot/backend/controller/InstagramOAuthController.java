@@ -120,12 +120,17 @@ public class InstagramOAuthController {
      * @return 사용자가 redirect 받을 OAuth dialog URL
      */
     private String buildOAuthUrl(String state) {
+        // auth_type=reauthorize — 매번 권한 grant 화면을 거치게 해서 사용자가 IG 자산
+        // (어떤 IG 계정 연결할지) 을 명시적으로 선택할 수 있게 한다. 이게 빠지면 사용자가
+        // 이미 grant 한 경우 dialog 자체가 skip 되어 첫 번째 IG 자산이 자동 연결됨.
+        // 매니챗과 동일한 자산 선택 UX 위해 필요.
         return "https://business.facebook.com/dialog/oauth"
                 + "?client_id=" + appId
                 + "&config_id=" + configId
                 + "&redirect_uri=" + urlEncode(redirectUri)
                 + "&response_type=code"
                 + "&override_default_response_type=true"
+                + "&auth_type=reauthorize"
                 + "&state=" + state;
     }
 
