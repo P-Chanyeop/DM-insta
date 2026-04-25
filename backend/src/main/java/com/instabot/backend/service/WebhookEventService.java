@@ -181,10 +181,11 @@ public class WebhookEventService {
             //      - 이메일 형식 아니면 해당 pending 을 COMPLETED(취소) 후 일반 키워드 경로로 폴스루
             //   2. 그 외 pending (AWAITING_POSTBACK/FOLLOW/DELAY) 은 키워드 트리거를 막지 않음.
             //      새 DM 키워드 와 병렬로 진행 — 버튼/팔로우/딜레이는 각자 독립적으로 resolve.
-            var emailPending = pendingFlowActionRepository
+            // List 로 받아 NonUniqueResultException 방어 — 같은 sender 의 같은 step 중복 pending 가능
+            var emailPendingList = pendingFlowActionRepository
                     .findActiveBySenderIgIdAndStep(senderId, PendingStep.AWAITING_EMAIL, LocalDateTime.now());
 
-            if (emailPending.isPresent()) {
+            if (!emailPendingList.isEmpty()) {
                 var emailOpt = flowExecutionService.extractEmail(text);
                 if (emailOpt.isPresent()) {
                     String email = emailOpt.get();
@@ -202,7 +203,8 @@ public class WebhookEventService {
                     return; // 이메일 경로 처리 완료
                 } else {
                     // 이메일 형식 아님 → 이 플로우는 취소하고 일반 DM 경로로 폴스루
-                    PendingFlowAction cancelled = emailPending.get();
+                    // (가장 최근 pending 만 취소 — 나머지는 만료 또는 다른 트리거 시 정리)
+                    PendingFlowAction cancelled = emailPendingList.get(0);
                     log.info("AWAITING_EMAIL 중 비이메일 수신 → 플로우 취소: pendingId={}, sender={}",
                             cancelled.getId(), senderId);
                     cancelled.setPendingStep(PendingStep.COMPLETED);

@@ -20,31 +20,40 @@ public interface PendingFlowActionRepository extends JpaRepository<PendingFlowAc
 
     /**
      * 특정 사용자의 활성(미완료+미만료) PendingFlowAction 조회
+     * (List — 중복 pending 으로 인한 NonUniqueResultException 방어)
      */
     @Query("SELECT p FROM PendingFlowAction p WHERE p.senderIgId = :senderIgId " +
             "AND p.pendingStep <> 'COMPLETED' AND p.expiresAt > :now " +
             "ORDER BY p.createdAt DESC")
-    Optional<PendingFlowAction> findActiveBySenderIgId(String senderIgId, LocalDateTime now);
+    List<PendingFlowAction> findActiveBySenderIgId(String senderIgId, LocalDateTime now);
 
     /**
      * 특정 단계의 활성 PendingFlowAction 조회 — 이메일 캡처 등 단계별 조회용
+     * (List — 중복 pending 으로 인한 NonUniqueResultException 방어)
      */
     @Query("SELECT p FROM PendingFlowAction p WHERE p.senderIgId = :senderIgId " +
             "AND p.pendingStep = :step AND p.expiresAt > :now " +
             "ORDER BY p.createdAt DESC")
-    Optional<PendingFlowAction> findActiveBySenderIgIdAndStep(
+    List<PendingFlowAction> findActiveBySenderIgIdAndStep(
             String senderIgId, PendingStep step, LocalDateTime now);
 
     /**
      * flowId + senderIgId + step 으로 활성 PendingFlowAction 조회 — 병렬 플로우 라우팅용.
      * nodeId 까지 지정하면 해당 노드의 대기만 매칭, null 이면 플로우 내 임의.
+     * <p>
+     * List 반환: 같은 키의 pending 이 cleanup 전에 여러 개 쌓이는 케이스가 관측됨
+     * (사용자가 같은 게시물에 같은 키워드 댓글을 여러 번 달면 N 개 pending 생성).
+     * Optional 로 받으면 NonUniqueResultException 가 silent fail 을 일으키므로
+     * List 로 받아 호출부에서 stream().findFirst() 로 가장 최근 것만 사용.
+     *
+     * @return ORDER BY createdAt DESC 정렬된 활성 pending 리스트 (없으면 empty)
      */
     @Query("SELECT p FROM PendingFlowAction p " +
             "WHERE p.flow.id = :flowId AND p.senderIgId = :senderIgId " +
             "AND p.pendingStep = :step AND p.expiresAt > :now " +
             "AND (:nodeId IS NULL OR p.currentNodeId = :nodeId) " +
             "ORDER BY p.createdAt DESC")
-    Optional<PendingFlowAction> findActiveByFlowAndSenderAndStep(
+    List<PendingFlowAction> findActiveByFlowAndSenderAndStep(
             Long flowId, String senderIgId, PendingStep step, String nodeId, LocalDateTime now);
 
     /**
@@ -70,7 +79,7 @@ public interface PendingFlowActionRepository extends JpaRepository<PendingFlowAc
             "AND p.pendingStep = :step AND p.expiresAt > :now " +
             "AND (:nodeId IS NULL OR p.currentNodeId = :nodeId) " +
             "ORDER BY p.createdAt DESC")
-    Optional<PendingFlowAction> findActiveByFlowAndStepWithoutSender(
+    List<PendingFlowAction> findActiveByFlowAndStepWithoutSender(
             Long flowId, PendingStep step, String nodeId, LocalDateTime now);
 
     /**

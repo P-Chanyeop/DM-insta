@@ -228,7 +228,7 @@ public class FlowExecutionService {
                     .findActiveByFlowAndSenderAndStep(
                             parsed.getFlowId(), senderIgId, PendingStep.AWAITING_POSTBACK,
                             parsed.getNodeId(), LocalDateTime.now())
-                    .orElse(null);
+                    .stream().findFirst().orElse(null);
             if (pending == null) {
                 log.info("flowId+sender 로 AWAITING_POSTBACK 매칭 실패 — sender 무시 fallback 시도: flowId={}, sender={}",
                         parsed.getFlowId(), senderIgId);
@@ -245,7 +245,7 @@ public class FlowExecutionService {
                     .findActiveByFlowAndStepWithoutSender(
                             parsed.getFlowId(), PendingStep.AWAITING_POSTBACK,
                             parsed.getNodeId(), LocalDateTime.now())
-                    .orElse(null);
+                    .stream().findFirst().orElse(null);
             if (pending != null && !senderIgId.equals(pending.getSenderIgId())) {
                 log.info("sender 무시 매칭 성공 — pending senderIgId 갱신: pendingId={}, old={}, new={}",
                         pending.getId(), pending.getSenderIgId(), senderIgId);
@@ -312,7 +312,7 @@ public class FlowExecutionService {
                     .findActiveByFlowAndSenderAndStep(
                             parsed.getFlowId(), senderIgId, PendingStep.AWAITING_FOLLOW,
                             parsed.getNodeId(), LocalDateTime.now())
-                    .orElse(null);
+                    .stream().findFirst().orElse(null);
         }
         // sender 무시 fallback — 댓글 트리거에서 ID 종류 mismatch (공개 IG ID vs IGSID) 구제
         if (pending == null && parsed.getFlowId() != null) {
@@ -320,7 +320,7 @@ public class FlowExecutionService {
                     .findActiveByFlowAndStepWithoutSender(
                             parsed.getFlowId(), PendingStep.AWAITING_FOLLOW,
                             parsed.getNodeId(), LocalDateTime.now())
-                    .orElse(null);
+                    .stream().findFirst().orElse(null);
             if (pending != null && !senderIgId.equals(pending.getSenderIgId())) {
                 log.info("팔로우 postback — sender 무시 매칭, pending senderIgId 갱신: pendingId={}, old={}, new={}",
                         pending.getId(), pending.getSenderIgId(), senderIgId);
