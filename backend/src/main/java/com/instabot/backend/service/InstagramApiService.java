@@ -86,7 +86,7 @@ public class InstagramApiService {
         JsonNode pagesResp;
         try {
             pagesResp = restTemplate.getForObject(
-                    "https://graph.facebook.com/v21.0/me/accounts?access_token=" + fbUserToken,
+                    "https://graph.facebook.com/v25.0/me/accounts?access_token=" + fbUserToken,
                     JsonNode.class);
         } catch (Exception e) {
             log.error("Facebook 페이지 목록 조회 실패: {}", e.getMessage());
@@ -114,7 +114,7 @@ public class InstagramApiService {
 
             try {
                 JsonNode igInfo = restTemplate.getForObject(
-                        "https://graph.facebook.com/v21.0/" + pid
+                        "https://graph.facebook.com/v25.0/" + pid
                                 + "?fields=instagram_business_account&access_token=" + pageToken,
                         JsonNode.class);
                 if (igInfo != null && igInfo.has("instagram_business_account")) {
@@ -143,7 +143,7 @@ public class InstagramApiService {
         JsonNode profile;
         try {
             profile = restTemplate.getForObject(
-                    "https://graph.facebook.com/v21.0/" + igBusinessId
+                    "https://graph.facebook.com/v25.0/" + igBusinessId
                             + "?fields=id,username,name,profile_picture_url,followers_count"
                             + "&access_token=" + pageAccessToken,
                     JsonNode.class);
@@ -280,7 +280,7 @@ public class InstagramApiService {
      * 텍스트 DM 발송
      */
     public JsonNode sendTextMessage(String igUserId, String recipientId, String text, String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messages";
+        String url = apiBaseUrl + "/v25.0/" + igUserId + "/messages";
 
         Map<String, Object> body = Map.of(
                 "recipient", Map.of("id", recipientId),
@@ -303,7 +303,7 @@ public class InstagramApiService {
      * @param accessToken 페이지 액세스 토큰
      */
     public JsonNode sendPrivateReplyToComment(String igUserId, String commentId, String text, String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messages";
+        String url = apiBaseUrl + "/v25.0/" + igUserId + "/messages";
 
         Map<String, Object> body = Map.of(
                 "recipient", Map.of("comment_id", commentId),
@@ -330,7 +330,7 @@ public class InstagramApiService {
     public JsonNode sendPrivateReplyWithPostbackButton(String igUserId, String commentId,
                                                         String title, String buttonTitle,
                                                         String buttonPayload, String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messages";
+        String url = apiBaseUrl + "/v25.0/" + igUserId + "/messages";
 
         Map<String, Object> body = Map.of(
                 "recipient", Map.of("comment_id", commentId),
@@ -362,7 +362,7 @@ public class InstagramApiService {
      */
     public JsonNode sendQuickReplyMessage(String igUserId, String recipientId, String text,
                                            List<Map<String, String>> quickReplies, String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messages";
+        String url = apiBaseUrl + "/v25.0/" + igUserId + "/messages";
 
         Map<String, Object> body = Map.of(
                 "recipient", Map.of("id", recipientId),
@@ -392,7 +392,7 @@ public class InstagramApiService {
     public JsonNode sendGenericTemplateWithPostback(String igUserId, String recipientId, String title,
                                                      String buttonTitle, String buttonPayload,
                                                      String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messages";
+        String url = apiBaseUrl + "/v25.0/" + igUserId + "/messages";
 
         Map<String, Object> body = Map.of(
                 "recipient", Map.of("id", recipientId),
@@ -424,7 +424,7 @@ public class InstagramApiService {
      */
     public JsonNode sendGenericTemplate(String igUserId, String recipientId, String title,
                                          String subtitle, List<Map<String, String>> buttons, String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messages";
+        String url = apiBaseUrl + "/v25.0/" + igUserId + "/messages";
 
         Map<String, Object> body = Map.of(
                 "recipient", Map.of("id", recipientId),
@@ -458,7 +458,7 @@ public class InstagramApiService {
      */
     public JsonNode sendCarouselMessage(String igUserId, String recipientId,
                                          List<Map<String, Object>> cards, String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messages";
+        String url = apiBaseUrl + "/v25.0/" + igUserId + "/messages";
 
         List<Map<String, Object>> elements = new ArrayList<>();
         for (Map<String, Object> card : cards) {
@@ -522,7 +522,7 @@ public class InstagramApiService {
      * 이미지 DM 발송 (URL 기반)
      */
     public JsonNode sendImageMessage(String igUserId, String recipientId, String imageUrl, String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messages";
+        String url = apiBaseUrl + "/v25.0/" + igUserId + "/messages";
 
         Map<String, Object> body = Map.of(
                 "recipient", Map.of("id", recipientId),
@@ -571,7 +571,7 @@ public class InstagramApiService {
      */
     public void diagnoseMediaOwner(String commentId, String mediaId, String accessToken) {
         try {
-            java.net.URI uri = java.net.URI.create(apiBaseUrl + "/v21.0/" + mediaId
+            java.net.URI uri = java.net.URI.create(apiBaseUrl + "/v25.0/" + mediaId
                     + "?fields=id,permalink,owner,username,media_product_type"
                     + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
             JsonNode info = restTemplate.getForObject(uri, JsonNode.class);
@@ -588,8 +588,9 @@ public class InstagramApiService {
 
     public JsonNode replyToComment(String commentId, String message, String accessToken) {
         // API 버전 v25.0 — Meta 의 comment reply endpoint 가 v21.0 에서 4/24 즈음 silently
-        // 동작 변경되어 (#100/subcode 33) 으로 거절. messaging API 는 v21.0 그대로 작동
-        // 하지만 comment-moderation endpoint 는 v25.0 으로 호출해야 함.
+        // 동작 변경되어 (#100/subcode 33) 으로 거절됨이 관측됨.
+        // 후속 조치로 InstagramApiService 전체의 모든 endpoint 를 v25.0 으로 통일 — 같은
+        // Meta 측 정책 변경이 다른 endpoint 에도 잠재 영향 가능성 차단.
         // Meta 공식 Comment Moderation docs 의 curl 예시도 v25.0:
         //   POST https://graph.instagram.com/v25.0/{IG_COMMENT_ID}/replies
         // /me/media 응답의 paging.next URL 도 v25.0 (Meta 자체 표준 버전).
@@ -616,7 +617,7 @@ public class InstagramApiService {
             //   - GET 200 → 토큰이 댓글을 볼 수 있음. POST 만 거절됐다면 scope/reply-to-reply 문제
             //   - GET 400 (#100/33) → 토큰 자체가 이 댓글 시스템 ID 에 access 못 함
             try {
-                java.net.URI getUri = java.net.URI.create(apiBaseUrl + "/v21.0/" + commentId
+                java.net.URI getUri = java.net.URI.create(apiBaseUrl + "/v25.0/" + commentId
                         + "?fields=id,text,parent_id,from,user,hidden,timestamp"
                         + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
                 JsonNode commentInfo = restTemplate.getForObject(getUri, JsonNode.class);
@@ -630,7 +631,7 @@ public class InstagramApiService {
 
             // ─── 진단 2: 토큰의 진짜 owner (GET /me) ───
             try {
-                java.net.URI meUri = java.net.URI.create(apiBaseUrl + "/v21.0/me?fields=id,username,account_type"
+                java.net.URI meUri = java.net.URI.create(apiBaseUrl + "/v25.0/me?fields=id,username,account_type"
                         + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
                 JsonNode meInfo = restTemplate.getForObject(meUri, JsonNode.class);
                 log.error("진단 2 — 토큰 owner: commentId={}, me={}", commentId, meInfo);
@@ -642,7 +643,7 @@ public class InstagramApiService {
             //  IG Graph 에는 /me/permissions endpoint 가 없어서 'nonexisting field' 에러로 떨어짐 (확인됨).
             //  이건 IG Login(IGUAT) 시스템이 Facebook Graph 와 권한 모델이 완전히 다른 시스템이라는 단서.
             try {
-                java.net.URI permUri = java.net.URI.create(apiBaseUrl + "/v21.0/me/permissions"
+                java.net.URI permUri = java.net.URI.create(apiBaseUrl + "/v25.0/me/permissions"
                         + "?access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
                 JsonNode permInfo = restTemplate.getForObject(permUri, JsonNode.class);
                 log.error("진단 5 — IG Graph 의 토큰 scope: commentId={}, permissions={}", commentId, permInfo);
@@ -662,7 +663,7 @@ public class InstagramApiService {
             //   - 둘 다 401/IGUAT-mismatch → IGUAT 로 댓글 답장 endpoint 자체가 아예 미지원
             String fbBase = "https://graph.facebook.com";
             try {
-                java.net.URI fbCommentUri = java.net.URI.create(fbBase + "/v21.0/" + commentId
+                java.net.URI fbCommentUri = java.net.URI.create(fbBase + "/v25.0/" + commentId
                         + "?fields=id,text,from,parent_id,hidden"
                         + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
                 JsonNode fbCommentInfo = restTemplate.getForObject(fbCommentUri, JsonNode.class);
@@ -676,7 +677,7 @@ public class InstagramApiService {
             }
 
             try {
-                java.net.URI fbPermUri = java.net.URI.create(fbBase + "/v21.0/me/permissions"
+                java.net.URI fbPermUri = java.net.URI.create(fbBase + "/v25.0/me/permissions"
                         + "?access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
                 JsonNode fbPermInfo = restTemplate.getForObject(fbPermUri, JsonNode.class);
                 log.error("진단 6b — FB Graph 의 토큰 scope: commentId={}, permissions={}",
@@ -690,7 +691,7 @@ public class InstagramApiService {
 
             // ─── 진단 3: 토큰으로 본인 미디어 list 확인 (GET /me/media) ───
             try {
-                java.net.URI mediaUri = java.net.URI.create(apiBaseUrl + "/v21.0/me/media?fields=id,permalink&limit=10"
+                java.net.URI mediaUri = java.net.URI.create(apiBaseUrl + "/v25.0/me/media?fields=id,permalink&limit=10"
                         + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
                 JsonNode mediaInfo = restTemplate.getForObject(mediaUri, JsonNode.class);
                 log.error("진단 3 — /me/media (토큰 owner 의 최근 게시물 list): commentId={}, media={}",
@@ -722,7 +723,7 @@ public class InstagramApiService {
     public boolean isFollower(String igUserId, String checkUserId, String accessToken) {
         try {
             // Instagram Graph API: 팔로워 목록 조회 (비즈니스/크리에이터 계정만 가능)
-            String url = apiBaseUrl + "/v21.0/" + igUserId
+            String url = apiBaseUrl + "/v25.0/" + igUserId
                     + "/followers?fields=id&limit=100&access_token=" + accessToken;
 
             ResponseEntity<JsonNode> resp = restTemplate.getForEntity(url, JsonNode.class);
@@ -751,7 +752,7 @@ public class InstagramApiService {
     // ─── Ice Breaker / Persistent Menu ───
 
     public JsonNode setIceBreakers(String igUserId, List<Map<String, String>> iceBreakers, String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messenger_profile";
+        String url = apiBaseUrl + "/v25.0/" + igUserId + "/messenger_profile";
 
         Map<String, Object> body = Map.of(
                 "ice_breakers", iceBreakers.stream()
@@ -766,13 +767,13 @@ public class InstagramApiService {
     }
 
     public JsonNode deleteIceBreakers(String igUserId, String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messenger_profile";
+        String url = apiBaseUrl + "/v25.0/" + igUserId + "/messenger_profile";
         Map<String, Object> body = Map.of("fields", List.of("ice_breakers"));
         return deleteFromInstagram(url, body, accessToken);
     }
 
     public JsonNode setPersistentMenu(String igUserId, List<Map<String, Object>> menuItems, String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messenger_profile";
+        String url = apiBaseUrl + "/v25.0/" + igUserId + "/messenger_profile";
 
         List<Map<String, Object>> callToActions = menuItems.stream()
                 .map(item -> {
@@ -802,7 +803,7 @@ public class InstagramApiService {
     }
 
     public JsonNode deletePersistentMenu(String igUserId, String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + igUserId + "/messenger_profile";
+        String url = apiBaseUrl + "/v25.0/" + igUserId + "/messenger_profile";
         Map<String, Object> body = Map.of("fields", List.of("persistent_menu"));
         return deleteFromInstagram(url, body, accessToken);
     }
@@ -840,7 +841,7 @@ public class InstagramApiService {
         for (InstagramAccount account : expiringAccounts) {
             try {
                 String decryptedToken = encryptionUtil.decrypt(account.getAccessToken());
-                String url = apiBaseUrl + "/v21.0/oauth/access_token"
+                String url = apiBaseUrl + "/v25.0/oauth/access_token"
                         + "?grant_type=ig_refresh_token"
                         + "&access_token=" + decryptedToken;
 
@@ -868,7 +869,7 @@ public class InstagramApiService {
     public JsonNode requestRecurringOptIn(String igUserId, String recipientId,
                                            String message, String topic,
                                            String frequency, String accessToken) {
-        String url = "https://graph.instagram.com/v21.0/" + igUserId + "/messages";
+        String url = "https://graph.instagram.com/v25.0/" + igUserId + "/messages";
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("recipient", Map.of("id", recipientId));
@@ -896,7 +897,7 @@ public class InstagramApiService {
     public JsonNode sendRecurringNotification(String igUserId, String recipientId,
                                                String message, String notificationToken,
                                                String accessToken) {
-        String url = "https://graph.instagram.com/v21.0/" + igUserId + "/messages";
+        String url = "https://graph.instagram.com/v25.0/" + igUserId + "/messages";
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("recipient", Map.of("id", recipientId, "notification_messages_token", notificationToken));
@@ -919,7 +920,7 @@ public class InstagramApiService {
         //   message_reactions, message_edit, comments, live_comments, mentions, ...
         // 센드잇은 DM/댓글 자동화에 필수인 것만 구독.
         String fields = "messages,messaging_postbacks,messaging_seen,message_reactions,comments";
-        String url = "https://graph.instagram.com/v21.0/" + igUserId
+        String url = "https://graph.instagram.com/v25.0/" + igUserId
                 + "/subscribed_apps?subscribed_fields=" + fields
                 + "&access_token=" + accessToken;
 
@@ -942,7 +943,7 @@ public class InstagramApiService {
      * 응답 예: { "data": [{ "name": "MyApp", "id": "...", "subscribed_fields": [...] }] }
      */
     public JsonNode getSubscribedApps(String igUserId, String accessToken) {
-        String url = "https://graph.instagram.com/v21.0/" + igUserId
+        String url = "https://graph.instagram.com/v25.0/" + igUserId
                 + "/subscribed_apps?access_token=" + accessToken;
         try {
             ResponseEntity<JsonNode> response = restTemplate.getForEntity(url, JsonNode.class);
@@ -973,7 +974,7 @@ public class InstagramApiService {
             return null;
         }
 
-        String url = "https://graph.instagram.com/v21.0/" + igUserId
+        String url = "https://graph.instagram.com/v25.0/" + igUserId
                 + "/media?fields=id,permalink&limit=50&access_token=" + accessToken;
         int pages = 0;
         int maxPages = 20; // 최대 1000개 게시물까지 스캔 — 그 이상이면 사용자가 최근 글 올려도 안 나옴. 충분.
@@ -1045,7 +1046,7 @@ public class InstagramApiService {
      * 권한/개인정보 설정에 따라 일부 필드 누락 가능.
      */
     public JsonNode fetchUserProfile(String igsid, String accessToken) {
-        String url = "https://graph.instagram.com/v21.0/" + igsid
+        String url = "https://graph.instagram.com/v25.0/" + igsid
                 + "?fields=name,username,profile_pic&access_token=" + accessToken;
         try {
             return restTemplate.getForObject(url, JsonNode.class);

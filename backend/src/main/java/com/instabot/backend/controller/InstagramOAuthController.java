@@ -415,7 +415,7 @@ public class InstagramOAuthController {
      * 응답: { "user_id", "username", "name", "profile_picture_url", "followers_count", "account_type" }
      */
     private JsonNode fetchInstagramProfile(String accessToken) {
-        String url = "https://graph.instagram.com/v21.0/me"
+        String url = "https://graph.instagram.com/v25.0/me"
                 + "?fields=user_id,username,name,profile_picture_url,followers_count,account_type"
                 + "&access_token=" + accessToken;
         return restTemplate.getForObject(url, JsonNode.class);

@@ -377,7 +377,7 @@ public class AuthService {
     }
 
     private JsonNode fetchInstagramProfile(String accessToken) {
-        String url = "https://graph.instagram.com/v21.0/me"
+        String url = "https://graph.instagram.com/v25.0/me"
                 + "?fields=user_id,username,name,profile_picture_url,followers_count,account_type"
                 + "&access_token=" + accessToken;
         return REST_TEMPLATE.getForObject(url, JsonNode.class);
