@@ -587,26 +587,34 @@ public class InstagramApiService {
     }
 
     public JsonNode replyToComment(String commentId, String message, String accessToken) {
-        // Meta Graph API Explorer 와 동일한 호출 형식으로 fix.
+        // Meta 공식 Comment Moderation docs 의 sample curl 정확히 따라감:
+        //   curl -X POST "https://graph.instagram.com/v25.0/{IG_COMMENT_ID}/replies?access_token=..."
+        //        -H "Content-Type: application/json"
+        //        -d '{"message":"Thanks for sharing!"}'
         //
-        // Explorer 가 같은 토큰으로 같은 endpoint POST 시 100/33 가 아니라 code 2 transient
-        // 를 받음 → endpoint 자체는 reach. 우리 백엔드만 100/33 거부 → 호출 형식 차이가 원인.
+        // 사용 토큰: Instagram User Access Token (IGUAT)
+        // 필요 권한: instagram_business_basic + instagram_business_manage_comments
         //
-        // Explorer 의 정확한 curl (사용자 화면에서 추출):
-        //   POST https://graph.instagram.com/{commentId}/replies?message=...&access_token=...
-        //
-        // 차이점 4가지를 모두 Explorer 형식에 맞춤:
-        //   1. URL 에 API 버전 없음 (v25.0 / v21.0 둘 다 100/33 받았으니 default 로 위임)
-        //   2. message 를 query param 으로 (JSON body 아님)
-        //   3. access_token 도 query param 으로 (Bearer header 아님)
-        //   4. POST body 비우고 Content-Type 헤더 없음
-        String url = apiBaseUrl + "/" + commentId + "/replies"
-                + "?message=" + java.net.URLEncoder.encode(message, java.nio.charset.StandardCharsets.UTF_8)
-                + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8);
+        // 이전 시도들 (모두 100/33 거부):
+        //   1. v21.0 + Bearer header + JSON body
+        //   2. v21.0 + query param + empty body
+        //   3. v25.0 + Bearer header + JSON body
+        //   4. v25.0 + query param + empty body
+        //   5. (no version) + query param + empty body
+        // 이번 시도 (docs sample 정확히):
+        //   v25.0 + access_token query param + Content-Type: application/json + JSON body
+        String url = apiBaseUrl + "/v25.0/" + commentId + "/replies"
+                + "?access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        Map<String, Object> bodyMap = Map.of("message", message);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(bodyMap, headers);
 
         try {
-            ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, HttpEntity.EMPTY, JsonNode.class);
-            log.debug("댓글 답장 응답: commentId={}, body={}", commentId, response.getBody());
+            ResponseEntity<JsonNode> response = restTemplate.postForEntity(
+                    java.net.URI.create(url), request, JsonNode.class);
+            log.info("댓글 답장 응답: commentId={}, body={}", commentId, response.getBody());
             return response.getBody();
         } catch (org.springframework.web.client.HttpStatusCodeException e) {
             String responseBody = e.getResponseBodyAsString();
