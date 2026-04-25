@@ -587,7 +587,13 @@ public class InstagramApiService {
     }
 
     public JsonNode replyToComment(String commentId, String message, String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + commentId + "/replies";
+        // API 버전 v25.0 — Meta 의 comment reply endpoint 가 v21.0 에서 4/24 즈음 silently
+        // 동작 변경되어 (#100/subcode 33) 으로 거절. messaging API 는 v21.0 그대로 작동
+        // 하지만 comment-moderation endpoint 는 v25.0 으로 호출해야 함.
+        // Meta 공식 Comment Moderation docs 의 curl 예시도 v25.0:
+        //   POST https://graph.instagram.com/v25.0/{IG_COMMENT_ID}/replies
+        // /me/media 응답의 paging.next URL 도 v25.0 (Meta 자체 표준 버전).
+        String url = apiBaseUrl + "/v25.0/" + commentId + "/replies";
         Map<String, Object> body = Map.of("message", message);
 
         HttpHeaders headers = new HttpHeaders();
