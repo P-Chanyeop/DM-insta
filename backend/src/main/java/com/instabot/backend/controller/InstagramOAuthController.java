@@ -451,7 +451,8 @@ public class InstagramOAuthController {
                 + "&access_token=" + urlEncode(userToken);
         JsonNode accounts = restTemplate.getForObject(url, JsonNode.class);
         if (accounts == null || !accounts.has("data") || accounts.get("data").size() == 0) {
-            throw new IgConnectionException("연결된 Facebook 페이지가 없습니다. 먼저 Instagram 비즈니스 계정과 Facebook 페이지를 연결해주세요.");
+            throw new IgConnectionException("NO_FB_PAGE",
+                    "연결된 Facebook 페이지가 없습니다. 먼저 Instagram 비즈니스 계정과 Facebook 페이지를 연결해주세요.");
         }
 
         // IG 자산이 연결된 첫 번째 Page 선택 — OAuth 동의 화면에서 사용자가 선택한 Page 만
@@ -476,7 +477,8 @@ public class InstagramOAuthController {
                 return result;
             }
         }
-        throw new IgConnectionException("선택한 Facebook 페이지에 Instagram 비즈니스 계정이 연결돼있지 않습니다.");
+        throw new IgConnectionException("NO_IG_ON_PAGE",
+                "선택한 Facebook 페이지에 Instagram 비즈니스 계정이 연결돼있지 않습니다.");
     }
 
     /** 호환 placeholder — 더 이상 사용 안 함 (graph.instagram.com endpoint). */
