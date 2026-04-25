@@ -587,23 +587,25 @@ public class InstagramApiService {
     }
 
     public JsonNode replyToComment(String commentId, String message, String accessToken) {
-        // API 버전 v25.0 — Meta 의 comment reply endpoint 가 v21.0 에서 4/24 즈음 silently
-        // 동작 변경되어 (#100/subcode 33) 으로 거절됨이 관측됨.
-        // 후속 조치로 InstagramApiService 전체의 모든 endpoint 를 v25.0 으로 통일 — 같은
-        // Meta 측 정책 변경이 다른 endpoint 에도 잠재 영향 가능성 차단.
-        // Meta 공식 Comment Moderation docs 의 curl 예시도 v25.0:
-        //   POST https://graph.instagram.com/v25.0/{IG_COMMENT_ID}/replies
-        // /me/media 응답의 paging.next URL 도 v25.0 (Meta 자체 표준 버전).
-        String url = apiBaseUrl + "/v25.0/" + commentId + "/replies";
-        Map<String, Object> body = Map.of("message", message);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(accessToken);
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        // Meta Graph API Explorer 와 동일한 호출 형식으로 fix.
+        //
+        // Explorer 가 같은 토큰으로 같은 endpoint POST 시 100/33 가 아니라 code 2 transient
+        // 를 받음 → endpoint 자체는 reach. 우리 백엔드만 100/33 거부 → 호출 형식 차이가 원인.
+        //
+        // Explorer 의 정확한 curl (사용자 화면에서 추출):
+        //   POST https://graph.instagram.com/{commentId}/replies?message=...&access_token=...
+        //
+        // 차이점 4가지를 모두 Explorer 형식에 맞춤:
+        //   1. URL 에 API 버전 없음 (v25.0 / v21.0 둘 다 100/33 받았으니 default 로 위임)
+        //   2. message 를 query param 으로 (JSON body 아님)
+        //   3. access_token 도 query param 으로 (Bearer header 아님)
+        //   4. POST body 비우고 Content-Type 헤더 없음
+        String url = apiBaseUrl + "/" + commentId + "/replies"
+                + "?message=" + java.net.URLEncoder.encode(message, java.nio.charset.StandardCharsets.UTF_8)
+                + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8);
 
         try {
-            ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, request, JsonNode.class);
+            ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, HttpEntity.EMPTY, JsonNode.class);
             log.debug("댓글 답장 응답: commentId={}, body={}", commentId, response.getBody());
             return response.getBody();
         } catch (org.springframework.web.client.HttpStatusCodeException e) {
