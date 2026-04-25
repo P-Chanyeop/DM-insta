@@ -46,6 +46,7 @@ public class WebhookEventService {
     private final ObjectMapper objectMapper;
     private final FlowCooldownService flowCooldownService;
     private final FlowTriggerMatcher flowTriggerMatcher;
+    private final InstagramApiService instagramApiService;
 
     // 중복 실행 방지: senderIgId + flowId → 마지막 실행 시간
     private final Map<String, Long> executionCache = Collections.synchronizedMap(
