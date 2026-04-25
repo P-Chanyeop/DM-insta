@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.instabot.backend.entity.*;
 import com.instabot.backend.entity.PendingFlowAction.PendingStep;
 import com.instabot.backend.repository.*;
+import com.instabot.backend.service.flow.PostbackPayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -124,8 +125,17 @@ public class WebhookEventService {
             integrationService.forwardWebhookEvent(user.getId(), "postback",
                     Map.of("senderIgId", senderId, "payload", payload, "title", title));
 
-            // FlowExecutionService에서 requirements 진행
-            flowExecutionService.handlePostback(senderId, payload);
+            // 우리 플로우가 만든 payload(fa:... 또는 레거시 OPENING_DM_CLICKED / FOLLOW_CHECK)
+            //   → FlowExecutionService 에서 pending 진행
+            // 그 외 (null) → Instagram Ice Breaker 버튼으로 간주 → ICEBREAKER 플로우 디스패치
+            //   title 은 아이스브레이커 버튼 텍스트 (Meta 측 설정값). 이걸 키워드 매칭 대상 텍스트로 사용.
+            if (PostbackPayload.parse(payload) != null) {
+                flowExecutionService.handlePostback(senderId, payload);
+            } else {
+                log.info("Ice Breaker 후보 postback — sender={}, title={}, payload={}",
+                        senderId, title, payload);
+                dispatchFlows(user, igAccount, senderId, title, null, Flow.TriggerType.ICEBREAKER);
+            }
             return; // postback은 여기서 처리 끝
         }
 

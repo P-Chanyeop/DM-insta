@@ -150,6 +150,27 @@ public class FlowValidationService {
                 }
             });
 
+            // 7. COMMENT 트리거는 첫 노드가 반드시 오프닝 DM 이어야 한다.
+            //    Meta 정책상 봇이 사용자에게 먼저 DM 을 보낼 수 없고(24h messaging window 미오픈),
+            //    댓글 트리거에서 첫 메시지를 보낼 수 있는 유일한 경로는 Private Reply (recipient.comment_id).
+            //    오프닝 DM 노드가 없으면 이후 메시지/메인DM 노드는 Meta 가 조용히 거절해 DM 이 안 가는 버그가 남음.
+            //    오프닝 DM 식별: type == "openingDm" (전용) OR type == "message" + data.role == "opening".
+            String triggerTypeStr = triggerData.path("triggerType").asText("").toUpperCase();
+            if ("COMMENT".equals(triggerTypeStr) && !triggerOuts.isEmpty()) {
+                boolean hasOpeningFirst = triggerOuts.stream().anyMatch(edge -> {
+                    JsonNode target = nodeById.get(edge.path("target").asText());
+                    if (target == null) return false;
+                    String ttype = target.path("type").asText();
+                    if ("openingDm".equals(ttype)) return true;
+                    return "message".equals(ttype)
+                            && "opening".equals(target.path("data").path("role").asText());
+                });
+                if (!hasOpeningFirst) {
+                    errors.add("댓글 트리거 Flow 는 첫 단계로 '오프닝 DM' 노드가 필요합니다. "
+                            + "Instagram 규정상 첫 메시지는 댓글 답장으로만 보낼 수 있습니다.");
+                }
+            }
+
         } catch (Exception e) {
             log.error("플로우 검증 실패: {}", e.getMessage());
             errors.add("플로우 데이터를 파싱할 수 없습니다.");

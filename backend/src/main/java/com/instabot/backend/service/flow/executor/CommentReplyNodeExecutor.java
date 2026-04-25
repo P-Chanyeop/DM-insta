@@ -43,20 +43,31 @@ public class CommentReplyNodeExecutor implements NodeExecutor {
     @Override
     public NodeExecResult execute(FlowContext ctx, FlowNode node) {
         JsonNode data = node.getData();
-        if (data == null) return NodeExecResult.ok();
+        Long flowId = ctx.getFlow().getId();
+        if (data == null) {
+            log.info("댓글 답장 스킵 — data=null: flowId={}", flowId);
+            return NodeExecResult.ok();
+        }
 
         // COMMENT 트리거가 아니면 답장 대상이 없음 — skip
         String commentId = ctx.getCommentId();
         if (commentId == null || commentId.isBlank()) {
-            log.debug("commentId 없음 — 댓글 답장 노드 건너뜀: flowId={}", ctx.getFlow().getId());
+            log.info("댓글 답장 스킵 — commentId 없음(COMMENT 트리거 아님): flowId={}", flowId);
             return NodeExecResult.ok();
         }
 
         JsonNode replies = data.get("replies");
-        if (replies == null || !replies.isArray() || replies.isEmpty()) return NodeExecResult.ok();
+        if (replies == null || !replies.isArray() || replies.isEmpty()) {
+            log.warn("댓글 답장 스킵 — replies 비어있거나 없음: flowId={}, nodeData={}", flowId, data);
+            return NodeExecResult.ok();
+        }
 
         int idx = new Random().nextInt(replies.size());
         String reply = utils.replaceVariables(replies.get(idx).asText(), ctx);
+        if (reply == null || reply.isBlank()) {
+            log.warn("댓글 답장 스킵 — 변수 치환 후 빈 문자열: flowId={}, commentId={}", flowId, commentId);
+            return NodeExecResult.ok();
+        }
 
         int replyDelayMax = data.path("replyDelay").asInt(0);
         if (replyDelayMax > 0) {
@@ -71,9 +82,12 @@ public class CommentReplyNodeExecutor implements NodeExecutor {
         }
 
         try {
+            log.info("댓글 답장 발송 시도 — flowId={}, commentId={}, reply={}", flowId, commentId, reply);
             instagramApiService.replyToComment(commentId, reply, ctx.getAccessToken());
+            log.info("댓글 답장 발송 성공 — flowId={}, commentId={}", flowId, commentId);
         } catch (Exception e) {
-            log.error("댓글 답장 실패: commentId={}, error={}", commentId, e.getMessage());
+            log.error("댓글 답장 실패 — flowId={}, commentId={}, error={}",
+                    flowId, commentId, e.getMessage(), e);
         }
         return NodeExecResult.ok();
     }
