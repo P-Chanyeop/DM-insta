@@ -230,7 +230,7 @@ public class InstagramOAuthController {
         }
 
         if (existing != null) {
-            // 4-A. 기존 유저 → IG 토큰 갱신 + 필요 시 재연결 + JWT 발급.
+            // 4-A. 기존 유저 → IG 토큰 갱신 + JWT 발급 + IG 재연결 (자산 list 분기).
             jdbcTemplate.update(
                     "UPDATE users SET facebook_user_id = ?, facebook_access_token = ?, facebook_token_expires_at = ? WHERE id = ?",
                     igIdFinal, encryptionUtil.encrypt(longLivedToken),
@@ -238,34 +238,47 @@ public class InstagramOAuthController {
                     existing.getId());
             log.info("IG 로그인(기존 유저): userId={}, igUsername={}", existing.getId(), igUsernameFinal);
 
-            String igStatus = "connected";
-            String igErrorCode = null;
-            String igErrorMsg = null;
-            try {
-                InstagramAccount acc = instagramApiService.connectInstagramDirect(existing, longLivedToken, igProfile);
-                log.info("IG 재연결 성공: userId={}, igUsername={}", existing.getId(), acc.getUsername());
-            } catch (IgConnectionException e) {
-                igErrorCode = e.getCode();
-                igErrorMsg = e.getMessage();
-                igStatus = "reconnect_failed";
-                log.warn("IG 재연결 실패(로그인은 진행): userId={}, code={}", existing.getId(), igErrorCode);
-            } catch (Exception e) {
-                igErrorCode = "UNKNOWN";
-                igErrorMsg = e.getMessage();
-                igStatus = "reconnect_failed";
-            }
-
+            // JWT 먼저 발급 — 자산 선택 페이지에서 로그인 상태 필요
             String token = authService.generateToken(existing);
-            StringBuilder params = new StringBuilder()
-                    .append("token=").append(token)
-                    .append("&email=").append(urlEncode(existing.getEmail()))
-                    .append("&name=").append(urlEncode(existing.getName() != null ? existing.getName() : ""))
-                    .append("&ig_status=").append(igStatus);
-            if (igErrorCode != null) {
-                params.append("&ig_error=").append(urlEncode(igErrorCode))
-                        .append("&ig_reason=").append(urlEncode(igErrorMsg != null ? igErrorMsg : ""));
+
+            // IG 자산 list 분기 — 1개면 자동, 여러 개면 select 페이지로 (handleConnectFlow 와 동일)
+            try {
+                java.util.List<JsonNode> assets = fetchInstagramAssets(longLivedToken);
+                if (assets.isEmpty()) {
+                    log.warn("IG 자산 없음 (signup, 기존 유저): userId={}", existing.getId());
+                    return redirectToFrontend("/auth/callback",
+                            "token=" + token
+                                    + "&email=" + urlEncode(existing.getEmail())
+                                    + "&name=" + urlEncode(existing.getName() != null ? existing.getName() : "")
+                                    + "&ig_status=reconnect_failed&ig_error=NO_IG_ASSET");
+                }
+                if (assets.size() == 1) {
+                    InstagramAccount acc = instagramApiService.connectInstagramDirect(existing, longLivedToken, assets.get(0));
+                    log.info("IG 재연결 성공 (signup, 자산 1개 자동): userId={}, igUsername={}",
+                            existing.getId(), acc.getUsername());
+                    return redirectToFrontend("/auth/callback",
+                            "token=" + token
+                                    + "&email=" + urlEncode(existing.getEmail())
+                                    + "&name=" + urlEncode(existing.getName() != null ? existing.getName() : "")
+                                    + "&ig_status=connected");
+                }
+                // 자산 여러 개 — select 페이지로
+                log.info("IG 자산 {}개 (signup) — select 페이지로: userId={}",
+                        assets.size(), existing.getId());
+                return redirectToFrontend("/auth/callback",
+                        "token=" + token
+                                + "&email=" + urlEncode(existing.getEmail())
+                                + "&name=" + urlEncode(existing.getName() != null ? existing.getName() : "")
+                                + "&ig_status=select_required&next=/app/instagram/select");
+            } catch (Exception e) {
+                log.error("IG 재연결 중 예외 (signup): userId={}, error={}", existing.getId(), e.getMessage(), e);
+                return redirectToFrontend("/auth/callback",
+                        "token=" + token
+                                + "&email=" + urlEncode(existing.getEmail())
+                                + "&name=" + urlEncode(existing.getName() != null ? existing.getName() : "")
+                                + "&ig_status=reconnect_failed&ig_error=UNKNOWN&ig_reason="
+                                + urlEncode(e.getMessage() != null ? e.getMessage() : ""));
             }
-            return redirectToFrontend("/auth/callback", params.toString());
         }
 
         // 4-B. 신규 가입 → User 생성은 하지 않고 pending 토큰만 발급 → 이메일 입력 페이지로.
@@ -625,6 +638,10 @@ public class InstagramOAuthController {
                 + "?fields=id,name,access_token,instagram_business_account%7Bid,username,name,profile_picture_url,followers_count%7D"
                 + "&access_token=" + urlEncode(userToken);
         JsonNode accounts = restTemplate.getForObject(java.net.URI.create(url), JsonNode.class);
+        // 진단: /me/accounts raw 응답 — 어떤 Page 가 사용자 권한에 들어오는지 확인.
+        // 다중 IG 자산이 비즈니스 포트폴리오에 등록돼있어도 /me/accounts 는 Facebook Page
+        // 와 연결된 자산만 반환. Page 미연결 IG account 는 누락됨.
+        log.info("/me/accounts 응답 (raw): {}", accounts);
         java.util.List<JsonNode> assets = new java.util.ArrayList<>();
         if (accounts == null || !accounts.has("data")) return assets;
         for (JsonNode page : accounts.get("data")) {
