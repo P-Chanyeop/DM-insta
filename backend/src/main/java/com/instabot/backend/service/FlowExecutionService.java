@@ -216,14 +216,31 @@ public class FlowExecutionService {
                             parsed.getNodeId(), LocalDateTime.now())
                     .orElse(null);
             if (pending == null) {
-                log.info("flowId 로 AWAITING_POSTBACK 매칭 실패 — legacy fallback 시도: flowId={}, sender={}",
+                log.info("flowId+sender 로 AWAITING_POSTBACK 매칭 실패 — sender 무시 fallback 시도: flowId={}, sender={}",
                         parsed.getFlowId(), senderIgId);
             }
         } else {
             pending = null;
         }
 
-        // 레거시 또는 신규 매칭 실패 시 — 가장 최근 AWAITING_POSTBACK
+        // sender 무시 fallback — 댓글 트리거에서 pending 은 댓글 작성자의 공개 IG ID 로
+        // 저장되는데 postback 은 IGSID 로 들어와서 senderIgId 일치 lookup 이 실패하는
+        // 케이스를 구제. 매칭되면 senderIgId 를 IGSID 로 업데이트해 이후 단계 정상화.
+        if (pending == null && parsed.getFlowId() != null) {
+            pending = pendingFlowActionRepository
+                    .findActiveByFlowAndStepWithoutSender(
+                            parsed.getFlowId(), PendingStep.AWAITING_POSTBACK,
+                            parsed.getNodeId(), LocalDateTime.now())
+                    .orElse(null);
+            if (pending != null && !senderIgId.equals(pending.getSenderIgId())) {
+                log.info("sender 무시 매칭 성공 — pending senderIgId 갱신: pendingId={}, old={}, new={}",
+                        pending.getId(), pending.getSenderIgId(), senderIgId);
+                pending.setSenderIgId(senderIgId);
+                pendingFlowActionRepository.save(pending);
+            }
+        }
+
+        // 레거시 (flowId 없는 OPENING_DM_CLICKED) — 가장 최근 AWAITING_POSTBACK
         if (pending == null) {
             pending = pendingFlowActionRepository
                     .findFirstBySenderIgIdAndPendingStepOrderByCreatedAtDesc(
@@ -232,7 +249,8 @@ public class FlowExecutionService {
         }
 
         if (pending == null || pending.isExpired()) {
-            log.debug("유효한 AWAITING_POSTBACK 없음: sender={}", senderIgId);
+            log.info("유효한 AWAITING_POSTBACK 없음: sender={}, flowId={}, nodeId={}",
+                    senderIgId, parsed.getFlowId(), parsed.getNodeId());
             return;
         }
 
@@ -282,6 +300,20 @@ public class FlowExecutionService {
                             parsed.getNodeId(), LocalDateTime.now())
                     .orElse(null);
         }
+        // sender 무시 fallback — 댓글 트리거에서 ID 종류 mismatch (공개 IG ID vs IGSID) 구제
+        if (pending == null && parsed.getFlowId() != null) {
+            pending = pendingFlowActionRepository
+                    .findActiveByFlowAndStepWithoutSender(
+                            parsed.getFlowId(), PendingStep.AWAITING_FOLLOW,
+                            parsed.getNodeId(), LocalDateTime.now())
+                    .orElse(null);
+            if (pending != null && !senderIgId.equals(pending.getSenderIgId())) {
+                log.info("팔로우 postback — sender 무시 매칭, pending senderIgId 갱신: pendingId={}, old={}, new={}",
+                        pending.getId(), pending.getSenderIgId(), senderIgId);
+                pending.setSenderIgId(senderIgId);
+                pendingFlowActionRepository.save(pending);
+            }
+        }
         // 레거시 / 매칭 실패 fallback
         if (pending == null) {
             pending = pendingFlowActionRepository
@@ -291,7 +323,8 @@ public class FlowExecutionService {
         }
 
         if (pending == null || pending.isExpired()) {
-            log.debug("유효한 AWAITING_FOLLOW 없음: sender={}", senderIgId);
+            log.info("유효한 AWAITING_FOLLOW 없음: sender={}, flowId={}",
+                    senderIgId, parsed.getFlowId());
             return;
         }
 

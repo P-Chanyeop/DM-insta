@@ -48,6 +48,32 @@ public interface PendingFlowActionRepository extends JpaRepository<PendingFlowAc
             Long flowId, String senderIgId, PendingStep step, String nodeId, LocalDateTime now);
 
     /**
+     * senderIgId 없이 flowId + nodeId + step 으로 활성 PendingFlowAction 조회.
+     *
+     * 댓글 트리거 → 오프닝 DM → 버튼 클릭 시나리오에서, 댓글 webhook 이 주는 sender 는
+     * 댓글 작성자의 공개 IG 사용자 ID 인데 postback webhook 이 주는 sender 는 IGSID
+     * (페이지 스코프 ID) 라 두 ID 가 달라서 senderIgId 일치 lookup 이 실패한다.
+     * 이 fallback 은 그 케이스를 잡기 위함이며, 매칭 후 pending 의 senderIgId 를
+     * 현재 IGSID 로 업데이트해 이후 단계는 정상 lookup 된다.
+     *
+     * 다중 발신자가 동시에 같은 노드에서 대기 중일 때 가장 최근 것을 반환 — 정확도는
+     * 떨어지지만 senderIgId 매칭 실패한 케이스에 한해서만 호출되므로 race 영향 제한적.
+     *
+     * @param flowId  플로우 ID (postback payload 에서 추출)
+     * @param step    기대 단계 (AWAITING_POSTBACK / AWAITING_FOLLOW 등)
+     * @param nodeId  현재 노드 ID (postback payload 에서 추출, null 이면 플로우 내 임의)
+     * @param now     만료 비교 기준 시각
+     * @return 가장 최근 매칭 pending 또는 empty
+     */
+    @Query("SELECT p FROM PendingFlowAction p " +
+            "WHERE p.flow.id = :flowId " +
+            "AND p.pendingStep = :step AND p.expiresAt > :now " +
+            "AND (:nodeId IS NULL OR p.currentNodeId = :nodeId) " +
+            "ORDER BY p.createdAt DESC")
+    Optional<PendingFlowAction> findActiveByFlowAndStepWithoutSender(
+            Long flowId, PendingStep step, String nodeId, LocalDateTime now);
+
+    /**
      * 재개 시각이 도래한 AWAITING_DELAY 액션 조회
      */
     @Query("SELECT p FROM PendingFlowAction p WHERE p.pendingStep = 'AWAITING_DELAY' " +
