@@ -542,22 +542,41 @@ public class InstagramApiService {
     /**
      * 댓글에 공개 답장(public reply) 발송.
      * <p>
-     * 호스트를 {@code graph.facebook.com} 로 고정한다. {@code graph.instagram.com} 의
-     * 동일 endpoint 는 Instagram Business Login 토큰(IGUAT)으로 호출 시
-     * Meta 가 code 100/subcode 33 ("Object does not exist or missing permissions")
-     * 으로 거절하는 사례가 관측됐고, 같은 토큰의 messages endpoint 는 정상 작동했음.
-     * Meta 공식 문서의 reply 예시도 graph.facebook.com 로만 명시돼 있음.
+     * 호스트는 {@code graph.instagram.com} 사용. graph.facebook.com 으로 보내면
+     * IGUAT 가 인식되지 않아 401 [no body] 로 거절됨이 관측됨.
+     * <p>
+     * 호출 형식: Meta 공식 docs 의 curl 예시와 동일하게
+     * {@code POST /{ig-comment-id}/replies?message=...&access_token=...} 로 보낸다.
+     * Bearer header + JSON body 방식은 IGUAT 와 조합 시
+     * {@code (#100) Object does not exist or missing permissions} 으로 거절되는 사례가 관측됨.
+     * Body 는 비우고 모든 파라미터를 query string 으로 전달.
+     * <p>
+     * 실패 시 Meta 가 돌려주는 응답 body 를 그대로 로그에 남겨
+     * subcode/fbtrace_id 까지 운영자가 확인할 수 있게 한다.
      *
      * @param commentId   답장할 댓글 ID (webhook value.id)
      * @param message     댓글로 게시할 텍스트
-     * @param accessToken 발신 계정의 Instagram 액세스 토큰
+     * @param accessToken 발신 계정의 Instagram 액세스 토큰 (IGUAT)
      * @return Meta 응답 JSON (id 등)
      */
     public JsonNode replyToComment(String commentId, String message, String accessToken) {
-        String url = "https://graph.facebook.com/v21.0/" + commentId + "/replies";
+        String url = apiBaseUrl + "/v21.0/" + commentId + "/replies"
+                + "?message=" + java.net.URLEncoder.encode(message, java.nio.charset.StandardCharsets.UTF_8)
+                + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8);
 
-        Map<String, Object> body = Map.of("message", message);
-        return postToInstagram(url, body, accessToken);
+        try {
+            ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, HttpEntity.EMPTY, JsonNode.class);
+            log.debug("댓글 답장 응답: commentId={}, body={}", commentId, response.getBody());
+            return response.getBody();
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            String responseBody = e.getResponseBodyAsString();
+            log.error("댓글 답장 실패 — commentId={}, status={}, metaResponse={}",
+                    commentId, e.getStatusCode(), responseBody);
+            throw new RuntimeException("댓글 답장 실패: " + responseBody, e);
+        } catch (Exception e) {
+            log.error("댓글 답장 실패 — commentId={}, error={}", commentId, e.getMessage());
+            throw new RuntimeException("댓글 답장 실패: " + e.getMessage(), e);
+        }
     }
 
     // ─── 팔로우 확인 ───
