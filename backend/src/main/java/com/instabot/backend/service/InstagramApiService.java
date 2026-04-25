@@ -545,11 +545,13 @@ public class InstagramApiService {
      * 호스트는 {@code graph.instagram.com} 사용. graph.facebook.com 으로 보내면
      * IGUAT 가 인식되지 않아 401 [no body] 로 거절됨이 관측됨.
      * <p>
-     * 호출 형식: Meta 공식 docs 의 curl 예시와 동일하게
-     * {@code POST /{ig-comment-id}/replies?message=...&access_token=...} 로 보낸다.
-     * Bearer header + JSON body 방식은 IGUAT 와 조합 시
-     * {@code (#100) Object does not exist or missing permissions} 으로 거절되는 사례가 관측됨.
-     * Body 는 비우고 모든 파라미터를 query string 으로 전달.
+     * 호출 형식: {@code postToInstagram(url, body, accessToken)} — JSON body
+     * + Bearer header. 4/23 까지 이 형식으로 정상 작동했다.
+     * <p>
+     * 과거에 commit {@code 2cf1a366} 에서 Meta docs 의 curl 예시처럼
+     * {@code ?message=...&access_token=...} query param + empty body 형식으로
+     * 변경했으나, 그 이후 (#100/subcode 33) 으로 거절되기 시작 — 명백한 회귀.
+     * 4/23 시점 commit {@code 263ba26b} 의 형식으로 복원.
      * <p>
      * 실패 시 Meta 가 돌려주는 응답 body 를 그대로 로그에 남겨
      * subcode/fbtrace_id 까지 운영자가 확인할 수 있게 한다.
@@ -560,12 +562,16 @@ public class InstagramApiService {
      * @return Meta 응답 JSON (id 등)
      */
     public JsonNode replyToComment(String commentId, String message, String accessToken) {
-        String url = apiBaseUrl + "/v21.0/" + commentId + "/replies"
-                + "?message=" + java.net.URLEncoder.encode(message, java.nio.charset.StandardCharsets.UTF_8)
-                + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8);
+        String url = apiBaseUrl + "/v21.0/" + commentId + "/replies";
+        Map<String, Object> body = Map.of("message", message);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(accessToken);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
 
         try {
-            ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, HttpEntity.EMPTY, JsonNode.class);
+            ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, request, JsonNode.class);
             log.debug("댓글 답장 응답: commentId={}, body={}", commentId, response.getBody());
             return response.getBody();
         } catch (org.springframework.web.client.HttpStatusCodeException e) {
