@@ -253,6 +253,19 @@ public class WebhookEventService {
 
         log.info("댓글 웹훅 수신 — commentId={}, senderId={}, mediaId={}, text={}",
                 commentId, senderId, mediaId, text);
+        // 진단: webhook value 의 raw payload 까지 — parent_id / hidden / media.media_product_type 같은
+        // 모더레이션 / mention vs comments 구분에 필요한 필드를 같이 보기 위함.
+        log.info("댓글 웹훅 raw value: {}", value);
+
+        // 진단 4: 댓글이 달린 게시물(mediaId) 의 owner 를 토큰으로 GET — 본인 게시물인지 확인
+        if (mediaId != null && !mediaId.isBlank()) {
+            try {
+                String token = instagramApiService.getDecryptedToken(igAccount);
+                instagramApiService.diagnoseMediaOwner(commentId, mediaId, token);
+            } catch (Exception ex) {
+                log.error("진단 4 호출 실패: commentId={}, error={}", commentId, ex.getMessage());
+            }
+        }
 
         integrationService.forwardWebhookEvent(user.getId(), "comment_received",
                 Map.of("commentId", commentId, "senderIgId", senderId, "text", text, "mediaId", mediaId));

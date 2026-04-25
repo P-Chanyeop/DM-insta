@@ -190,16 +190,30 @@ public class FlowExecutionService {
     @Async
     @Transactional
     public void handlePostback(String senderIgId, String payload) {
-        PostbackPayload parsed = PostbackPayload.parse(payload);
-        if (parsed == null) {
-            log.debug("알 수 없는 postback payload: {}", payload);
-            return;
-        }
+        // 진입 로그 — Postback 수신 후 handleOpeningDmPostback 등 분기에서 silent fail 했을 때
+        // 어디까지 도달했는지 추적하기 위함.
+        log.info("handlePostback 진입: sender={}, payload={}", senderIgId, payload);
+        try {
+            PostbackPayload parsed = PostbackPayload.parse(payload);
+            if (parsed == null) {
+                log.info("handlePostback — payload 파싱 실패(레거시/알 수 없음): sender={}, payload={}",
+                        senderIgId, payload);
+                return;
+            }
 
-        switch (parsed.getAction()) {
-            case OPENING -> handleOpeningDmPostback(senderIgId, parsed);
-            case FOLLOW  -> handleFollowCheckPostback(senderIgId, parsed);
-            default -> log.debug("처리하지 않는 postback action: {}", parsed.getAction());
+            log.info("handlePostback — 분기: sender={}, action={}, flowId={}, nodeId={}",
+                    senderIgId, parsed.getAction(), parsed.getFlowId(), parsed.getNodeId());
+
+            switch (parsed.getAction()) {
+                case OPENING -> handleOpeningDmPostback(senderIgId, parsed);
+                case FOLLOW  -> handleFollowCheckPostback(senderIgId, parsed);
+                default -> log.info("handlePostback — 처리하지 않는 action: {}", parsed.getAction());
+            }
+        } catch (Exception e) {
+            // 분기 메소드 안에서 던진 unchecked exception 이 @Async 로 인해 Future 에 갇혀
+            // 호출 측 로그에 안 보이는 것을 막기 위한 catch-all.
+            log.error("handlePostback 처리 중 예외 — sender={}, payload={}, error={}",
+                    senderIgId, payload, e.getMessage(), e);
         }
     }
 

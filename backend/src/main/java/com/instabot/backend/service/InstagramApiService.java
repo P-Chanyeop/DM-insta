@@ -561,6 +561,31 @@ public class InstagramApiService {
      * @param accessToken 발신 계정의 Instagram 액세스 토큰 (IGUAT)
      * @return Meta 응답 JSON (id 등)
      */
+    /**
+     * mediaId 의 owner 를 토큰으로 GET — 댓글 답장 100/33 진단용.
+     * 본인 게시물이면 200 + owner 정보, 다른 사람 게시물이면 400.
+     *
+     * @param commentId 진단 컨텍스트 (로그용)
+     * @param mediaId   조회할 IG media ID (webhook 의 mediaId)
+     * @param accessToken 토큰
+     */
+    public void diagnoseMediaOwner(String commentId, String mediaId, String accessToken) {
+        try {
+            java.net.URI uri = java.net.URI.create(apiBaseUrl + "/v21.0/" + mediaId
+                    + "?fields=id,permalink,owner,username,media_product_type"
+                    + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
+            JsonNode info = restTemplate.getForObject(uri, JsonNode.class);
+            log.error("진단 4 — mediaId owner: commentId={}, mediaId={}, mediaInfo={}",
+                    commentId, mediaId, info);
+        } catch (org.springframework.web.client.HttpStatusCodeException me) {
+            log.error("진단 4 — mediaId GET 실패 (다른 사람 게시물 / 권한 없음): commentId={}, mediaId={}, status={}, body={}",
+                    commentId, mediaId, me.getStatusCode(), me.getResponseBodyAsString());
+        } catch (Exception me) {
+            log.error("진단 4 — mediaId GET 중 예외: commentId={}, mediaId={}, error={}",
+                    commentId, mediaId, me.getMessage());
+        }
+    }
+
     public JsonNode replyToComment(String commentId, String message, String accessToken) {
         String url = apiBaseUrl + "/v21.0/" + commentId + "/replies";
         Map<String, Object> body = Map.of("message", message);
@@ -607,20 +632,17 @@ public class InstagramApiService {
                 log.error("진단 2 — GET /me 실패: commentId={}, error={}", commentId, me.getMessage());
             }
 
-            // ─── 진단 3: 토큰으로 본인 미디어 ID 체계 확인 (GET /me/media) ───
-            //  토큰이 IG Login(IGUAT) 시스템이라면 me.id 가 26413... (IG User ID) 으로 나오는데
-            //  webhook 이 17841... (IG Business Account ID) 시스템 객체를 보내면 두 시스템이
-            //  격리돼 access 거부될 수 있다. /me/media 응답의 media id 가 어떤 형식인지 보면
-            //  토큰 시스템에서 보는 ID prefix 를 알 수 있다.
+            // ─── 진단 3: 토큰으로 본인 미디어 list 확인 (GET /me/media) ───
             try {
-                java.net.URI mediaUri = java.net.URI.create(apiBaseUrl + "/v21.0/me/media?fields=id,permalink&limit=3"
+                java.net.URI mediaUri = java.net.URI.create(apiBaseUrl + "/v21.0/me/media?fields=id,permalink&limit=10"
                         + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
                 JsonNode mediaInfo = restTemplate.getForObject(mediaUri, JsonNode.class);
-                log.error("진단 3 — /me/media (토큰 시야의 미디어 ID 형식 확인): commentId={}, media={}",
+                log.error("진단 3 — /me/media (토큰 owner 의 최근 게시물 list): commentId={}, media={}",
                         commentId, mediaInfo);
             } catch (Exception ex) {
                 log.error("진단 3 — /me/media 실패: commentId={}, error={}", commentId, ex.getMessage());
             }
+
 
             throw new RuntimeException("댓글 답장 실패: " + responseBody, e);
         } catch (Exception e) {
