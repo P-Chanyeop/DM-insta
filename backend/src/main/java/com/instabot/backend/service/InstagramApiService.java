@@ -46,29 +46,16 @@ public class InstagramApiService {
     // ─── OAuth ───
 
     /**
-     * Short-lived Facebook User Token → Long-lived Facebook User Token 교환.
-     * <p>
-     * Meta Login for Business 의 fb_exchange_token grant 사용.
-     * 응답: {@code {"access_token": "EAA...", "token_type": "bearer", "expires_in": 5184000}}
-     * (5184000s = 60 days)
-     * <p>
-     * 이후 컨트롤러는 이 long-lived User Token 으로 GET /me/accounts 를 호출해
-     * IG 자산이 연결된 Page 의 Page Access Token 을 추출한다 (fetchInstagramProfile).
-     *
-     * @param shortLivedToken Facebook User Token (OAuth code 교환 직후 받은 단기 토큰)
-     * @return long-lived Facebook User Token
+     * Short-lived Instagram 토큰 → Long-lived 토큰으로 교환
+     * Instagram Login API: GET https://graph.instagram.com/access_token
      */
     public String exchangeLongLivedToken(String shortLivedToken) {
-        // URI.create() 사용 — RestTemplate 의 String URL double-encoding 우회
-        // (exchangeCodeForToken 과 동일 이유).
-        java.net.URI uri = java.net.URI.create("https://graph.facebook.com/v25.0/oauth/access_token"
-                + "?grant_type=fb_exchange_token"
-                + "&client_id=" + appId
+        String url = "https://graph.instagram.com/access_token"
+                + "?grant_type=ig_exchange_token"
                 + "&client_secret=" + appSecret
-                + "&fb_exchange_token=" + java.net.URLEncoder.encode(
-                        shortLivedToken, java.nio.charset.StandardCharsets.UTF_8));
+                + "&access_token=" + shortLivedToken;
 
-        ResponseEntity<JsonNode> resp = restTemplate.getForEntity(uri, JsonNode.class);
+        ResponseEntity<JsonNode> resp = restTemplate.getForEntity(url, JsonNode.class);
         return resp.getBody().get("access_token").asText();
     }
 
@@ -202,22 +189,18 @@ public class InstagramApiService {
     }
 
     /**
-     * Facebook Login for Business 통한 IG 계정 연결 — 매니챗과 동일 패턴.
-     * <p>
-     * 컨트롤러의 {@code fetchInstagramProfile()} 가 User Token 으로 /me/accounts 를
-     * 조회해서 IG 자산 연결된 Page 를 찾고, 그 Page 의 Page Access Token + IG account
-     * info 를 묶어 {@code igProfile} 로 전달한다. 여기서는 Page Token 을 access_token
-     * 컬럼에 저장 (모든 IG API 가 Page Token 으로 호출되므로).
+     * Instagram Login OAuth로 직접 IG 계정 연결 (Facebook 페이지 경유 불필요)
+     *
+     * Instagram OAuth에서 받은 토큰 + 프로필 정보로 바로 InstagramAccount 생성/업데이트.
+     * Facebook Login 방식과 달리 페이지 조회 없이 직접 Instagram 계정 정보를 사용.
      *
      * @param user 유저 엔티티
-     * @param userToken (참고용 — 더 이상 직접 저장 안 함, Page Token 으로 대체)
-     * @param igProfile fetchInstagramProfile 결과 — user_id (IG account id), username,
-     *                  name, profile_picture_url, followers_count, account_type,
-     *                  page_id, page_access_token 포함
-     * @return 저장된 InstagramAccount (access_token 컬럼에 Page Token 저장됨)
+     * @param igAccessToken 장기 Instagram User Access Token
+     * @param igProfile Instagram Graph API /me 응답 (user_id, username, name, profile_picture_url, followers_count)
+     * @return 저장된 InstagramAccount
      */
     public InstagramAccount connectInstagramDirect(
-            com.instabot.backend.entity.User user, String userToken, JsonNode igProfile) {
+            com.instabot.backend.entity.User user, String igAccessToken, JsonNode igProfile) {
 
         String igUserId = igProfile.path("user_id").asText(null);
         if (igUserId == null || igUserId.isEmpty()) {
@@ -228,17 +211,12 @@ public class InstagramApiService {
                     "Instagram 사용자 ID를 가져올 수 없습니다. 다시 시도해주세요.");
         }
 
-        String pageAccessToken = igProfile.path("page_access_token").asText(null);
-        String pageId = igProfile.path("page_id").asText(null);
-        if (pageAccessToken == null || pageAccessToken.isEmpty()) {
-            throw new IgConnectionException("NO_PAGE_TOKEN",
-                    "Facebook Page Access Token 을 받지 못했습니다. OAuth 동의 화면에서 Page 를 선택했는지 확인해주세요.");
-        }
-
         String username = igProfile.path("username").asText("");
         String accountType = igProfile.path("account_type").asText("");
-        log.info("Instagram 계정 타입: userId={}, igUserId={}, accountType={}, pageId={}",
-                user.getId(), igUserId, accountType, pageId);
+
+        // 비즈니스/크리에이터 계정 확인 (BUSINESS, MEDIA_CREATOR, CREATOR_ACCOUNT 등)
+        // Instagram Login은 비즈니스/크리에이터 계정만 지원
+        log.info("Instagram 계정 타입: userId={}, igUserId={}, accountType={}", user.getId(), igUserId, accountType);
 
         // 기존 계정 있으면 업데이트, 없으면 생성
         InstagramAccount account = instagramAccountRepository.findByIgUserId(igUserId)
@@ -255,13 +233,11 @@ public class InstagramApiService {
         }
 
         account.setUsername(username);
-        // Page Access Token 을 저장 — 모든 IG API (graph.facebook.com) 호출에 사용.
-        account.setAccessToken(encryptionUtil.encrypt(pageAccessToken));
-        account.setFbPageId(pageId);
+        // Instagram User Access Token 직접 저장 (Page Token이 아닌 User Token)
+        account.setAccessToken(encryptionUtil.encrypt(igAccessToken));
         account.setConnected(true);
         account.setActive(true);
         account.setConnectedAt(LocalDateTime.now());
-        // Page Token 은 User Token 의 만료시각을 상속받음 (60d). 보수적으로 60d.
         account.setTokenExpiresAt(LocalDateTime.now().plusDays(60));
 
         if (igProfile.has("profile_picture_url")) {
@@ -272,8 +248,7 @@ public class InstagramApiService {
         }
 
         InstagramAccount saved = instagramAccountRepository.save(account);
-        log.info("Instagram 계정 연결 완료: userId={}, igUserId={}, username={}, pageId={}",
-                user.getId(), igUserId, username, pageId);
+        log.info("Instagram 계정 연결 완료: userId={}, igUserId={}, username={}", user.getId(), igUserId, username);
         return saved;
     }
 

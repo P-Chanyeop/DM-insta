@@ -183,14 +183,6 @@ export const instagramProfileService = {
   deletePersistentMenu: () => api.delete('/instagram/persistent-menu'),
 }
 
-// IG 자산 선택 — 매니챗 동일 UX (사용자가 어떤 IG 계정 연결할지 선택)
-export const instagramAssetService = {
-  // 사용자의 facebookAccessToken 으로 /me/accounts 조회 → IG 자산 list 반환
-  list: () => api.get('/instagram/assets').then(r => r.data?.assets ?? []),
-  // 선택한 자산 (pageId, igUserId) 으로 InstagramAccount 저장
-  select: ({ pageId, igUserId }) => api.post('/instagram/select-asset', { pageId, igUserId }).then(r => r.data),
-}
-
 export const notificationService = {
   list: () => api.get('/notifications').then(r => r.data),
   unreadCount: () => api.get('/notifications/unread').then(r => r.data?.count ?? 0),

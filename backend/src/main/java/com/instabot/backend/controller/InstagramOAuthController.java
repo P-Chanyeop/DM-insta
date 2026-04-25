@@ -77,17 +77,15 @@ public class InstagramOAuthController {
     @Value("${instagram.api.app-secret}")
     private String appSecret;
 
-    @Value("${instagram.oauth.config-id}")
-    private String configId;
-
     @Value("${instagram.oauth.redirect-uri:http://localhost:8080/api/auth/instagram/callback}")
     private String redirectUri;
 
     @Value("${cors.allowed-origins}")
     private String frontendOrigin;
 
-    // Facebook Login for Business 패턴 — 권한은 Meta App Dashboard 의 Configuration 에서
-    // 정의되며 OAuth URL 에는 scope 를 명시하지 않는다. config_id 가 권한 set 의 ID 역할.
+    // Instagram Business Login 스코프
+    private static final String OAUTH_SCOPE =
+            "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments";
 
     // ─── OAuth URL 생성 ───
 
@@ -104,33 +102,12 @@ public class InstagramOAuthController {
         return ResponseEntity.ok(Map.of("url", buildOAuthUrl("signup")));
     }
 
-    /**
-     * Facebook Login for Business 의 OAuth URL 빌더 — 매니챗과 동일한 패턴.
-     * <p>
-     * 사용자 흐름:
-     *   1. {@code business.facebook.com/dialog/oauth} 로 redirect
-     *   2. Instagram 로그인 (또는 이미 로그인된 IG 계정 선택)
-     *   3. Meta Business Manager 의 권한 grant 화면 — 비즈니스 포트폴리오 + IG 자산 선택
-     *   4. 권한 확인 후 우리 콜백으로 redirect (?code=...)
-     * <p>
-     * scope 파라미터 없음 — 모든 권한은 config_id 의 Configuration 에 정의됨
-     * (Meta App Dashboard → Facebook Login for Business → Configurations).
-     *
-     * @param state OAuth state 파라미터 ("signup" 또는 "connect:{userId}")
-     * @return 사용자가 redirect 받을 OAuth dialog URL
-     */
     private String buildOAuthUrl(String state) {
-        // auth_type=reauthorize — 매번 권한 grant 화면을 거치게 해서 사용자가 IG 자산
-        // (어떤 IG 계정 연결할지) 을 명시적으로 선택할 수 있게 한다. 이게 빠지면 사용자가
-        // 이미 grant 한 경우 dialog 자체가 skip 되어 첫 번째 IG 자산이 자동 연결됨.
-        // 매니챗과 동일한 자산 선택 UX 위해 필요.
-        return "https://business.facebook.com/dialog/oauth"
+        return "https://www.instagram.com/oauth/authorize"
                 + "?client_id=" + appId
-                + "&config_id=" + configId
                 + "&redirect_uri=" + urlEncode(redirectUri)
+                + "&scope=" + OAUTH_SCOPE
                 + "&response_type=code"
-                + "&override_default_response_type=true"
-                + "&auth_type=reauthorize"
                 + "&state=" + state;
     }
 
@@ -156,14 +133,13 @@ public class InstagramOAuthController {
         }
 
         try {
-            // Facebook OAuth 코드 → 단기 User Token 교환.
-            // Facebook Login for Business 의 응답은 {"access_token", "token_type", "expires_in"} 만 포함.
-            // user_id 필드 없음 — IG account ID 는 후속 fetchInstagramProfile (/me/accounts) 에서 추출.
+            // Instagram 토큰 교환 (short-lived)
             JsonNode tokenResponse = exchangeCodeForToken(code);
             String shortLivedToken = tokenResponse.get("access_token").asText();
+            String igUserId = String.valueOf(tokenResponse.get("user_id").asLong());
 
             if ("signup".equals(state)) {
-                return handleSignupFlow(shortLivedToken, null);
+                return handleSignupFlow(shortLivedToken, igUserId);
             }
 
             Long userId = parseUserIdFromState(state);
@@ -172,7 +148,7 @@ public class InstagramOAuthController {
                 log.error("OAuth 콜백: 유저를 찾을 수 없음. state={}", state);
                 return redirectAfterOAuth(state, null, "ig_error=user_not_found");
             }
-            return handleConnectFlow(user, shortLivedToken, null);
+            return handleConnectFlow(user, shortLivedToken, igUserId);
 
         } catch (Exception e) {
             log.error("OAuth 콜백 처리 실패: {}", e.getMessage(), e);
@@ -230,7 +206,7 @@ public class InstagramOAuthController {
         }
 
         if (existing != null) {
-            // 4-A. 기존 유저 → IG 토큰 갱신 + JWT 발급 + IG 재연결 (자산 list 분기).
+            // 4-A. 기존 유저 → IG 토큰 갱신 + 필요 시 재연결 + JWT 발급.
             jdbcTemplate.update(
                     "UPDATE users SET facebook_user_id = ?, facebook_access_token = ?, facebook_token_expires_at = ? WHERE id = ?",
                     igIdFinal, encryptionUtil.encrypt(longLivedToken),
@@ -238,47 +214,34 @@ public class InstagramOAuthController {
                     existing.getId());
             log.info("IG 로그인(기존 유저): userId={}, igUsername={}", existing.getId(), igUsernameFinal);
 
-            // JWT 먼저 발급 — 자산 선택 페이지에서 로그인 상태 필요
-            String token = authService.generateToken(existing);
-
-            // IG 자산 list 분기 — 1개면 자동, 여러 개면 select 페이지로 (handleConnectFlow 와 동일)
+            String igStatus = "connected";
+            String igErrorCode = null;
+            String igErrorMsg = null;
             try {
-                java.util.List<JsonNode> assets = fetchInstagramAssets(longLivedToken);
-                if (assets.isEmpty()) {
-                    log.warn("IG 자산 없음 (signup, 기존 유저): userId={}", existing.getId());
-                    return redirectToFrontend("/auth/callback",
-                            "token=" + token
-                                    + "&email=" + urlEncode(existing.getEmail())
-                                    + "&name=" + urlEncode(existing.getName() != null ? existing.getName() : "")
-                                    + "&ig_status=reconnect_failed&ig_error=NO_IG_ASSET");
-                }
-                if (assets.size() == 1) {
-                    InstagramAccount acc = instagramApiService.connectInstagramDirect(existing, longLivedToken, assets.get(0));
-                    log.info("IG 재연결 성공 (signup, 자산 1개 자동): userId={}, igUsername={}",
-                            existing.getId(), acc.getUsername());
-                    return redirectToFrontend("/auth/callback",
-                            "token=" + token
-                                    + "&email=" + urlEncode(existing.getEmail())
-                                    + "&name=" + urlEncode(existing.getName() != null ? existing.getName() : "")
-                                    + "&ig_status=connected");
-                }
-                // 자산 여러 개 — select 페이지로
-                log.info("IG 자산 {}개 (signup) — select 페이지로: userId={}",
-                        assets.size(), existing.getId());
-                return redirectToFrontend("/auth/callback",
-                        "token=" + token
-                                + "&email=" + urlEncode(existing.getEmail())
-                                + "&name=" + urlEncode(existing.getName() != null ? existing.getName() : "")
-                                + "&ig_status=select_required&next=/app/instagram/select");
+                InstagramAccount acc = instagramApiService.connectInstagramDirect(existing, longLivedToken, igProfile);
+                log.info("IG 재연결 성공: userId={}, igUsername={}", existing.getId(), acc.getUsername());
+            } catch (IgConnectionException e) {
+                igErrorCode = e.getCode();
+                igErrorMsg = e.getMessage();
+                igStatus = "reconnect_failed";
+                log.warn("IG 재연결 실패(로그인은 진행): userId={}, code={}", existing.getId(), igErrorCode);
             } catch (Exception e) {
-                log.error("IG 재연결 중 예외 (signup): userId={}, error={}", existing.getId(), e.getMessage(), e);
-                return redirectToFrontend("/auth/callback",
-                        "token=" + token
-                                + "&email=" + urlEncode(existing.getEmail())
-                                + "&name=" + urlEncode(existing.getName() != null ? existing.getName() : "")
-                                + "&ig_status=reconnect_failed&ig_error=UNKNOWN&ig_reason="
-                                + urlEncode(e.getMessage() != null ? e.getMessage() : ""));
+                igErrorCode = "UNKNOWN";
+                igErrorMsg = e.getMessage();
+                igStatus = "reconnect_failed";
             }
+
+            String token = authService.generateToken(existing);
+            StringBuilder params = new StringBuilder()
+                    .append("token=").append(token)
+                    .append("&email=").append(urlEncode(existing.getEmail()))
+                    .append("&name=").append(urlEncode(existing.getName() != null ? existing.getName() : ""))
+                    .append("&ig_status=").append(igStatus);
+            if (igErrorCode != null) {
+                params.append("&ig_error=").append(urlEncode(igErrorCode))
+                        .append("&ig_reason=").append(urlEncode(igErrorMsg != null ? igErrorMsg : ""));
+            }
+            return redirectToFrontend("/auth/callback", params.toString());
         }
 
         // 4-B. 신규 가입 → User 생성은 하지 않고 pending 토큰만 발급 → 이메일 입력 페이지로.
@@ -293,15 +256,7 @@ public class InstagramOAuthController {
         return redirectToFrontend("/onboarding/email", params);
     }
 
-    /**
-     * 기존 유저 IG 연결 플로우.
-     * <p>
-     * IG 자산 list 가 1개면 자동 연결, 여러 개면 frontend 의 자산 선택 페이지로
-     * redirect 하여 사용자가 명시적으로 선택하게 한다 (매니챗과 동일 UX).
-     * Page Access Token 은 user.facebookAccessToken 에 일시 저장되어 있다가
-     * 사용자가 자산 선택 시 /api/instagram/select-asset endpoint 가 그 토큰으로
-     * /me/accounts 다시 호출 → 선택한 page 의 정보 추출 → connectInstagramDirect.
-     */
+    /** 기존 유저 IG 연결 플로우 */
     private ResponseEntity<String> handleConnectFlow(User user, String shortLivedToken, String igUserId) {
         // 장기 토큰 교환 + 저장
         String longLivedToken;
@@ -316,24 +271,13 @@ public class InstagramOAuthController {
         user.setFacebookTokenExpiresAt(LocalDateTime.now().plusDays(60));
         userRepository.save(user);
 
+        // Instagram 프로필 조회 + 직접 연결
         try {
-            java.util.List<JsonNode> assets = fetchInstagramAssets(longLivedToken);
-            if (assets.isEmpty()) {
-                log.warn("IG 자산 없음: userId={}", user.getId());
-                return redirectToFrontend("/app/onboarding",
-                        "ig_error=NO_IG_ASSET&ig_reason=" + urlEncode("연결된 Instagram 비즈니스 계정이 없습니다."));
-            }
-            if (assets.size() == 1) {
-                InstagramAccount acc = instagramApiService.connectInstagramDirect(user, longLivedToken, assets.get(0));
-                log.info("IG 연결 성공 (자산 1개 자동 연결): userId={}, igUsername={}",
-                        user.getId(), acc.getUsername());
-                return redirectToFrontend("/app/onboarding",
-                        "ig_connected=true&username=" + urlEncode(acc.getUsername()));
-            }
-            // 여러 자산 — frontend 자산 선택 페이지로 redirect
-            log.info("IG 자산 {}개 발견 — 사용자 선택 페이지로 redirect: userId={}",
-                    assets.size(), user.getId());
-            return redirectToFrontend("/app/instagram/select", "");
+            JsonNode igProfile = fetchInstagramProfile(longLivedToken);
+            InstagramAccount acc = instagramApiService.connectInstagramDirect(user, longLivedToken, igProfile);
+            log.info("IG 연결 성공: userId={}, igUsername={}", user.getId(), acc.getUsername());
+            return redirectToFrontend("/app/onboarding",
+                    "ig_connected=true&username=" + urlEncode(acc.getUsername()));
         } catch (IgConnectionException e) {
             log.warn("IG 연결 실패: userId={}, code={}, msg={}", user.getId(), e.getCode(), e.getMessage());
             return redirectToFrontend("/app/onboarding",
@@ -342,101 +286,6 @@ public class InstagramOAuthController {
             log.error("IG 연결 중 예외: userId={}, error={}", user.getId(), e.getMessage(), e);
             return redirectToFrontend("/app/onboarding",
                     "ig_error=UNKNOWN&ig_reason=" + urlEncode(e.getMessage()));
-        }
-    }
-
-    // ─── IG 자산 선택 (매니챗 동일 UX — 사용자가 어떤 IG 계정 연결할지 선택) ───
-
-    /**
-     * 인증된 user 의 facebookAccessToken 으로 /me/accounts 조회 → IG 자산 list 반환.
-     * <p>
-     * frontend 의 자산 선택 페이지에서 호출. page_access_token 은 응답에서 제외 (보안).
-     *
-     * @return {assets: [{user_id, username, name, profile_picture_url, followers_count, page_id}, ...]}
-     */
-    @GetMapping("/api/instagram/assets")
-    public ResponseEntity<Map<String, Object>> getAssets() {
-        Long userId = SecurityUtils.currentUserId();
-        User user = userRepository.findById(userId).orElse(null);
-        if (user == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "SESSION_EXPIRED"));
-        }
-        String encryptedToken = user.getFacebookAccessToken();
-        if (encryptedToken == null || user.getFacebookTokenExpiresAt() == null
-                || user.getFacebookTokenExpiresAt().isBefore(LocalDateTime.now())) {
-            return ResponseEntity.status(400).body(Map.of("error", "NO_FB_TOKEN",
-                    "message", "Facebook 인증이 필요합니다. Instagram 다시 연결해주세요."));
-        }
-        try {
-            String userToken = encryptionUtil.decrypt(encryptedToken);
-            java.util.List<JsonNode> assets = fetchInstagramAssets(userToken);
-            // page_access_token 제외하고 반환 (보안)
-            java.util.List<Map<String, Object>> safe = new java.util.ArrayList<>();
-            for (JsonNode a : assets) {
-                Map<String, Object> entry = new HashMap<>();
-                entry.put("user_id", a.path("user_id").asText());
-                entry.put("username", a.path("username").asText());
-                entry.put("name", a.path("name").asText());
-                entry.put("profile_picture_url", a.path("profile_picture_url").asText());
-                entry.put("followers_count", a.path("followers_count").asInt(0));
-                entry.put("page_id", a.path("page_id").asText());
-                safe.add(entry);
-            }
-            return ResponseEntity.ok(Map.of("assets", safe));
-        } catch (Exception e) {
-            log.error("IG 자산 조회 실패: userId={}, error={}", userId, e.getMessage(), e);
-            return ResponseEntity.status(500).body(Map.of("error", "FETCH_FAILED",
-                    "message", e.getMessage()));
-        }
-    }
-
-    /**
-     * 사용자가 자산 선택 페이지에서 IG 계정 선택 시 호출.
-     * <p>
-     * body: {pageId: "...", igUserId: "..."}
-     * <p>
-     * facebookAccessToken 으로 /me/accounts 다시 호출 → 선택한 page 찾아 page_access_token
-     * 추출 → connectInstagramDirect 로 InstagramAccount 저장.
-     */
-    @PostMapping("/api/instagram/select-asset")
-    public ResponseEntity<Map<String, Object>> selectAsset(@RequestBody Map<String, String> body) {
-        Long userId = SecurityUtils.currentUserId();
-        User user = userRepository.findById(userId).orElse(null);
-        if (user == null) {
-            return ResponseEntity.status(401).body(Map.of("success", false, "error", "SESSION_EXPIRED"));
-        }
-        String pageId = body.get("pageId");
-        String igUserId = body.get("igUserId");
-        if (pageId == null || pageId.isBlank() || igUserId == null || igUserId.isBlank()) {
-            return ResponseEntity.status(400).body(Map.of("success", false, "error", "MISSING_PARAMS"));
-        }
-        String encryptedToken = user.getFacebookAccessToken();
-        if (encryptedToken == null) {
-            return ResponseEntity.status(400).body(Map.of("success", false, "error", "NO_FB_TOKEN"));
-        }
-        try {
-            String userToken = encryptionUtil.decrypt(encryptedToken);
-            java.util.List<JsonNode> assets = fetchInstagramAssets(userToken);
-            for (JsonNode asset : assets) {
-                if (pageId.equals(asset.path("page_id").asText())
-                        && igUserId.equals(asset.path("user_id").asText())) {
-                    InstagramAccount acc = instagramApiService.connectInstagramDirect(user, userToken, asset);
-                    log.info("IG 자산 선택 + 연결 완료: userId={}, igUsername={}, pageId={}",
-                            user.getId(), acc.getUsername(), pageId);
-                    return ResponseEntity.ok(Map.of(
-                            "success", true,
-                            "username", acc.getUsername(),
-                            "igUserId", acc.getIgUserId()));
-                }
-            }
-            return ResponseEntity.status(404).body(Map.of("success", false, "error", "ASSET_NOT_FOUND"));
-        } catch (IgConnectionException e) {
-            return ResponseEntity.status(400).body(Map.of(
-                    "success", false, "error", e.getCode(), "message", e.getMessage()));
-        } catch (Exception e) {
-            log.error("IG 자산 선택 실패: userId={}, error={}", userId, e.getMessage(), e);
-            return ResponseEntity.status(500).body(Map.of(
-                    "success", false, "error", "UNKNOWN", "message", e.getMessage()));
         }
     }
 
@@ -539,135 +388,34 @@ public class InstagramOAuthController {
     // ─── 내부 헬퍼 ───
 
     /**
-     * Facebook Login 코드 → 단기 Facebook User Access Token 교환.
-     * <p>
-     * Meta Login for Business 의 OAuth code grant flow.
-     * 응답: {@code {"access_token": "EAA...", "token_type": "bearer", "expires_in": 3600}}
-     * <p>
-     * 토큰은 Facebook User Token (FB User 의 동의 컨텍스트). 이 토큰으로
-     * {@code GET /me/accounts} 호출하면 사용자가 관리하는 Page list 와 각 Page 의
-     * Page Access Token 을 받을 수 있고, Page 의 {@code instagram_business_account}
-     * 필드로 IG 연결된 계정을 식별한다.
-     *
-     * @param code OAuth 콜백의 ?code= 파라미터
-     * @return token JSON
+     * Instagram OAuth 코드 → 단기 액세스 토큰 교환
+     * 응답: { "access_token": "...", "user_id": 12345 }
      */
     private JsonNode exchangeCodeForToken(String code) {
-        // RestTemplate.getForObject(String, ...) 는 URL 을 URI Template 로 처리해서 이미 encoded 된
-        // 문자 (% 포함) 를 또 encoding 한다 (% → %25). Facebook 이 이를 decode 시
-        // "redirect_uri isn't an absolute URI" 로 거부 (code 191).
-        // URI.create() 로 명시적 URI 객체를 만들어 전달하면 추가 encoding 우회.
-        java.net.URI uri = java.net.URI.create("https://graph.facebook.com/v25.0/oauth/access_token"
-                + "?client_id=" + urlEncode(appId)
-                + "&client_secret=" + urlEncode(appSecret)
-                + "&redirect_uri=" + urlEncode(redirectUri)
-                + "&code=" + urlEncode(code));
-        return restTemplate.getForObject(uri, JsonNode.class);
+        String url = "https://api.instagram.com/oauth/access_token";
+
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.add("client_id", appId);
+        params.add("client_secret", appSecret);
+        params.add("grant_type", "authorization_code");
+        params.add("redirect_uri", redirectUri);
+        params.add("code", code);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
+        ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, request, JsonNode.class);
+
+        return response.getBody();
     }
 
     /**
-     * 사용자가 관리하는 Page 들 중 Instagram 자산이 연결된 첫 번째 Page 의 정보 조회.
-     * <p>
-     * Facebook Login for Business 의 핵심 단계 — User Token 은 IG API 직접 호출에
-     * 사용 못 하고, IG 자산이 연결된 Page 의 Page Access Token 을 추출해야 graph.facebook.com
-     * 으로 IG comment / messaging API 가 작동한다 (매니챗과 동일 구조).
-     * <p>
-     * 응답에서 IG account 정보 (id, username, name, profile_picture_url) 와 Page Token 을
-     * 함께 추출. 이후 컨트롤러는 Page Token 을 {@code instagramAccount.accessToken} 컬럼에
-     * 저장하고, IG account id 는 {@code igUserId} 컬럼에 저장한다 (기존 schema 재사용).
-     *
-     * @param userToken Facebook User Access Token
-     * @return JSON: {"user_id":"<ig-user-id>","username":"...","name":"...",
-     *               "profile_picture_url":"...","page_id":"<fb-page-id>",
-     *               "page_access_token":"<page-token>"}
-     * @throws IgConnectionException IG 연결된 Page 가 없거나 Meta API 호출 실패 시
+     * Instagram Graph API로 프로필 조회
+     * 응답: { "user_id", "username", "name", "profile_picture_url", "followers_count", "account_type" }
      */
-    private JsonNode fetchInstagramProfile(String userToken) {
-        // URI.create() 사용 — fields 값에 {} 가 포함돼있어 RestTemplate 의 URI Template
-        // 처리가 잘못 해석할 수 있으므로 명시적 URI 객체로 변환.
-        // account_type 필드는 v25.0 에서 instagram_business_account edge 에 더 이상 없음.
-        // 제거 — IG 자산 식별엔 id, username 으로 충분.
-        java.net.URI uri = java.net.URI.create("https://graph.facebook.com/v25.0/me/accounts"
-                + "?fields=id,name,access_token,instagram_business_account%7Bid,username,name,profile_picture_url,followers_count%7D"
-                + "&access_token=" + urlEncode(userToken));
-        JsonNode accounts = restTemplate.getForObject(uri, JsonNode.class);
-        if (accounts == null || !accounts.has("data") || accounts.get("data").size() == 0) {
-            throw new IgConnectionException("NO_FB_PAGE",
-                    "연결된 Facebook 페이지가 없습니다. 먼저 Instagram 비즈니스 계정과 Facebook 페이지를 연결해주세요.");
-        }
-
-        // IG 자산이 연결된 첫 번째 Page 선택 — OAuth 동의 화면에서 사용자가 선택한 Page 만
-        // 응답에 포함됨 (config_id 의 asset_type=Instagram Business Account 효과).
-        for (JsonNode page : accounts.get("data")) {
-            JsonNode iga = page.get("instagram_business_account");
-            if (iga != null && !iga.isNull() && iga.has("id")) {
-                com.fasterxml.jackson.databind.node.ObjectNode result =
-                        com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
-                result.put("user_id", iga.get("id").asText());
-                result.put("username", iga.path("username").asText(""));
-                result.put("name", iga.path("name").asText(iga.path("username").asText("")));
-                result.put("profile_picture_url", iga.path("profile_picture_url").asText(""));
-                if (iga.has("followers_count")) {
-                    result.put("followers_count", iga.get("followers_count").asInt());
-                }
-                if (iga.has("account_type")) {
-                    result.put("account_type", iga.get("account_type").asText());
-                }
-                result.put("page_id", page.get("id").asText());
-                result.put("page_access_token", page.get("access_token").asText());
-                return result;
-            }
-        }
-        throw new IgConnectionException("NO_IG_ON_PAGE",
-                "선택한 Facebook 페이지에 Instagram 비즈니스 계정이 연결돼있지 않습니다.");
-    }
-
-    /**
-     * /me/accounts 결과에서 IG 자산이 연결된 모든 Page 정보 list 반환.
-     * <p>
-     * fetchInstagramProfile 과 달리 첫 번째 자산만 반환하지 않고 list 전체 반환.
-     * 매니챗처럼 사용자가 어떤 IG 계정 연결할지 선택할 수 있게 frontend 자산
-     * 선택 UI 에서 사용.
-     *
-     * @param userToken Facebook User Access Token
-     * @return 각 IG 자산의 정보 (user_id, username, name, profile_picture_url,
-     *                          followers_count, page_id, page_access_token) list
-     */
-    private java.util.List<JsonNode> fetchInstagramAssets(String userToken) {
-        String url = "https://graph.facebook.com/v25.0/me/accounts"
-                + "?fields=id,name,access_token,instagram_business_account%7Bid,username,name,profile_picture_url,followers_count%7D"
-                + "&access_token=" + urlEncode(userToken);
-        JsonNode accounts = restTemplate.getForObject(java.net.URI.create(url), JsonNode.class);
-        // 진단: /me/accounts raw 응답 — 어떤 Page 가 사용자 권한에 들어오는지 확인.
-        // 다중 IG 자산이 비즈니스 포트폴리오에 등록돼있어도 /me/accounts 는 Facebook Page
-        // 와 연결된 자산만 반환. Page 미연결 IG account 는 누락됨.
-        log.info("/me/accounts 응답 (raw): {}", accounts);
-        java.util.List<JsonNode> assets = new java.util.ArrayList<>();
-        if (accounts == null || !accounts.has("data")) return assets;
-        for (JsonNode page : accounts.get("data")) {
-            JsonNode iga = page.get("instagram_business_account");
-            if (iga != null && !iga.isNull() && iga.has("id")) {
-                com.fasterxml.jackson.databind.node.ObjectNode result =
-                        com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
-                result.put("user_id", iga.get("id").asText());
-                result.put("username", iga.path("username").asText(""));
-                result.put("name", iga.path("name").asText(iga.path("username").asText("")));
-                result.put("profile_picture_url", iga.path("profile_picture_url").asText(""));
-                if (iga.has("followers_count")) {
-                    result.put("followers_count", iga.get("followers_count").asInt());
-                }
-                result.put("page_id", page.get("id").asText());
-                result.put("page_access_token", page.get("access_token").asText());
-                assets.add(result);
-            }
-        }
-        return assets;
-    }
-
-    /** 호환 placeholder — 더 이상 사용 안 함 (graph.instagram.com endpoint). */
-    @SuppressWarnings("unused")
-    private JsonNode fetchInstagramProfileLegacy(String accessToken) {
-        String url = "https://graph.facebook.com/v25.0/me"
+    private JsonNode fetchInstagramProfile(String accessToken) {
+        String url = "https://graph.instagram.com/v25.0/me"
                 + "?fields=user_id,username,name,profile_picture_url,followers_count,account_type"
                 + "&access_token=" + accessToken;
         return restTemplate.getForObject(url, JsonNode.class);

@@ -32,7 +32,6 @@ const LegalPage = lazy(() => import('./pages/LegalPage'))
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'))
 const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'))
 const OnboardingEmailPage = lazy(() => import('./pages/OnboardingEmailPage'))
-const SelectIgAccountPage = lazy(() => import('./pages/SelectIgAccountPage'))
 const InquiryPage = lazy(() => import('./pages/InquiryPage'))
 const GuidePage = lazy(() => import('./pages/GuidePage'))
 const FAQPage = lazy(() => import('./pages/FAQPage'))
@@ -55,7 +54,6 @@ export default function App() {
       <Route path="/billing/success" element={<RequireAuth><Suspense fallback={<PageLoader />}><BillingSuccessPage /></Suspense></RequireAuth>} />
       <Route path="/billing/fail" element={<RequireAuth><Suspense fallback={<PageLoader />}><BillingFailPage /></Suspense></RequireAuth>} />
       <Route path="/app/onboarding" element={<RequireAuth><Suspense fallback={<PageLoader />}><OnboardingPage /></Suspense></RequireAuth>} />
-      <Route path="/app/instagram/select" element={<RequireAuth><Suspense fallback={<PageLoader />}><SelectIgAccountPage /></Suspense></RequireAuth>} />
       <Route path="/app" element={<RequireAuth><DashboardLayout /></RequireAuth>}>
         <Route index element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />
         <Route path="flows" element={<Suspense fallback={<PageLoader />}><FlowsPage /></Suspense>} />

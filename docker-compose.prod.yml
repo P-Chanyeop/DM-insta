@@ -46,16 +46,11 @@ services:
       - ENCRYPTION_SECRET=${ENCRYPTION_SECRET}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
       - APP_BASE_URL=${APP_BASE_URL}
-      # ── Instagram API (Facebook Login for Business 패턴 — 매니챗 동일) ──
+      # ── Instagram API ──
       - INSTAGRAM_APP_ID=${INSTAGRAM_APP_ID:-}
       - INSTAGRAM_APP_SECRET=${INSTAGRAM_APP_SECRET:-}
       - INSTAGRAM_OAUTH_REDIRECT_URI=${INSTAGRAM_OAUTH_REDIRECT_URI:-}
       - INSTAGRAM_WEBHOOK_VERIFY_TOKEN=${INSTAGRAM_WEBHOOK_VERIFY_TOKEN:-}
-      # Meta App Dashboard 의 "Facebook Login for Business" Configuration ID
-      # (권한 set 정의: instagram_basic, instagram_manage_comments,
-      #  instagram_manage_messages, business_management, pages_show_list,
-      #  pages_read_engagement)
-      - META_LOGIN_CONFIG_ID=${META_LOGIN_CONFIG_ID:-}
       # ── 토스페이먼츠 정기결제 (빌링키) — MID: bill_sendiomau ──
       - TOSS_CLIENT_KEY=${TOSS_CLIENT_KEY:-test_ck_4yKeq5bgrp56k0GoJ4Rx8GX0lzW6}
       - TOSS_SECRET_KEY=${TOSS_SECRET_KEY:-test_sk_kYG57Eba3GRnGEBvmlwE8pWDOxmA}
