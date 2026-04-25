@@ -579,38 +579,47 @@ public class InstagramApiService {
             log.error("댓글 답장 실패 — commentId={}, status={}, metaResponse={}",
                     commentId, e.getStatusCode(), responseBody);
 
-            // ─── 진단 1: 댓글이 토큰 시야에서 보이는지 GET 으로 확인 ───
-            //  (#100/subcode 33) 메시지는 1)존재안함 2)권한없음 3)지원안함 을 한 번에 던지므로
-            //  GET 한 번 더 때려서 어느 케이스인지 좁힌다.
-            //   - GET 200 → 댓글은 보임 → POST 만 거절 → 'manage_comments' scope grant 안 됐을 가능성
-            //   - GET 400 (#100/33) → 토큰이 이 댓글 자체를 못 봄 → 다른 계정 미디어이거나 mention 웹훅
-            //   - GET 200 + parent_id != null → 답글의 답글 → Meta 가 reply-to-reply 거절
+            // ─── 진단 1: 댓글 GET (단순 fields, URI 변수 충돌 회피) ───
+            //  RestTemplate 의 URI 템플릿 처리 때문에 fields 안의 {} 를 변수로 오인하므로
+            //  중첩 expansion (media{owner{...}}) 은 빼고 단순 필드만 본다.
+            //   - GET 200 → 토큰이 댓글을 볼 수 있음. POST 만 거절됐다면 scope/reply-to-reply 문제
+            //   - GET 400 (#100/33) → 토큰 자체가 이 댓글 시스템 ID 에 access 못 함
             try {
-                String getUrl = apiBaseUrl + "/v21.0/" + commentId
-                        + "?fields=id,text,parent_id,from,user,hidden,timestamp,media{id,owner{id,username},media_product_type}"
-                        + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8);
-                JsonNode commentInfo = restTemplate.getForObject(getUrl, JsonNode.class);
-                log.error("진단 1 — 댓글 GET 성공 → 토큰은 댓글을 볼 수 있음. POST 만 거절됨 (scope 또는 reply-to-reply 의심): "
-                        + "commentId={}, commentInfo={}", commentId, commentInfo);
+                java.net.URI getUri = java.net.URI.create(apiBaseUrl + "/v21.0/" + commentId
+                        + "?fields=id,text,parent_id,from,user,hidden,timestamp"
+                        + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
+                JsonNode commentInfo = restTemplate.getForObject(getUri, JsonNode.class);
+                log.error("진단 1 — 댓글 GET 성공: commentId={}, commentInfo={}", commentId, commentInfo);
             } catch (org.springframework.web.client.HttpStatusCodeException ge) {
-                log.error("진단 1 — 댓글 GET 도 실패 → 토큰이 이 댓글을 보지 못함 (다른 계정 미디어 / 삭제된 댓글 / mention 웹훅 가능성): "
-                        + "commentId={}, getStatus={}, getBody={}", commentId, ge.getStatusCode(), ge.getResponseBodyAsString());
+                log.error("진단 1 — 댓글 GET 실패: commentId={}, getStatus={}, getBody={}",
+                        commentId, ge.getStatusCode(), ge.getResponseBodyAsString());
             } catch (Exception ge) {
                 log.error("진단 1 — 댓글 GET 중 예외: commentId={}, error={}", commentId, ge.getMessage());
             }
 
-            // ─── 진단 2: 토큰의 진짜 owner 확인 (GET /me) ───
-            //  토큰이 우리가 OAuth 받은 IG 계정의 토큰이 맞는지, 다른 계정 토큰이 끼어든 건 아닌지 확인.
-            //  로그의 me.id 가 igAccount.igUserId 와 일치해야 정상.
-            //  불일치하면 토큰 저장/암복호화 또는 OAuth 콜백 라우팅에 버그가 있다는 강력한 신호.
+            // ─── 진단 2: 토큰의 진짜 owner (GET /me) ───
             try {
-                String meUrl = apiBaseUrl + "/v21.0/me?fields=id,username,account_type"
-                        + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8);
-                JsonNode meInfo = restTemplate.getForObject(meUrl, JsonNode.class);
+                java.net.URI meUri = java.net.URI.create(apiBaseUrl + "/v21.0/me?fields=id,username,account_type"
+                        + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
+                JsonNode meInfo = restTemplate.getForObject(meUri, JsonNode.class);
                 log.error("진단 2 — 토큰 owner: commentId={}, me={}", commentId, meInfo);
             } catch (Exception me) {
-                log.error("진단 2 — GET /me 실패 (토큰 자체가 무효일 가능성): commentId={}, error={}",
-                        commentId, me.getMessage());
+                log.error("진단 2 — GET /me 실패: commentId={}, error={}", commentId, me.getMessage());
+            }
+
+            // ─── 진단 3: 토큰으로 본인 미디어 ID 체계 확인 (GET /me/media) ───
+            //  토큰이 IG Login(IGUAT) 시스템이라면 me.id 가 26413... (IG User ID) 으로 나오는데
+            //  webhook 이 17841... (IG Business Account ID) 시스템 객체를 보내면 두 시스템이
+            //  격리돼 access 거부될 수 있다. /me/media 응답의 media id 가 어떤 형식인지 보면
+            //  토큰 시스템에서 보는 ID prefix 를 알 수 있다.
+            try {
+                java.net.URI mediaUri = java.net.URI.create(apiBaseUrl + "/v21.0/me/media?fields=id,permalink&limit=3"
+                        + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
+                JsonNode mediaInfo = restTemplate.getForObject(mediaUri, JsonNode.class);
+                log.error("진단 3 — /me/media (토큰 시야의 미디어 ID 형식 확인): commentId={}, media={}",
+                        commentId, mediaInfo);
+            } catch (Exception ex) {
+                log.error("진단 3 — /me/media 실패: commentId={}, error={}", commentId, ex.getMessage());
             }
 
             throw new RuntimeException("댓글 답장 실패: " + responseBody, e);
