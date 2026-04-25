@@ -421,12 +421,16 @@ public class InstagramOAuthController {
      * @return token JSON
      */
     private JsonNode exchangeCodeForToken(String code) {
-        String url = "https://graph.facebook.com/v25.0/oauth/access_token"
+        // RestTemplate.getForObject(String, ...) 는 URL 을 URI Template 로 처리해서 이미 encoded 된
+        // 문자 (% 포함) 를 또 encoding 한다 (% → %25). Facebook 이 이를 decode 시
+        // "redirect_uri isn't an absolute URI" 로 거부 (code 191).
+        // URI.create() 로 명시적 URI 객체를 만들어 전달하면 추가 encoding 우회.
+        java.net.URI uri = java.net.URI.create("https://graph.facebook.com/v25.0/oauth/access_token"
                 + "?client_id=" + urlEncode(appId)
                 + "&client_secret=" + urlEncode(appSecret)
                 + "&redirect_uri=" + urlEncode(redirectUri)
-                + "&code=" + urlEncode(code);
-        return restTemplate.getForObject(url, JsonNode.class);
+                + "&code=" + urlEncode(code));
+        return restTemplate.getForObject(uri, JsonNode.class);
     }
 
     /**
@@ -447,10 +451,12 @@ public class InstagramOAuthController {
      * @throws IgConnectionException IG 연결된 Page 가 없거나 Meta API 호출 실패 시
      */
     private JsonNode fetchInstagramProfile(String userToken) {
-        String url = "https://graph.facebook.com/v25.0/me/accounts"
-                + "?fields=id,name,access_token,instagram_business_account{id,username,name,profile_picture_url,followers_count,account_type}"
-                + "&access_token=" + urlEncode(userToken);
-        JsonNode accounts = restTemplate.getForObject(url, JsonNode.class);
+        // URI.create() 사용 — fields 값에 {} 가 포함돼있어 RestTemplate 의 URI Template
+        // 처리가 잘못 해석할 수 있으므로 명시적 URI 객체로 변환.
+        java.net.URI uri = java.net.URI.create("https://graph.facebook.com/v25.0/me/accounts"
+                + "?fields=id,name,access_token,instagram_business_account%7Bid,username,name,profile_picture_url,followers_count,account_type%7D"
+                + "&access_token=" + urlEncode(userToken));
+        JsonNode accounts = restTemplate.getForObject(uri, JsonNode.class);
         if (accounts == null || !accounts.has("data") || accounts.get("data").size() == 0) {
             throw new IgConnectionException("NO_FB_PAGE",
                     "연결된 Facebook 페이지가 없습니다. 먼저 Instagram 비즈니스 계정과 Facebook 페이지를 연결해주세요.");

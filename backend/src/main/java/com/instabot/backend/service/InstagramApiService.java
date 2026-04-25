@@ -59,13 +59,16 @@ public class InstagramApiService {
      * @return long-lived Facebook User Token
      */
     public String exchangeLongLivedToken(String shortLivedToken) {
-        String url = "https://graph.facebook.com/v25.0/oauth/access_token"
+        // URI.create() 사용 — RestTemplate 의 String URL double-encoding 우회
+        // (exchangeCodeForToken 과 동일 이유).
+        java.net.URI uri = java.net.URI.create("https://graph.facebook.com/v25.0/oauth/access_token"
                 + "?grant_type=fb_exchange_token"
                 + "&client_id=" + appId
                 + "&client_secret=" + appSecret
-                + "&fb_exchange_token=" + shortLivedToken;
+                + "&fb_exchange_token=" + java.net.URLEncoder.encode(
+                        shortLivedToken, java.nio.charset.StandardCharsets.UTF_8));
 
-        ResponseEntity<JsonNode> resp = restTemplate.getForEntity(url, JsonNode.class);
+        ResponseEntity<JsonNode> resp = restTemplate.getForEntity(uri, JsonNode.class);
         return resp.getBody().get("access_token").asText();
     }
 
