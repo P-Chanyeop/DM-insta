@@ -632,6 +632,23 @@ public class InstagramApiService {
                 log.error("진단 2 — GET /me 실패: commentId={}, error={}", commentId, me.getMessage());
             }
 
+            // ─── 진단 5: 토큰에 실제 grant 된 permission scope 확인 ───
+            //  OAuth URL 에 manage_comments 를 요청해도, 사용자가 동의 화면에서 토글 OFF 했거나
+            //  Meta 가 grant 안 해주면 토큰 scope 에 없을 수 있음.
+            //  4/23 에는 됐고 4/25 fresh OAuth 후 안 되는 게 사용자 지적이라 토큰 scope 가
+            //  변경됐는지 직접 확인이 결정적.
+            try {
+                java.net.URI permUri = java.net.URI.create(apiBaseUrl + "/v21.0/me/permissions"
+                        + "?access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
+                JsonNode permInfo = restTemplate.getForObject(permUri, JsonNode.class);
+                log.error("진단 5 — 토큰 grant scope: commentId={}, permissions={}", commentId, permInfo);
+            } catch (org.springframework.web.client.HttpStatusCodeException pe) {
+                log.error("진단 5 — /me/permissions 실패: commentId={}, status={}, body={}",
+                        commentId, pe.getStatusCode(), pe.getResponseBodyAsString());
+            } catch (Exception pe) {
+                log.error("진단 5 — /me/permissions 중 예외: commentId={}, error={}", commentId, pe.getMessage());
+            }
+
             // ─── 진단 3: 토큰으로 본인 미디어 list 확인 (GET /me/media) ───
             try {
                 java.net.URI mediaUri = java.net.URI.create(apiBaseUrl + "/v21.0/me/media?fields=id,permalink&limit=10"
