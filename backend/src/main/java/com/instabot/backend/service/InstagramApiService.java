@@ -632,21 +632,54 @@ public class InstagramApiService {
                 log.error("진단 2 — GET /me 실패: commentId={}, error={}", commentId, me.getMessage());
             }
 
-            // ─── 진단 5: 토큰에 실제 grant 된 permission scope 확인 ───
-            //  OAuth URL 에 manage_comments 를 요청해도, 사용자가 동의 화면에서 토글 OFF 했거나
-            //  Meta 가 grant 안 해주면 토큰 scope 에 없을 수 있음.
-            //  4/23 에는 됐고 4/25 fresh OAuth 후 안 되는 게 사용자 지적이라 토큰 scope 가
-            //  변경됐는지 직접 확인이 결정적.
+            // ─── 진단 5: graph.instagram.com 의 /me/permissions ───
+            //  IG Graph 에는 /me/permissions endpoint 가 없어서 'nonexisting field' 에러로 떨어짐 (확인됨).
+            //  이건 IG Login(IGUAT) 시스템이 Facebook Graph 와 권한 모델이 완전히 다른 시스템이라는 단서.
             try {
                 java.net.URI permUri = java.net.URI.create(apiBaseUrl + "/v21.0/me/permissions"
                         + "?access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
                 JsonNode permInfo = restTemplate.getForObject(permUri, JsonNode.class);
-                log.error("진단 5 — 토큰 grant scope: commentId={}, permissions={}", commentId, permInfo);
+                log.error("진단 5 — IG Graph 의 토큰 scope: commentId={}, permissions={}", commentId, permInfo);
             } catch (org.springframework.web.client.HttpStatusCodeException pe) {
-                log.error("진단 5 — /me/permissions 실패: commentId={}, status={}, body={}",
+                log.error("진단 5 — IG Graph /me/permissions 실패 (예상: nonexisting field): commentId={}, status={}, body={}",
                         commentId, pe.getStatusCode(), pe.getResponseBodyAsString());
             } catch (Exception pe) {
-                log.error("진단 5 — /me/permissions 중 예외: commentId={}, error={}", commentId, pe.getMessage());
+                log.error("진단 5 — IG Graph /me/permissions 중 예외: commentId={}, error={}", commentId, pe.getMessage());
+            }
+
+            // ─── 진단 6: graph.facebook.com 으로 commentId / permissions 시도 ───
+            //  4/23 에 댓글 답장이 됐던 시점 토큰은 옛날 Facebook Login(Page Token) 일 가능성이 높음.
+            //  4/25 fresh OAuth 후 토큰이 IGUAT 로 바뀌면서 회귀.
+            //   - graph.facebook.com 의 /{commentId} 가 200 → commentId 는 FB Graph 시스템 ID
+            //     → IG Graph 로는 access 불가. 답장도 graph.facebook.com 으로 보내야 함.
+            //   - graph.facebook.com 의 /me/permissions 가 200 → 토큰이 Page Token 호환 (놀라움)
+            //   - 둘 다 401/IGUAT-mismatch → IGUAT 로 댓글 답장 endpoint 자체가 아예 미지원
+            String fbBase = "https://graph.facebook.com";
+            try {
+                java.net.URI fbCommentUri = java.net.URI.create(fbBase + "/v21.0/" + commentId
+                        + "?fields=id,text,from,parent_id,hidden"
+                        + "&access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
+                JsonNode fbCommentInfo = restTemplate.getForObject(fbCommentUri, JsonNode.class);
+                log.error("진단 6a — FB Graph 의 댓글 GET 성공 → commentId 는 FB 시스템: commentId={}, info={}",
+                        commentId, fbCommentInfo);
+            } catch (org.springframework.web.client.HttpStatusCodeException fe) {
+                log.error("진단 6a — FB Graph 의 댓글 GET 실패: commentId={}, status={}, body={}",
+                        commentId, fe.getStatusCode(), fe.getResponseBodyAsString());
+            } catch (Exception fe) {
+                log.error("진단 6a — FB Graph 댓글 GET 예외: commentId={}, error={}", commentId, fe.getMessage());
+            }
+
+            try {
+                java.net.URI fbPermUri = java.net.URI.create(fbBase + "/v21.0/me/permissions"
+                        + "?access_token=" + java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8));
+                JsonNode fbPermInfo = restTemplate.getForObject(fbPermUri, JsonNode.class);
+                log.error("진단 6b — FB Graph 의 토큰 scope: commentId={}, permissions={}",
+                        commentId, fbPermInfo);
+            } catch (org.springframework.web.client.HttpStatusCodeException fe) {
+                log.error("진단 6b — FB Graph /me/permissions 실패: commentId={}, status={}, body={}",
+                        commentId, fe.getStatusCode(), fe.getResponseBodyAsString());
+            } catch (Exception fe) {
+                log.error("진단 6b — FB Graph /me/permissions 예외: commentId={}, error={}", commentId, fe.getMessage());
             }
 
             // ─── 진단 3: 토큰으로 본인 미디어 list 확인 (GET /me/media) ───
