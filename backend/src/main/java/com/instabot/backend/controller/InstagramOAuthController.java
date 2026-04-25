@@ -151,13 +151,14 @@ public class InstagramOAuthController {
         }
 
         try {
-            // Instagram 토큰 교환 (short-lived)
+            // Facebook OAuth 코드 → 단기 User Token 교환.
+            // Facebook Login for Business 의 응답은 {"access_token", "token_type", "expires_in"} 만 포함.
+            // user_id 필드 없음 — IG account ID 는 후속 fetchInstagramProfile (/me/accounts) 에서 추출.
             JsonNode tokenResponse = exchangeCodeForToken(code);
             String shortLivedToken = tokenResponse.get("access_token").asText();
-            String igUserId = String.valueOf(tokenResponse.get("user_id").asLong());
 
             if ("signup".equals(state)) {
-                return handleSignupFlow(shortLivedToken, igUserId);
+                return handleSignupFlow(shortLivedToken, null);
             }
 
             Long userId = parseUserIdFromState(state);
@@ -166,7 +167,7 @@ public class InstagramOAuthController {
                 log.error("OAuth 콜백: 유저를 찾을 수 없음. state={}", state);
                 return redirectAfterOAuth(state, null, "ig_error=user_not_found");
             }
-            return handleConnectFlow(user, shortLivedToken, igUserId);
+            return handleConnectFlow(user, shortLivedToken, null);
 
         } catch (Exception e) {
             log.error("OAuth 콜백 처리 실패: {}", e.getMessage(), e);
