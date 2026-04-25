@@ -52,35 +52,70 @@ public class MessageNodeExecutor implements NodeExecutor {
     }
 
     /**
-     * 오프닝 DM — 버튼이 있으면 QuickReply + postback 대기
+     * 오프닝 DM ({@code role="opening"}) 실행 — 트리거 종류로 발송 엔드포인트 분기.
+     * <p>
+     * 댓글 트리거(ctx.commentId 존재) 는 사용자가 아직 봇에 DM 을 보낸 적이 없어서
+     * 24h messaging window 가 닫혀 있음. 일반 sendTextMessage 로 쏘면 Meta 가 조용히
+     * 거절하니 반드시 Private Reply (recipient.comment_id) 로 첫 메시지를 보내야 함.
+     * V1 {@code FlowExecutionService.executeOpeningDm} 과 동일한 4분기 구조로 맞춤.
+     *
+     * @param ctx  실행 컨텍스트 — botIgId / senderIgId / commentId / accessToken / flow.
+     * @param node 현재 노드 — postback payload 인코딩에 nodeId 사용.
+     * @param data 노드 설정 — {@code { message, buttonText }}.
+     * @return 버튼 있으면 {@code await(AWAITING_POSTBACK)}, 아니면 {@code ok()}. 메시지가 비면 {@code ok()}.
      */
     private NodeExecResult executeOpeningDm(FlowContext ctx, FlowNode node, JsonNode data) {
         String message = utils.replaceVariables(data.path("message").asText(""), ctx);
         String buttonText = data.path("buttonText").asText("");
         if (message.isBlank()) return NodeExecResult.ok();
 
+        String botIgId = ctx.getBotIgId();
+        String senderIgId = ctx.getSenderIgId();
+        String accessToken = ctx.getAccessToken();
+        String commentId = ctx.getCommentId();
+        boolean hasComment = commentId != null && !commentId.isBlank();
+        boolean hasButton = !buttonText.isBlank();
+
         try {
-            if (!buttonText.isBlank()) {
-                // 병렬 플로우 라우팅을 위해 flowId + nodeId 를 payload 에 인코딩.
+            if (hasComment && hasButton) {
                 String payload = PostbackPayload.encode(
                         ctx.getFlow().getId(), node.getId(), PostbackPayload.Action.OPENING);
-                // Generic Template(카드 안 postback 버튼) 로 발송 — 댓글 트리거 경로와 UI 통일,
-                // 클릭 시 postback 이벤트로 깔끔히 들어옴.
-                instagramApiService.sendGenericTemplateWithPostback(
-                        ctx.getBotIgId(), ctx.getSenderIgId(), message,
-                        buttonText, payload, ctx.getAccessToken());
+                instagramApiService.sendPrivateReplyWithPostbackButton(
+                        botIgId, commentId, message, buttonText, payload, accessToken);
                 conversationService.saveOutboundMessage(
-                        ctx.getIgAccount().getUser(), ctx.getSenderIgId(), message, true, ctx.getFlow().getName());
-                // 버튼이 있으면 postback 대기
+                        ctx.getIgAccount().getUser(), senderIgId, message, true, ctx.getFlow().getName());
+                log.info("오프닝 DM(private reply + button) 발송: flowId={}, commentId={}",
+                        ctx.getFlow().getId(), commentId);
                 return NodeExecResult.await(PendingStep.AWAITING_POSTBACK);
-            } else {
-                instagramApiService.sendTextMessage(
-                        ctx.getBotIgId(), ctx.getSenderIgId(), message, ctx.getAccessToken());
             }
+
+            if (hasComment) {
+                instagramApiService.sendPrivateReplyToComment(botIgId, commentId, message, accessToken);
+                conversationService.saveOutboundMessage(
+                        ctx.getIgAccount().getUser(), senderIgId, message, true, ctx.getFlow().getName());
+                log.info("오프닝 DM(private reply) 발송: flowId={}, commentId={}",
+                        ctx.getFlow().getId(), commentId);
+                return NodeExecResult.ok();
+            }
+
+            if (hasButton) {
+                String payload = PostbackPayload.encode(
+                        ctx.getFlow().getId(), node.getId(), PostbackPayload.Action.OPENING);
+                instagramApiService.sendGenericTemplateWithPostback(
+                        botIgId, senderIgId, message, buttonText, payload, accessToken);
+                conversationService.saveOutboundMessage(
+                        ctx.getIgAccount().getUser(), senderIgId, message, true, ctx.getFlow().getName());
+                log.info("오프닝 DM(generic template + button) 발송: flowId={}", ctx.getFlow().getId());
+                return NodeExecResult.await(PendingStep.AWAITING_POSTBACK);
+            }
+
+            instagramApiService.sendTextMessage(botIgId, senderIgId, message, accessToken);
             conversationService.saveOutboundMessage(
-                    ctx.getIgAccount().getUser(), ctx.getSenderIgId(), message, true, ctx.getFlow().getName());
+                    ctx.getIgAccount().getUser(), senderIgId, message, true, ctx.getFlow().getName());
+            log.info("오프닝 DM(text) 발송: flowId={}", ctx.getFlow().getId());
         } catch (Exception e) {
-            log.error("오프닝 DM 발송 실패: {}", e.getMessage());
+            log.error("오프닝 DM 발송 실패: flowId={}, hasComment={}, hasButton={}, error={}",
+                    ctx.getFlow().getId(), hasComment, hasButton, e.getMessage());
         }
         return NodeExecResult.ok();
     }
